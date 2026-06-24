@@ -267,7 +267,7 @@
         <div class="stat-box p-2"><div class="text-[11px]">最大 HP</div><input v-model.number="c.hp.max" :disabled="locked" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
         <div class="stat-box p-2"><div class="text-[11px]">暫時 HP</div><input v-model.number="c.hp.temp" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
       </div>
-      <div class="no-print mt-2 p-2 stat-box" :class="{'opacity-95': mode==='play'}">
+      <div v-show="mode==='play'" class="no-print mt-2 p-2 stat-box" :class="{'opacity-95': mode==='play'}">
         <div class="text-[11px] mb-1 font-bold">⚡ HP 快捷調整</div>
         <div class="flex gap-2 items-center">
           <input v-model.number="hpDelta" type="number" min="1" class="w-16 text-center font-bold num py-1" title="調整量">
@@ -504,7 +504,7 @@
         </template>
       </div>
     </div>
-    <div class="card p-3 mb-3">
+    <div v-show="mode==='setup'" class="card p-3 mb-3">
       <div class="flex justify-between items-center mb-2 gap-2">
         <h2 class="text-sm font-bold title-deco">🔎 法術搜尋</h2>
         <span class="text-[11px]" style="color:var(--ink-soft)">{{ dataState.spells.length || 0 }} 筆</span>
