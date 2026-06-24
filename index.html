@@ -375,8 +375,15 @@
         <span v-if="c.profArmor.length===0" class="text-[11px]" style="color:var(--ink-soft)">無</span>
         <span v-for="(p,i) in c.profArmor" :key="'ar'+i" class="chip">{{ safeText(p) }}<button v-show="!locked" class="ml-1" style="color:var(--accent-strong)" @click="removeProf('profArmor',i)">✕</button></span>
       </div>
+      <div v-show="!locked" class="flex flex-wrap gap-1 mb-1">
+        <select v-model="armorPick" :disabled="locked" class="flex-1 px-2 py-1 text-xs" style="min-width:9rem">
+          <option value="">選擇…</option>
+          <option v-for="o in ARMOR_OPTIONS" :key="o" :value="o">{{ o }}</option>
+        </select>
+        <button class="btn-ghost btn px-2 py-1 text-xs" :disabled="locked" @click="addProfFromPick('profArmor', armorPick); armorPick=''">＋加入</button>
+      </div>
       <div v-show="!locked" class="flex gap-1 mb-3">
-        <input v-model="newArmor" type="text" class="flex-1 px-2 py-1 text-xs" placeholder="例：輕甲、中甲、盾" @keyup.enter="addProf('profArmor',newArmor)">
+        <input v-model="newArmor" type="text" class="flex-1 px-2 py-1 text-xs" placeholder="＋自訂護甲" @keyup.enter="addProf('profArmor',newArmor)">
         <button class="btn-ghost btn px-2 py-1 text-xs" @click="addProf('profArmor',newArmor)">加入</button>
       </div>
 
@@ -386,8 +393,15 @@
         <span v-if="c.profWeapon.length===0" class="text-[11px]" style="color:var(--ink-soft)">無</span>
         <span v-for="(p,i) in c.profWeapon" :key="'wp'+i" class="chip">{{ safeText(p) }}<button v-show="!locked" class="ml-1" style="color:var(--accent-strong)" @click="removeProf('profWeapon',i)">✕</button></span>
       </div>
+      <div v-show="!locked" class="flex flex-wrap gap-1 mb-1">
+        <select v-model="weaponPick" :disabled="locked" class="flex-1 px-2 py-1 text-xs" style="min-width:9rem">
+          <option value="">選擇…</option>
+          <option v-for="o in WEAPON_OPTIONS" :key="o" :value="o">{{ o }}</option>
+        </select>
+        <button class="btn-ghost btn px-2 py-1 text-xs" :disabled="locked" @click="addProfFromPick('profWeapon', weaponPick); weaponPick=''">＋加入</button>
+      </div>
       <div v-show="!locked" class="flex gap-1 mb-3">
-        <input v-model="newWeapon" type="text" class="flex-1 px-2 py-1 text-xs" placeholder="例：簡易武器、軍用武器" @keyup.enter="addProf('profWeapon',newWeapon)">
+        <input v-model="newWeapon" type="text" class="flex-1 px-2 py-1 text-xs" placeholder="＋自訂武器" @keyup.enter="addProf('profWeapon',newWeapon)">
         <button class="btn-ghost btn px-2 py-1 text-xs" @click="addProf('profWeapon',newWeapon)">加入</button>
       </div>
 
@@ -397,8 +411,15 @@
         <span v-if="c.profTool.length===0" class="text-[11px]" style="color:var(--ink-soft)">無</span>
         <span v-for="(p,i) in c.profTool" :key="'tl'+i" class="chip">{{ safeText(p) }}<button v-show="!locked" class="ml-1" style="color:var(--accent-strong)" @click="removeProf('profTool',i)">✕</button></span>
       </div>
+      <div v-show="!locked" class="flex flex-wrap gap-1 mb-1">
+        <select v-model="toolPick" :disabled="locked" class="flex-1 px-2 py-1 text-xs" style="min-width:9rem">
+          <option value="">選擇…</option>
+          <option v-for="o in TOOL_OPTIONS" :key="o" :value="o">{{ o }}</option>
+        </select>
+        <button class="btn-ghost btn px-2 py-1 text-xs" :disabled="locked" @click="addProfFromPick('profTool', toolPick); toolPick=''">＋加入</button>
+      </div>
       <div v-show="!locked" class="flex gap-1">
-        <input v-model="newTool" type="text" class="flex-1 px-2 py-1 text-xs" placeholder="例：盜賊工具、魯特琴" @keyup.enter="addProf('profTool',newTool)">
+        <input v-model="newTool" type="text" class="flex-1 px-2 py-1 text-xs" placeholder="＋自訂工具" @keyup.enter="addProf('profTool',newTool)">
         <button class="btn-ghost btn px-2 py-1 text-xs" @click="addProf('profTool',newTool)">加入</button>
       </div>
       <p class="text-[10px] mt-2" style="color:var(--ink-soft)">豁免熟練勾選後會自動加入豁免加值（與「職業」頁豁免設定同步，不重複計算）。</p>
@@ -871,6 +892,11 @@ const COMMON_LANGUAGES = [
   "通用語","矮人語","精靈語","巨人語","地侏語","半身人語","獸人語","龍語",
   "地下通用語","炼狱語","天界語","深潛語","原始語","德魯伊語","盜賊黑話"
 ];
+
+/* ===== 常見熟練選項（護甲／武器／工具；快捷選單，可另外自訂） ===== */
+const ARMOR_OPTIONS = ["輕甲","中甲","重甲","盾牌"];
+const WEAPON_OPTIONS = ["簡易武器","軍用武器","匕首","飛鏢","投石索","木棒","巨棒","手斧","標槍","輕錘","錘矛","長棍","鐮刀","矛","長劍","短劍","彎刀","戰錘","巨劍","巨斧","長柄大鐮","戰斧","西洋劍","三叉戟","戰鎬","長矛","短弓","長弓","輕弩","重弩","手弩","吹箭槍","網"];
+const TOOL_OPTIONS = ["盜賊工具","煉金術士工具","釀造工具","書法工具","製圖工具","木工工具","烹飪工具","玻璃吹製工具","珠寶匠工具","皮匠工具","泥水匠工具","畫家工具","陶匠工具","補鞋匠工具","鐵匠工具","織補工具","木雕工具","易容工具","偽造工具","草藥工具","領航工具","毒師工具","樂器","骰子組","紙牌組","象棋組","陸上載具","水上載具"];
 
 /* ===== 種族（含 2014 PHB 標準 ASI 建議） ===== */
 const RACES = [
@@ -1363,6 +1389,9 @@ const app = createApp({
     const newArmor = ref("");
     const newWeapon = ref("");
     const newTool = ref("");
+    const armorPick = ref("");
+    const weaponPick = ref("");
+    const toolPick = ref("");
     function ensureLangArr(){ if(!Array.isArray(c.languages)) c.languages = []; }
     function addLanguage(name){
       ensureLangArr();
@@ -1381,6 +1410,12 @@ const app = createApp({
       valueRef.value = "";
     }
     function removeProf(listKey, i){ if(Array.isArray(c[listKey])) c[listKey].splice(i, 1); }
+    function addProfFromPick(listKey, value){
+      if(!Array.isArray(c[listKey])) c[listKey] = [];
+      const v = String(value || "").trim();
+      if(!v) return;
+      if(!c[listKey].some(x => String(x).trim() === v)) c[listKey].push(v);
+    }
     const languagesText = computed(() => safeText(c.languages));
     const profArmorText = computed(() => safeText(c.profArmor));
     const profWeaponText = computed(() => safeText(c.profWeapon));
@@ -1834,8 +1869,10 @@ const app = createApp({
       safeText, doPrint, printClasses, printRace, printSize, printSpells, printSlots, printSkillRows,
       showSlots, editSlots, spellSlotSummary,
       CONDITIONS, activeConditions, printConditionsLine,
-      COMMON_LANGUAGES, langPick, newLang, newArmor, newWeapon, newTool,
-      addLanguage, addLanguageFromPick, addCustomLanguage, removeLanguage, addProf, removeProf,
+      COMMON_LANGUAGES, ARMOR_OPTIONS, WEAPON_OPTIONS, TOOL_OPTIONS,
+      langPick, newLang, newArmor, newWeapon, newTool,
+      armorPick, weaponPick, toolPick,
+      addLanguage, addLanguageFromPick, addCustomLanguage, removeLanguage, addProf, addProfFromPick, removeProf,
       languagesText, profArmorText, profWeaponText, profToolText, profSavesText, proficienciesSummary
     };
   }
