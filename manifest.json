@@ -1,7 +1,7 @@
 {
-  "name": "羊皮卷 · D&D 5E 角色暫存",
-  "short_name": "羊皮卷",
-  "description": "D&D 5E 角色狀態暫存 PWA，支援多職業、技能、法術書與背包。",
+  "name": "冒險者之書（5E）",
+  "short_name": "冒險者之書",
+  "description": "冒險者之書（5E）— D&D 5E 風格角色卡 PWA，支援多職業、技能、法術書與背包。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

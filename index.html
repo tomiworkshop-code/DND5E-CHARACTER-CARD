@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#7c5a3a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>羊皮卷 · D&D 5E 角色暫存</title>
+<title>冒險者之書（5E）</title>
 <link rel="manifest" href="./manifest.json">
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -106,15 +106,15 @@
 <div id="app" class="max-w-md mx-auto px-3 pt-3 pb-24">
   <!-- 標題 -->
   <header class="text-center mb-3">
-    <h1 class="text-2xl font-bold title-deco">📜 羊皮卷</h1>
-    <p class="text-xs" style="color:var(--ink-soft)">D&amp;D 5E 角色狀態暫存</p>
+    <h1 class="text-2xl font-bold title-deco">📜 冒險者之書</h1>
+    <p class="text-xs" style="color:var(--ink-soft)">Adventurer's Tome · 5E</p>
   </header>
 
   <!-- ===== 關於 / 鳴謝 彈窗（列印隱藏） ===== -->
   <div v-if="showCreditModal" class="credit-overlay no-print" @click.self="showCreditModal=false">
     <div class="credit-modal card" role="dialog" aria-modal="true" aria-label="關於">
       <button class="credit-close btn-ghost btn" @click="showCreditModal=false" title="關閉" aria-label="關閉">✕</button>
-      <h2 class="text-base font-bold title-deco mb-3 pr-6">📜 羊皮卷 · D&amp;D 5E 角色暫存 (PWA)</h2>
+      <h2 class="text-base font-bold title-deco mb-3 pr-6">📜 冒險者之書（5E）(PWA)</h2>
       <div class="credit-sec">
         <div class="credit-h">💡 功能許願 / 意見回饋</div>
         <p>加我 Line：<span class="credit-code">tomilam</span></p>
@@ -700,7 +700,7 @@
   <!-- ===== 專屬列印版面（螢幕隱藏，僅 @media print 顯示）：一次呈現目前角色全部資訊 ===== -->
   <div class="print-sheet">
     <h1>{{ safeText(c.name) || '（未命名角色）' }}</h1>
-    <p class="ps-sub ps-muted">羊皮卷 D&amp;D 5E · 角色列印版</p>
+    <p class="ps-sub ps-muted">冒險者之書（5E）· 角色列印版</p>
 
     <div class="ps-section">
       <h2>基本資訊</h2>
