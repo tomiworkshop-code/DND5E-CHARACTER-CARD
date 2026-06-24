@@ -1,0 +1,1849 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#7c5a3a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>羊皮卷 · D&D 5E 角色暫存</title>
+<link rel="manifest" href="./manifest.json">
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --ink:#3b2a1a; --ink-soft:#6b5034; --gold:#7c5a3a; --gold-deep:#5a3d22;
+    --paper:#f3e9d2; --paper-2:#e9dab6; --line:#caa96f; --accent:#8a5a2b;
+  }
+  *{ -webkit-tap-highlight-color: transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family: "Noto Serif TC","Songti TC","STKaiti",serif;
+    color: var(--ink);
+    background-color: var(--paper);
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(255,248,225,.65), transparent 55%),
+      radial-gradient(ellipse at 85% 100%, rgba(120,85,45,.18), transparent 55%),
+      repeating-linear-gradient(0deg, rgba(120,85,45,.025) 0 2px, transparent 2px 5px);
+    min-height: 100vh;
+  }
+  .card{
+    background: linear-gradient(180deg, rgba(255,252,240,.9), rgba(233,218,182,.78));
+    border:1px solid var(--line);
+    border-radius:14px;
+    box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 6px 14px -8px rgba(90,61,34,.5);
+  }
+  .title-deco{ letter-spacing:.06em; color:var(--gold-deep); }
+  .hr-ink{ height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); border:0; }
+  input,select,textarea{
+    background: rgba(255,253,247,.85);
+    border:1px solid var(--line);
+    border-radius:10px;
+    color: var(--ink);
+    outline:none;
+  }
+  input:focus,select:focus,textarea:focus{ border-color:var(--accent); box-shadow:0 0 0 2px rgba(138,90,43,.2); }
+  .btn{ border-radius:10px; border:1px solid var(--gold-deep); background:linear-gradient(180deg,#9a6a36,#7c5a3a); color:#fdf6e3; font-weight:600; }
+  .btn:active{ transform: translateY(1px); }
+  .btn-ghost{ background:transparent; color:var(--gold-deep); border:1px dashed var(--line); }
+  .btn-danger{ background:linear-gradient(180deg,#9c4a3a,#7e3a2c); border-color:#5e271d; color:#fdf0ea; }
+  .stat-box{ background:rgba(255,252,240,.7); border:1px solid var(--line); border-radius:12px; }
+  .cond-chip{ border-radius:10px; transition:all .12s; user-select:none; }
+  .cond-chip.cond-on{ background:linear-gradient(180deg,#9c4a3a,#7e3a2c); border-color:#5e271d; color:#fdf0ea; box-shadow:0 1px 4px rgba(124,58,44,.35); }
+  .cond-chip.cond-on .opacity-60{ opacity:.8; }
+  .bubble{ width:22px;height:22px;border-radius:50%;border:1.5px solid var(--gold-deep); display:inline-flex;align-items:center;justify-content:center; cursor:pointer; }
+  .bubble.on{ background:radial-gradient(circle at 35% 30%, #b07a3e, #5a3d22); box-shadow:0 0 6px rgba(138,90,43,.6) inset; }
+  .chip{ font-size:11px; padding:1px 7px; border-radius:999px; border:1px solid var(--line); color:var(--gold-deep); background:rgba(255,252,240,.6); }
+  .chip.able{ background:rgba(180,140,70,.18); border-color:var(--accent); }
+  .tabbar{ background:linear-gradient(180deg,#7c5a3a,#5a3d22); }
+  .tab{ color:#e9d8b3; font-size:12px; }
+  .tab.active{ color:#fff7e0; }
+  .num{ font-variant-numeric: tabular-nums; }
+  .mod-pos{ color:#3f6b3a; } .mod-neg{ color:#8a3a2c; }
+  textarea{ resize: vertical; }
+  ::-webkit-scrollbar{ width:8px;height:8px; } ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:8px; }
+
+  /* 關於 / 鳴謝 彈窗 */
+  .credit-overlay{ position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(40,28,14,.55); backdrop-filter:blur(2px); }
+  .credit-modal{ position:relative; width:100%; max-width:360px; max-height:85vh; overflow-y:auto; padding:18px 18px 16px; background:var(--paper, #fdf6e3); box-shadow:0 12px 40px rgba(0,0,0,.45); }
+  .credit-close{ position:absolute; top:8px; right:8px; padding:2px 8px; font-size:14px; line-height:1.2; }
+  .credit-sec{ margin-bottom:12px; font-size:13px; color:var(--ink); }
+  .credit-h{ font-weight:700; margin-bottom:3px; color:var(--gold-deep); }
+  .credit-sec ul{ margin:0; padding-left:18px; }
+  .credit-sec li{ margin:1px 0; }
+  .credit-code{ font-family:ui-monospace,Menlo,Consolas,monospace; background:rgba(180,140,70,.18); border:1px solid var(--line); border-radius:6px; padding:0 6px; }
+
+  /* 專屬列印版面：螢幕上隱藏，僅列印時顯示 */
+  .print-sheet{ display:none; }
+  @media print {
+    @page { margin: 12mm; }
+    html,body{ background:#fff !important; color:#000 !important; }
+    body{ background-image:none !important; font-family:"Noto Serif TC","Songti TC",serif; }
+    #app{ max-width:none !important; margin:0 !important; padding:0 !important; }
+    /* 隱藏所有互動 chrome（標題列、模式鈕、來源面板、分頁、搜尋、按鈕、flash、列印鈕本身…）：
+       只留下專屬列印版面 */
+    #app > *:not(.print-sheet){ display:none !important; }
+    .no-print{ display:none !important; }
+    .credit-overlay,.credit-modal{ display:none !important; }
+    .print-sheet{ display:block !important; color:#000; font-size:11px; line-height:1.5; }
+    .print-sheet h1{ font-size:19px; margin:0 0 2px; }
+    .print-sheet .ps-sub{ font-size:11px; margin:0 0 8px; }
+    .print-sheet h2{ font-size:13px; margin:10px 0 3px; border-bottom:1.5px solid #000; padding-bottom:2px; page-break-after:avoid; }
+    .print-sheet .ps-section{ page-break-inside:avoid; margin-bottom:7px; }
+    .print-sheet table{ width:100%; border-collapse:collapse; margin:2px 0; }
+    .print-sheet td,.print-sheet th{ border:1px solid #888; padding:2px 5px; text-align:left; font-size:10px; vertical-align:top; }
+    .print-sheet th{ background:#eee !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .print-sheet .ps-grid{ display:flex; flex-wrap:wrap; gap:3px 16px; }
+    .print-sheet .ps-grid > div{ white-space:nowrap; }
+    .print-sheet ul{ margin:2px 0; padding-left:18px; }
+    .print-sheet li{ margin:0 0 1px; }
+    .print-sheet .ps-muted{ color:#444; }
+    .print-sheet .ps-empty{ color:#666; font-style:italic; }
+  }
+</style>
+</head>
+<body>
+<div id="app" class="max-w-md mx-auto px-3 pt-3 pb-24">
+  <!-- 標題 -->
+  <header class="text-center mb-3">
+    <h1 class="text-2xl font-bold title-deco">📜 羊皮卷</h1>
+    <p class="text-xs" style="color:var(--ink-soft)">D&amp;D 5E 角色狀態暫存</p>
+  </header>
+
+  <!-- ===== 關於 / 鳴謝 彈窗（列印隱藏） ===== -->
+  <div v-if="showCreditModal" class="credit-overlay no-print" @click.self="showCreditModal=false">
+    <div class="credit-modal card" role="dialog" aria-modal="true" aria-label="關於">
+      <button class="credit-close btn-ghost btn" @click="showCreditModal=false" title="關閉" aria-label="關閉">✕</button>
+      <h2 class="text-base font-bold title-deco mb-3 pr-6">📜 羊皮卷 · D&amp;D 5E 角色暫存 (PWA)</h2>
+      <div class="credit-sec">
+        <div class="credit-h">💡 功能許願 / 意見回饋</div>
+        <p>加我 Line：<span class="credit-code">tomilam</span></p>
+      </div>
+      <div class="credit-sec">
+        <div class="credit-h">📚 資料來源</div>
+        <ul>
+          <li>5etools 繁中鏡像（<span class="credit-code">5etools.wayneh.tw</span>）</li>
+          <li>原始 5etools</li>
+          <li>WotC SRD</li>
+        </ul>
+      </div>
+      <div class="credit-sec">
+        <div class="credit-h">⚖️ 聲明</div>
+        <p>非官方愛好者工具，D&amp;D 內容版權屬 Wizards of the Coast，依 SRD/OGL。</p>
+      </div>
+      <button class="btn w-full py-2 text-sm mt-1" @click="showCreditModal=false">關閉</button>
+    </div>
+  </div>
+
+  <!-- ===== 控制列：模式切換 + 角色管理 ===== -->
+  <div class="card p-2 mb-3">
+    <div class="flex items-center justify-between gap-2 mb-2">
+      <span class="text-[11px]" style="color:var(--ink-soft)">目前模式</span>
+      <div class="flex items-center gap-1 shrink-0">
+        <button class="btn-ghost btn px-2 py-1.5 text-sm" :class="{'btn': showSettings}" @click="showSettings=!showSettings" title="內容來源設定">📚 來源</button>
+        <button class="btn-ghost btn px-2 py-1.5 text-sm" @click="doPrint" title="列印 / 匯出 PDF">🖨️ 列印</button>
+        <button class="btn-ghost btn px-2 py-1.5 text-sm" @click="showCreditModal=true" title="關於 / 鳴謝">ℹ️ 關於</button>
+        <button class="btn px-3 py-1.5 text-sm" :class="{'btn-danger': mode==='play'}" @click="toggleMode">
+          {{ mode==='play' ? '🎲 跑團模式' : '⚙️ 設定模式' }}
+        </button>
+      </div>
+    </div>
+    <div class="flex items-center gap-1">
+      <select :value="activeId" @change="switchChar($event.target.value)" class="flex-1 px-2 py-1.5 text-sm min-w-0">
+        <option v-for="ch in chars" :key="ch.id" :value="ch.id">{{ ch.name || '（未命名角色）' }}</option>
+      </select>
+      <button class="btn-ghost btn px-2 py-1.5 text-sm shrink-0" @click="addChar" title="新增角色">➕</button>
+      <button class="btn-ghost btn px-2 py-1.5 text-sm shrink-0" @click="copyChar" title="複製目前角色">📄</button>
+      <button class="btn-danger btn px-2 py-1.5 text-sm shrink-0" @click="deleteChar" title="刪除目前角色">🗑️</button>
+    </div>
+    <p v-if="mode==='play'" class="text-[11px] mt-2 text-center" style="color:var(--accent)">🔒 跑團模式：設定欄位唯讀，僅可調整戰鬥／消耗類數值喵～</p>
+  </div>
+
+  <!-- ===== 內容來源設定面板（全域、非 per-character） ===== -->
+  <div v-show="showSettings" class="card p-3 mb-3">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-sm font-bold title-deco">📚 內容來源設定</h2>
+      <button class="btn-ghost btn px-2 py-1 text-xs" @click="showSettings=false">✕ 關閉</button>
+    </div>
+    <p class="text-[11px] mb-2" style="color:var(--ink-soft)">這是全域「檢視」設定（所有角色共用，不隨角色匯出）。只影響可選清單；已加入角色卡的項目仍會顯示。跑團模式下仍可調整。</p>
+    <label class="flex items-center gap-2 text-sm mb-2 stat-box p-2">
+      <input type="checkbox" v-model="settings.includeUntranslated" class="w-4 h-4">
+      包含未繁中（英文）內容
+    </label>
+    <div class="flex items-center justify-between mb-2 text-[11px]" style="color:var(--ink-soft)">
+      <span>已啟用 {{ enabledCount }} / {{ totalSourceCount }} 個來源</span>
+      <span class="flex gap-1">
+        <button class="btn-ghost btn px-2 py-0.5" @click="selectAllSources(true)">全選</button>
+        <button class="btn-ghost btn px-2 py-0.5" @click="selectAllSources(false)">全不選</button>
+      </span>
+    </div>
+    <div class="max-h-72 overflow-auto">
+      <div v-for="g in sourceGroups" :key="g.key" class="mb-2">
+        <div class="flex items-center justify-between sticky top-0 py-1" style="background:rgba(243,233,210,.95)">
+          <span class="text-xs font-bold" style="color:var(--gold-deep)">{{ g.label }}</span>
+          <button class="btn-ghost btn px-2 py-0.5 text-[11px]" @click="toggleGroup(g)">
+            {{ groupAllEnabled(g) ? '取消本組' : '選取本組' }}
+          </button>
+        </div>
+        <label v-for="s in g.sources" :key="s.code" class="flex items-start gap-2 text-xs py-1 px-1">
+          <input type="checkbox" :checked="isSourceEnabled(s.code)" @change="toggleSource(s.code)" class="w-4 h-4 mt-0.5 shrink-0">
+          <span class="min-w-0">
+            <span class="font-bold">{{ sourceLabelOf(s) }}</span>
+            <span style="color:var(--ink-soft)"> · {{ s.code }}</span>
+            <span v-if="sourceCountsText(s)" class="block" style="color:var(--ink-soft)">{{ sourceCountsText(s) }}</span>
+          </span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 基礎 ===== -->
+  <section v-show="tab==='base'">
+    <div class="card p-3 mb-3">
+      <div class="grid grid-cols-2 gap-2">
+        <label class="col-span-2 text-xs">角色姓名
+          <input v-model="c.name" :disabled="locked" type="text" class="w-full mt-1 px-2 py-2 text-base font-bold" placeholder="無名英雄">
+        </label>
+        <label class="text-xs col-span-2">種族 / 副種族
+          <div class="grid grid-cols-2 gap-1 mt-1">
+            <select v-model="c.race" :disabled="locked" class="px-2 py-1.5 text-sm min-w-0" @change="onRaceChanged">
+              <option value="">（未選擇）</option>
+              <option v-for="r in RACES" :key="r.id || r.name_zh" :value="r.id || r.name_zh">{{ raceOptionLabel(r) }}</option>
+            </select>
+            <select v-model="c.subrace" :disabled="locked || subraceOptions.length===0" class="px-2 py-1.5 text-sm min-w-0">
+              <option value="">{{ subraceOptions.length ? '（不選副種族）' : '（無副種族）' }}</option>
+              <option v-for="sr in subraceSelectOptions" :key="sr.id || sr.name_zh" :value="sr.id || sr.name_zh">{{ subraceLabel(sr) }}</option>
+            </select>
+            <button v-show="!locked" class="btn-ghost btn px-2 py-1.5 text-[11px] col-span-2" @click="applyRaceBonus" title="套用母種族與副種族固定屬性加值；可選加值請手動填入">套用加值</button>
+          </div>
+        </label>
+        <label class="text-xs">總等級（自動）
+          <div class="mt-1 px-2 py-1.5 stat-box text-center font-bold num">{{ totalLevel }}</div>
+        </label>
+        <label class="text-xs">陣營
+          <select v-model="c.alignment" :disabled="locked" class="w-full mt-1 px-2 py-1.5 text-sm">
+            <option value="">（未選擇）</option>
+            <option v-for="al in ALIGNMENTS" :key="al" :value="al">{{ al }}</option>
+          </select>
+        </label>
+        <label class="text-xs">背景
+          <select v-model="c.background" :disabled="locked" class="w-full mt-1 px-2 py-1.5 text-sm">
+            <option value="">（未選擇）</option>
+            <option v-for="b in BACKGROUNDS" :key="b.name" :value="b.name">{{ b.name }}</option>
+          </select>
+        </label>
+      </div>
+      <div v-if="dataState.loading || dataState.error || selectedRace" class="mt-2 text-[11px] leading-relaxed" style="color:var(--ink-soft)">
+        <p v-if="dataState.loading">⏳ 正在載入離線資料庫…</p>
+        <p v-if="dataState.error" style="color:var(--accent)">⚠️ {{ dataState.error }}（仍可使用手動/既有資料）</p>
+        <div v-if="selectedRace" class="stat-box p-2 mt-1">
+          <div class="font-bold" style="color:var(--gold-deep)">🧬 {{ raceDisplayName(selectedRace) }} <span v-if="selectedSubrace">／{{ raceDisplayName(selectedSubrace) }}</span></div>
+          <div>來源：{{ sourceText(selectedSubrace && selectedSubrace.source ? selectedSubrace : selectedRace) }} ｜ 體型：{{ sizeText(selectedRace.size) }} ｜ 速度：{{ speedText((selectedSubrace && selectedSubrace.speed) || selectedRace.speed) }}</div>
+          <div>固定加值：{{ abilitySummary(combinedRaceBonus) || '—' }}<span v-if="raceChooseNote"> ｜ 可選加值：{{ raceChooseNote }}</span></div>
+          <div v-if="raceTraitsSummary">特性：{{ raceTraitsSummary }}</div>
+        </div>
+      </div>
+      <p v-if="bgNote" class="text-[11px] mt-1" style="color:var(--ink-soft)">🎓 背景附帶 — {{ bgNote }}</p>
+      <div class="flex justify-between items-center mt-3 text-sm">
+        <span>熟練加值</span>
+        <span class="font-bold num">{{ fmt(profBonus) }}</span>
+      </div>
+      <div class="flex justify-between items-center mt-1 text-sm">
+        <span>生命骰</span>
+        <span class="font-bold num">{{ hitDiceDisplay || '—' }}</span>
+      </div>
+    </div>
+
+    <!-- 戰鬥面板 -->
+    <div class="card p-3 mb-3">
+      <h2 class="text-sm font-bold title-deco mb-2">⚔️ 戰鬥面板</h2>
+      <div class="grid grid-cols-3 gap-2 text-center">
+        <div class="stat-box p-2"><div class="text-[11px]">護甲值 AC</div><input v-model.number="c.ac" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
+        <div class="stat-box p-2"><div class="text-[11px]">先攻</div><input v-model.number="c.initiative" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
+        <div class="stat-box p-2"><div class="text-[11px]">速度</div><input v-model="c.speed" :disabled="locked" type="text" class="w-full mt-1 text-center font-bold num py-1"></div>
+      </div>
+      <div class="grid grid-cols-3 gap-2 text-center mt-2">
+        <div class="stat-box p-2"><div class="text-[11px]">目前 HP</div><input v-model.number="c.hp.current" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
+        <div class="stat-box p-2"><div class="text-[11px]">最大 HP</div><input v-model.number="c.hp.max" :disabled="locked" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
+        <div class="stat-box p-2"><div class="text-[11px]">暫時 HP</div><input v-model.number="c.hp.temp" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
+      </div>
+      <div class="no-print mt-2 p-2 stat-box" :class="{'opacity-95': mode==='play'}">
+        <div class="text-[11px] mb-1 font-bold">⚡ HP 快捷調整</div>
+        <div class="flex gap-2 items-center">
+          <input v-model.number="hpDelta" type="number" min="1" class="w-16 text-center font-bold num py-1" title="調整量">
+          <button class="btn-danger btn flex-1 py-1.5 text-sm" @click="damage()">💥 受傷</button>
+          <button class="btn flex-1 py-1.5 text-sm" @click="heal()">💚 治療</button>
+        </div>
+        <div class="flex gap-1 mt-2">
+          <button class="btn-ghost btn flex-1 py-1 text-xs" @click="damage(5)">-5</button>
+          <button class="btn-ghost btn flex-1 py-1 text-xs" @click="damage(1)">-1</button>
+          <button class="btn-ghost btn flex-1 py-1 text-xs" @click="heal(1)">+1</button>
+          <button class="btn-ghost btn flex-1 py-1 text-xs" @click="heal(5)">+5</button>
+        </div>
+        <div class="flex gap-2 items-center mt-2">
+          <input v-model.number="tempInput" type="number" min="0" class="w-16 text-center font-bold num py-1" title="暫時HP">
+          <button class="btn-ghost btn flex-1 py-1 text-xs" @click="setTemp()">🛡️ 設定暫時HP</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🩹 狀態（跑團模式仍可勾選） -->
+    <div class="card p-3 mb-3">
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="text-sm font-bold title-deco">🩹 狀態</h2>
+        <span class="text-[11px]" style="color:var(--ink-soft)">{{ activeConditions.length ? activeConditions.join('、') : '無' }}</span>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+        <label v-for="cond in CONDITIONS" :key="cond.id"
+               class="cond-chip flex items-center gap-1.5 px-2 py-1.5 stat-box text-xs cursor-pointer"
+               :class="{'cond-on': !!c.conditions[cond.id]}">
+          <input type="checkbox" v-model="c.conditions[cond.id]" class="shrink-0">
+          <span class="font-bold">{{ cond.zh }}</span>
+          <span class="text-[9px] opacity-60">{{ cond.id }}</span>
+        </label>
+      </div>
+      <div class="mt-3">
+        <div class="flex items-center justify-between text-[12px] mb-1">
+          <span class="font-bold">😵 耗竭 (Exhaustion)</span>
+          <span class="num font-bold" :style="Number(c.exhaustion)>0 ? 'color:var(--accent)' : 'color:var(--ink-soft)'">{{ c.exhaustion }} / 6 級</span>
+        </div>
+        <div class="flex gap-1">
+          <button v-for="n in [0,1,2,3,4,5,6]" :key="n"
+                  class="btn flex-1 py-1 text-xs"
+                  :class="Number(c.exhaustion)===n ? 'btn-danger' : 'btn-ghost'"
+                  @click="c.exhaustion = n">{{ n }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 六大屬性 -->
+    <div class="card p-3">
+      <h2 class="text-sm font-bold title-deco mb-2">🎲 六大屬性</h2>
+      <div class="grid grid-cols-3 gap-2">
+        <div v-for="a in abilityDefs" :key="a.key" class="stat-box p-2 text-center">
+          <div class="text-[12px] font-bold">{{ a.zh }}</div>
+          <input v-model.number="c.abilities[a.key]" :disabled="locked" type="number" class="w-full my-1 text-center font-bold num py-1" title="基礎分數">
+          <div class="flex items-center justify-center gap-1 text-[10px]" style="color:var(--ink-soft)">
+            <span>加值</span>
+            <input v-model.number="c.abilityBonus[a.key]" :disabled="locked" type="number" class="w-10 text-center num py-0.5 text-[11px]" title="種族/其他加值">
+          </div>
+          <div class="text-[10px] mt-1" style="color:var(--ink-soft)">總分 <span class="num font-bold" style="color:var(--ink)">{{ abilityTotal(a.key) }}</span></div>
+          <div class="text-sm font-bold num" :class="modClass(abilityModFor(a.key))">{{ fmt(abilityModFor(a.key)) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 語言與熟練（功能5：手動版） -->
+    <div class="card p-3 mt-3">
+      <h2 class="text-sm font-bold title-deco mb-2">🗣️ 語言與熟練</h2>
+
+      <!-- 語言 -->
+      <div class="text-xs font-bold mb-1">已知語言</div>
+      <div class="flex flex-wrap gap-1 mb-2">
+        <span v-if="c.languages.length===0" class="text-[11px]" style="color:var(--ink-soft)">尚未加入語言</span>
+        <span v-for="(lang,i) in c.languages" :key="'lang'+i" class="chip able">
+          {{ safeText(lang) }}
+          <button v-show="!locked" class="ml-1" style="color:var(--accent-strong)" @click="removeLanguage(i)" title="移除">✕</button>
+        </span>
+      </div>
+      <div v-show="!locked" class="flex flex-wrap gap-1 mb-1">
+        <select v-model="langPick" class="flex-1 px-2 py-1 text-xs" style="min-width:9rem">
+          <option value="">選擇常見語言…</option>
+          <option v-for="l in COMMON_LANGUAGES" :key="l" :value="l">{{ l }}</option>
+        </select>
+        <button class="btn-ghost btn px-2 py-1 text-xs" @click="addLanguageFromPick">＋加入</button>
+      </div>
+      <div v-show="!locked" class="flex gap-1 mb-3">
+        <input v-model="newLang" type="text" class="flex-1 px-2 py-1 text-xs" placeholder="＋自訂語言" @keyup.enter="addCustomLanguage">
+        <button class="btn-ghost btn px-2 py-1 text-xs" @click="addCustomLanguage">加入</button>
+      </div>
+
+      <hr class="hr-ink my-2">
+
+      <!-- 豁免熟練 -->
+      <div class="text-xs font-bold mb-1">豁免熟練</div>
+      <div class="grid grid-cols-3 gap-1 mb-3">
+        <label v-for="a in abilityDefs" :key="'ps'+a.key" class="flex items-center gap-1 stat-box px-2 py-1 text-xs">
+          <input type="checkbox" v-model="c.profSaves[a.key]" :disabled="locked" class="w-4 h-4">
+          {{ a.zh }}
+        </label>
+      </div>
+
+      <!-- 護甲 -->
+      <div class="text-xs font-bold mb-1">護甲熟練</div>
+      <div class="flex flex-wrap gap-1 mb-1">
+        <span v-if="c.profArmor.length===0" class="text-[11px]" style="color:var(--ink-soft)">無</span>
+        <span v-for="(p,i) in c.profArmor" :key="'ar'+i" class="chip">{{ safeText(p) }}<button v-show="!locked" class="ml-1" style="color:var(--accent-strong)" @click="removeProf('profArmor',i)">✕</button></span>
+      </div>
+      <div v-show="!locked" class="flex gap-1 mb-3">
+        <input v-model="newArmor" type="text" class="flex-1 px-2 py-1 text-xs" placeholder="例：輕甲、中甲、盾" @keyup.enter="addProf('profArmor',newArmor)">
+        <button class="btn-ghost btn px-2 py-1 text-xs" @click="addProf('profArmor',newArmor)">加入</button>
+      </div>
+
+      <!-- 武器 -->
+      <div class="text-xs font-bold mb-1">武器熟練</div>
+      <div class="flex flex-wrap gap-1 mb-1">
+        <span v-if="c.profWeapon.length===0" class="text-[11px]" style="color:var(--ink-soft)">無</span>
+        <span v-for="(p,i) in c.profWeapon" :key="'wp'+i" class="chip">{{ safeText(p) }}<button v-show="!locked" class="ml-1" style="color:var(--accent-strong)" @click="removeProf('profWeapon',i)">✕</button></span>
+      </div>
+      <div v-show="!locked" class="flex gap-1 mb-3">
+        <input v-model="newWeapon" type="text" class="flex-1 px-2 py-1 text-xs" placeholder="例：簡易武器、軍用武器" @keyup.enter="addProf('profWeapon',newWeapon)">
+        <button class="btn-ghost btn px-2 py-1 text-xs" @click="addProf('profWeapon',newWeapon)">加入</button>
+      </div>
+
+      <!-- 工具 -->
+      <div class="text-xs font-bold mb-1">工具熟練</div>
+      <div class="flex flex-wrap gap-1 mb-1">
+        <span v-if="c.profTool.length===0" class="text-[11px]" style="color:var(--ink-soft)">無</span>
+        <span v-for="(p,i) in c.profTool" :key="'tl'+i" class="chip">{{ safeText(p) }}<button v-show="!locked" class="ml-1" style="color:var(--accent-strong)" @click="removeProf('profTool',i)">✕</button></span>
+      </div>
+      <div v-show="!locked" class="flex gap-1">
+        <input v-model="newTool" type="text" class="flex-1 px-2 py-1 text-xs" placeholder="例：盜賊工具、魯特琴" @keyup.enter="addProf('profTool',newTool)">
+        <button class="btn-ghost btn px-2 py-1 text-xs" @click="addProf('profTool',newTool)">加入</button>
+      </div>
+      <p class="text-[10px] mt-2" style="color:var(--ink-soft)">豁免熟練勾選後會自動加入豁免加值（與「職業」頁豁免設定同步，不重複計算）。</p>
+    </div>
+
+    <!-- 筆記 / 狀態（跑團模式仍可編輯） -->
+    <div class="card p-3 mt-3">
+      <h2 class="text-sm font-bold title-deco mb-2">📝 筆記 / 狀態</h2>
+      <textarea v-model="c.notes" rows="4" class="w-full px-2 py-2 text-sm" placeholder="例：中毒、祝福、集中中的法術、臨時備忘…喵〜"></textarea>
+    </div>
+  </section>
+
+  <!-- ===== 職業 ===== -->
+  <section v-show="tab==='class'">
+    <div class="card p-3 mb-3">
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="text-sm font-bold title-deco">🛡️ 職業 / 多職業</h2>
+        <button v-show="!locked" class="btn-ghost btn px-2 py-1 text-xs" @click="addClass">＋ 新增</button>
+      </div>
+      <div v-if="c.classes.length===0" class="text-xs text-center py-3" style="color:var(--ink-soft)">尚未加入職業，點「新增」開始。</div>
+      <div v-for="(cl,i) in c.classes" :key="i" class="flex gap-2 items-center mb-2">
+        <select v-model="cl.name_en" :disabled="locked" class="flex-1 px-2 py-2 text-sm">
+          <option v-for="k in CLASSES" :key="k.name_en" :value="k.name_en">{{ k.name_zh }}（{{ k.hit_dice }}）</option>
+        </select>
+        <input v-model.number="cl.level" :disabled="locked" type="number" min="1" class="w-16 px-2 py-2 text-center num" placeholder="Lv">
+        <button v-show="!locked" class="btn-danger btn px-3 py-2 text-sm" @click="removeClass(i)">✕</button>
+      </div>
+      <hr class="hr-ink my-3">
+      <div class="grid grid-cols-2 gap-2 text-center text-sm">
+        <div class="stat-box p-2"><div class="text-[11px]">總等級</div><div class="font-bold num">{{ totalLevel }}</div></div>
+        <div class="stat-box p-2"><div class="text-[11px]">熟練加值</div><div class="font-bold num">{{ fmt(profBonus) }}</div></div>
+        <div class="stat-box p-2 col-span-2"><div class="text-[11px]">生命骰</div><div class="font-bold num">{{ hitDiceDisplay || '—' }}</div></div>
+      </div>
+    </div>
+
+    <!-- 豁免 -->
+    <div class="card p-3">
+      <h2 class="text-sm font-bold title-deco mb-2">🧿 豁免檢定</h2>
+      <div class="grid grid-cols-2 gap-2">
+        <label v-for="a in abilityDefs" :key="a.key" class="flex items-center justify-between stat-box px-2 py-2 text-sm">
+          <span class="flex items-center gap-2">
+            <input type="checkbox" v-model="c.saves[a.key]" :disabled="locked" class="w-4 h-4">
+            {{ a.zh }}
+          </span>
+          <span class="font-bold num" :class="modClass(saveValue(a.key))">{{ fmt(saveValue(a.key)) }}</span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 技能 ===== -->
+  <section v-show="tab==='skill'">
+    <div class="card p-3">
+      <div class="flex justify-between items-center mb-1">
+        <h2 class="text-sm font-bold title-deco">📖 技能</h2>
+        <span class="chip able">可選為熟練</span>
+      </div>
+      <p class="text-[11px] mb-2" style="color:var(--ink-soft)">依目前職業聯集標示可選熟練；可勾選熟練，或直接輸入覆寫值。</p>
+      <div v-for="s in SKILLS" :key="s.zh" class="flex items-center gap-2 py-1.5 border-b border-dashed" style="border-color:rgba(202,169,111,.4)">
+        <input type="checkbox" v-model="c.skills[s.zh].proficient" :disabled="locked" class="w-4 h-4 shrink-0">
+        <div class="flex-1 min-w-0">
+          <div class="text-sm flex items-center gap-1 flex-wrap">
+            <span :class="{'font-bold': c.skills[s.zh].proficient}">{{ s.zh }}</span>
+            <span class="chip" :class="{able: availableSkills.has(s.zh)}">{{ s.attrZh }}</span>
+            <span v-if="availableSkills.has(s.zh)" class="chip able">可選</span>
+          </div>
+        </div>
+        <input v-model.number="c.skills[s.zh].override" :disabled="locked" type="number" class="w-12 text-center num py-1 text-sm" placeholder="—" :title="'覆寫值'">
+        <span class="w-9 text-right font-bold num" :class="modClass(skillValue(s.zh))">{{ fmt(skillValue(s.zh)) }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 法術 ===== -->
+  <section v-show="tab==='spell'">
+    <div class="card p-3 mb-3">
+      <div class="flex justify-between items-center gap-2 cursor-pointer" @click="showSlots=!showSlots" title="展開 / 收合法術位">
+        <h2 class="text-sm font-bold title-deco mb-0">✨ 法術位 <span class="text-[11px]" style="color:var(--ink-soft)">{{ showSlots ? '▾' : '▸' }}</span></h2>
+        <span v-show="!showSlots" class="text-[11px] num flex-1 text-right truncate" style="color:var(--ink-soft)">{{ spellSlotSummary }}</span>
+      </div>
+      <div v-show="showSlots" class="mt-2">
+        <div class="flex justify-end mb-2">
+          <button type="button" class="btn-ghost btn px-2 py-1 text-[11px]" :class="{'btn': editSlots}" @click="editSlots=!editSlots" :title="editSlots ? '回到使用模式' : '設定各環最大法術位'">⚙️ {{ editSlots ? '完成設定' : '設定法術位' }}</button>
+        </div>
+        <!-- 編輯全部：1–9 環（含 max=0）設定最大值 -->
+        <template v-if="editSlots">
+          <div v-for="slot in c.spellSlots" :key="slot.level" class="flex items-center gap-2 py-1.5">
+            <span class="w-12 text-sm font-bold">{{ slot.level }} 環</span>
+            <input v-model.number="slot.max" :disabled="locked" type="number" min="0" class="w-12 text-center num py-1 text-sm" title="最大值">
+            <span class="text-[11px] num flex-1" style="color:var(--ink-soft)">{{ slot.used }}/{{ slot.max }}</span>
+          </div>
+        </template>
+        <!-- 只看模式：僅顯示有法術位（max>0）的環，氣泡可點用/恢復 -->
+        <template v-else>
+          <div v-if="!c.spellSlots.some(s => Number(s.max) > 0)" class="text-xs text-center py-2" style="color:var(--ink-soft)">尚無法術位，點「⚙️ 設定法術位」新增喵～</div>
+          <div v-for="slot in c.spellSlots.filter(s => Number(s.max) > 0)" :key="slot.level" class="flex items-center gap-2 py-1.5">
+            <span class="w-12 text-sm font-bold">{{ slot.level }} 環</span>
+            <div class="flex-1 flex flex-wrap gap-1">
+              <span v-for="i in slot.max" :key="i" class="bubble" :class="{on: i<=slot.used}" @click="clickBubble(slot,i)"></span>
+            </div>
+            <span class="text-[11px] num" style="color:var(--ink-soft)">{{ slot.used }}/{{ slot.max }}</span>
+          </div>
+        </template>
+      </div>
+    </div>
+    <div class="card p-3 mb-3">
+      <div class="flex justify-between items-center mb-2 gap-2">
+        <h2 class="text-sm font-bold title-deco">🔎 法術搜尋</h2>
+        <span class="text-[11px]" style="color:var(--ink-soft)">{{ dataState.spells.length || 0 }} 筆</span>
+      </div>
+      <p v-if="dataState.error" class="text-[11px] mb-2" style="color:var(--accent)">⚠️ {{ dataState.error }}</p>
+      <div class="grid grid-cols-2 gap-2 mb-2">
+        <input v-model="search.spellQuery" :disabled="locked || !dataState.spells.length" type="search" class="col-span-2 px-2 py-2 text-sm" placeholder="搜尋法術中文 / 英文名稱">
+        <select v-model="search.spellLevel" :disabled="locked || !dataState.spells.length" class="px-2 py-1.5 text-sm">
+          <option value="">全部環級</option><option value="0">戲法</option><option v-for="n in 9" :key="n" :value="String(n)">{{ n }} 環</option>
+        </select>
+        <select v-model="search.spellClass" :disabled="locked || !dataState.spells.length" class="px-2 py-1.5 text-sm">
+          <option value="">全部職業</option><option v-for="cl in spellClassOptions" :key="cl" :value="cl">{{ cl }}</option>
+        </select>
+        <select v-model="search.spellSource" :disabled="locked || !dataState.spells.length" class="col-span-2 px-2 py-1.5 text-sm">
+          <option value="">全部來源</option><option v-for="src in spellSourceOptions" :key="src" :value="src">{{ src }}</option>
+        </select>
+      </div>
+      <div v-if="!locked" class="max-h-64 overflow-auto">
+        <div v-if="spellResults.length===0" class="text-xs text-center py-3" style="color:var(--ink-soft)">沒有符合的法術，或資料尚未載入。</div>
+        <div v-for="sp in spellResults" :key="sp.id" class="stat-box p-2 mb-2 text-xs">
+          <div class="flex justify-between gap-2 items-start">
+            <div class="min-w-0">
+              <div class="font-bold text-sm">{{ spellName(sp) }}</div>
+              <div style="color:var(--ink-soft)">{{ spellLevelText(sp.level) }} ｜ {{ formatTime(sp.time) }} ｜ {{ formatRange(sp.range) }} ｜ {{ sourceText(sp) }}</div>
+              <div style="color:var(--ink-soft)">成分：{{ formatComponents(sp.components) }} ｜ 持續：{{ formatDuration(sp.duration) }}</div>
+              <div>職業：{{ (sp.classes || []).join('、') || '—' }}</div>
+            </div>
+            <button class="btn px-2 py-1 text-[11px] shrink-0" @click="addSpellFromData(sp)">加入</button>
+          </div>
+          <details class="mt-1">
+            <summary class="cursor-pointer" style="color:var(--accent)">描述摘要</summary>
+            <p class="mt-1 whitespace-pre-line">{{ spellDescription(sp, true) }}</p>
+          </details>
+        </div>
+      </div>
+      <p v-if="locked" class="text-[11px] text-center" style="color:var(--accent)">🔒 跑團模式下法術搜尋與加入已鎖定；法術位泡泡仍可操作。</p>
+    </div>
+    <div class="card p-3 mb-3">
+      <h2 class="text-sm font-bold title-deco mb-2">📜 已知 / 準備法術（選取式）</h2>
+      <div v-if="!c.spellbook || c.spellbook.length===0" class="text-xs text-center py-3" style="color:var(--ink-soft)">尚未從資料庫加入法術。</div>
+      <div v-for="(known,i) in c.spellbook" :key="known.id + '-' + i" class="stat-box p-2 mb-2 text-xs">
+        <div class="flex items-start gap-2">
+          <label class="flex items-center gap-1 shrink-0"><input type="checkbox" v-model="known.prepared" :disabled="locked" class="w-4 h-4">準備</label>
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-sm">{{ spellName(spellById(known.id)) || known.name || known.id }}</div>
+            <div v-if="spellById(known.id)" style="color:var(--ink-soft)">{{ spellLevelText(spellById(known.id).level) }} ｜ {{ formatTime(spellById(known.id).time) }} ｜ {{ formatRange(spellById(known.id).range) }} ｜ {{ sourceText(spellById(known.id)) }}<span v-if="disabledSourceNote(spellById(known.id))" style="color:var(--accent)"> {{ disabledSourceNote(spellById(known.id)) }}</span></div>
+            <details v-if="spellById(known.id)" class="mt-1"><summary class="cursor-pointer" style="color:var(--accent)">完整描述</summary><p class="mt-1 whitespace-pre-line">{{ spellDescription(spellById(known.id), false) }}</p></details>
+          </div>
+          <button v-show="!locked" class="btn-danger btn px-2 py-1 text-[11px] shrink-0" @click="removeSpell(i)">✕</button>
+        </div>
+      </div>
+    </div>
+    <div class="card p-3">
+      <h2 class="text-sm font-bold title-deco mb-2">📝 舊自由文字 / 備註</h2>
+      <textarea v-model="c.spellsText" :disabled="locked" rows="6" class="w-full px-2 py-2 text-sm" placeholder="例：&#10;戲法：火焰箭、法師之手&#10;1環：魔法飛彈、護盾"></textarea>
+    </div>
+  </section>
+
+  <!-- ===== 背包 ===== -->
+  <section v-show="tab==='bag'">
+    <div class="card p-3 mb-3">
+      <h2 class="text-sm font-bold title-deco mb-2">💰 財產</h2>
+      <div class="grid grid-cols-4 gap-2 text-center">
+        <div v-for="coin in coinDefs" :key="coin.key" class="stat-box p-2">
+          <div class="text-[11px]">{{ coin.zh }}</div>
+          <input v-model.number="c.coins[coin.key]" type="number" class="w-full mt-1 text-center font-bold num py-1">
+        </div>
+      </div>
+    </div>
+    <div class="card p-3 mb-3">
+      <div class="flex justify-between items-center mb-2 gap-2">
+        <h2 class="text-sm font-bold title-deco">🔎 物品搜尋</h2>
+        <span class="text-[11px]" style="color:var(--ink-soft)">{{ dataState.items.length || 0 }} 筆</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mb-2">
+        <input v-model="search.itemQuery" :disabled="locked || !dataState.items.length" type="search" class="col-span-2 px-2 py-2 text-sm" placeholder="搜尋物品中文 / 英文名稱">
+        <select v-model="search.itemType" :disabled="locked || !dataState.items.length" class="px-2 py-1.5 text-sm"><option value="">全部類型</option><option v-for="t in itemTypeOptions" :key="t" :value="t">{{ itemTypeText(t) }}</option></select>
+        <select v-model="search.itemRarity" :disabled="locked || !dataState.items.length" class="px-2 py-1.5 text-sm"><option value="">全部稀有度</option><option v-for="r in itemRarityOptions" :key="r" :value="r">{{ rarityText(r) }}</option></select>
+        <select v-model="search.itemSource" :disabled="locked || !dataState.items.length" class="col-span-2 px-2 py-1.5 text-sm"><option value="">全部來源</option><option v-for="src in itemSourceOptions" :key="src" :value="src">{{ src }}</option></select>
+      </div>
+      <div v-if="!locked" class="max-h-64 overflow-auto">
+        <div v-if="itemResults.length===0" class="text-xs text-center py-3" style="color:var(--ink-soft)">沒有符合的物品，或資料尚未載入。</div>
+        <div v-for="item in itemResults" :key="item.id" class="stat-box p-2 mb-2 text-xs">
+          <div class="flex justify-between gap-2 items-start">
+            <div class="min-w-0">
+              <div class="font-bold text-sm">{{ itemName(item) }} <span v-if="item.type==='variant'" class="chip">變體模板</span></div>
+              <div style="color:var(--ink-soft)">{{ itemTypeText(item.type) }}<span v-if="item.category">／{{ item.category }}</span> ｜ {{ rarityText(item.rarity) }} ｜ {{ itemValueWeight(item) }} ｜ {{ sourceText(item) }}</div>
+              <div v-if="itemStats(item)">屬性：{{ itemStats(item) }}</div>
+              <details class="mt-1"><summary class="cursor-pointer" style="color:var(--accent)">描述摘要</summary><p class="mt-1 whitespace-pre-line">{{ itemDescription(item, true) }}</p></details>
+            </div>
+            <button class="btn px-2 py-1 text-[11px] shrink-0" @click="addItemFromData(item)">加入</button>
+          </div>
+        </div>
+      </div>
+      <p v-if="locked" class="text-[11px] text-center" style="color:var(--accent)">🔒 跑團模式下裝備新增/刪除與名稱已鎖定；數量仍可調整。</p>
+    </div>
+    <div class="card p-3">
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="text-sm font-bold title-deco">🎒 背包</h2>
+        <button v-show="!locked" class="btn-ghost btn px-2 py-1 text-xs" @click="addItem">＋ 自訂物品</button>
+      </div>
+      <div v-if="c.inventory.length===0" class="text-xs text-center py-3" style="color:var(--ink-soft)">背包空空如也喵。</div>
+      <div v-for="(it,i) in c.inventory" :key="i" class="stat-box p-2 mb-2">
+        <div class="flex gap-2 items-center">
+          <input v-model.number="it.qty" type="number" class="w-12 text-center num py-2 text-sm" placeholder="數">
+          <input v-model="it.name" :disabled="locked" type="text" class="flex-1 px-2 py-2 text-sm" placeholder="物品名稱">
+          <button v-show="!locked" class="btn-danger btn px-3 py-2 text-sm" @click="removeItem(i)">✕</button>
+        </div>
+        <div v-if="itemById(it.itemId)" class="text-[11px] mt-1 leading-relaxed" style="color:var(--ink-soft)">
+          {{ itemTypeText(itemById(it.itemId).type) }} ｜ {{ rarityText(itemById(it.itemId).rarity) }} ｜ {{ itemValueWeight(itemById(it.itemId)) }} ｜ {{ sourceText(itemById(it.itemId)) }}<span v-if="disabledSourceNote(itemById(it.itemId))" style="color:var(--accent)"> {{ disabledSourceNote(itemById(it.itemId)) }}</span>
+          <span v-if="itemStats(itemById(it.itemId))"> ｜ {{ itemStats(itemById(it.itemId)) }}</span>
+          <details class="mt-1"><summary class="cursor-pointer" style="color:var(--accent)">描述</summary><p class="mt-1 whitespace-pre-line">{{ itemDescription(itemById(it.itemId), false) }}</p></details>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 魔寵 ===== -->
+  <section v-show="tab==='familiar'">
+    <div v-if="!c.familiar" class="card p-4 text-center">
+      <p class="text-3xl mb-2">🐾</p>
+      <p class="text-sm mb-3" style="color:var(--ink-soft)">目前尚未綁定魔寵喵～</p>
+      <button v-show="!locked" class="btn px-4 py-2 text-sm" @click="enableFamiliar">✨ 啟用魔寵</button>
+      <p v-if="locked" class="text-[11px] mt-3" style="color:var(--accent)">跑團模式下無法新增魔寵，請先切換設定模式。</p>
+    </div>
+    <div v-else>
+      <div class="card p-3 mb-3">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="text-sm font-bold title-deco">🐾 魔寵卡</h2>
+          <button v-show="!locked" class="btn-danger btn px-2 py-1 text-xs" @click="removeFamiliar">移除魔寵</button>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="text-xs col-span-2">名稱
+            <input v-model="c.familiar.name" :disabled="locked" type="text" class="w-full mt-1 px-2 py-2 text-sm font-bold" placeholder="例：暗影貓">
+          </label>
+          <label class="text-xs">種類
+            <input v-model="c.familiar.type" :disabled="locked" type="text" class="w-full mt-1 px-2 py-2 text-sm" placeholder="例：貓 / 渡鴉 / 擬像">
+          </label>
+          <label class="text-xs">速度
+            <input v-model="c.familiar.speed" :disabled="locked" type="text" class="w-full mt-1 px-2 py-2 text-sm" placeholder="例：30 呎、飛行 60 呎">
+          </label>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-center mt-2">
+          <div class="stat-box p-2"><div class="text-[11px]">AC</div><input v-model.number="c.familiar.ac" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
+          <div class="stat-box p-2"><div class="text-[11px]">目前 HP</div><input v-model.number="c.familiar.hp.current" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
+          <div class="stat-box p-2"><div class="text-[11px]">最大 HP</div><input v-model.number="c.familiar.hp.max" :disabled="locked" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
+        </div>
+      </div>
+      <div class="card p-3 mb-3">
+        <h2 class="text-sm font-bold title-deco mb-2">🎲 魔寵屬性</h2>
+        <div class="grid grid-cols-3 gap-2">
+          <div v-for="a in abilityDefs" :key="a.key" class="stat-box p-2 text-center">
+            <div class="text-[12px] font-bold">{{ a.zh }}</div>
+            <input v-model.number="c.familiar.abilities[a.key]" :disabled="locked" type="number" class="w-full my-1 text-center font-bold num py-1">
+            <div class="text-sm font-bold num" :class="modClass(abilityMod(c.familiar.abilities[a.key]))">{{ fmt(abilityMod(c.familiar.abilities[a.key])) }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="card p-3 mb-3">
+        <h2 class="text-sm font-bold title-deco mb-2">⚔️ 攻擊 / 動作</h2>
+        <textarea v-model="c.familiar.attacks" :disabled="locked" rows="4" class="w-full px-2 py-2 text-sm" placeholder="例：抓擊 +4，命中 1d4 穿刺…"></textarea>
+      </div>
+      <div class="card p-3">
+        <h2 class="text-sm font-bold title-deco mb-2">📝 魔寵筆記</h2>
+        <textarea v-model="c.familiar.notes" rows="3" class="w-full px-2 py-2 text-sm" placeholder="特性、感官、心靈感應、羈絆…喵〜"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 管理 ===== -->
+  <section v-show="tab==='manage'">
+    <div class="card p-3">
+      <h2 class="text-sm font-bold title-deco mb-2">🗂️ 角色管理</h2>
+      <p class="text-xs mb-3" style="color:var(--ink-soft)">資料自動存於本機（localStorage），離線可用。</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button class="btn py-2 text-sm" @click="exportJSON">⬇️ 匯出目前</button>
+        <button class="btn py-2 text-sm" @click="triggerImport">⬆️ 匯入 JSON</button>
+        <button class="btn-ghost btn py-2 text-sm col-span-2" @click="exportAllJSON">📦 匯出全部角色</button>
+      </div>
+      <input ref="fileInput" type="file" accept="application/json,.json" class="hidden" @change="importJSON">
+      <button class="btn-danger btn w-full py-2 text-sm mt-3" @click="resetAll">🧹 清空重來</button>
+      <p v-if="msg" class="text-center text-xs mt-3" style="color:var(--accent)">{{ msg }}</p>
+    </div>
+  </section>
+
+  <!-- 底部分頁 -->
+  <nav class="tabbar fixed bottom-0 left-0 right-0 flex justify-around py-2 px-1 border-t" style="border-color:var(--gold-deep)">
+    <button v-for="t in tabs" :key="t.id" class="tab flex flex-col items-center gap-0.5 flex-1" :class="{active: tab===t.id}" @click="tab=t.id">
+      <span class="text-lg">{{ t.icon }}</span><span>{{ t.label }}</span>
+    </button>
+  </nav>
+
+  <!-- ===== 專屬列印版面（螢幕隱藏，僅 @media print 顯示）：一次呈現目前角色全部資訊 ===== -->
+  <div class="print-sheet">
+    <h1>{{ safeText(c.name) || '（未命名角色）' }}</h1>
+    <p class="ps-sub ps-muted">羊皮卷 D&amp;D 5E · 角色列印版</p>
+
+    <div class="ps-section">
+      <h2>基本資訊</h2>
+      <div class="ps-grid">
+        <div><strong>種族：</strong>{{ printRace }}</div>
+        <div><strong>背景：</strong>{{ safeText(c.background) || '—' }}</div>
+        <div><strong>陣營：</strong>{{ safeText(c.alignment) || '—' }}</div>
+        <div><strong>體型：</strong>{{ printSize }}</div>
+        <div><strong>總等級：</strong>{{ totalLevel }}</div>
+        <div><strong>熟練加值：</strong>{{ fmt(profBonus) }}</div>
+      </div>
+      <div class="ps-grid" style="margin-top:3px">
+        <div><strong>職業：</strong>{{ printClasses || '—' }}</div>
+        <div><strong>生命骰：</strong>{{ hitDiceDisplay || '—' }}</div>
+      </div>
+    </div>
+
+    <div class="ps-section">
+      <h2>戰鬥數值</h2>
+      <div class="ps-grid">
+        <div><strong>HP：</strong>{{ c.hp.current }} / {{ c.hp.max }}<span v-if="Number(c.hp.temp)"> (暫時 {{ c.hp.temp }})</span></div>
+        <div><strong>AC：</strong>{{ c.ac }}</div>
+        <div><strong>先攻：</strong>{{ fmt(c.initiative) }}</div>
+        <div><strong>速度：</strong>{{ safeText(c.speed) || '—' }}</div>
+      </div>
+      <div v-if="printConditionsLine" style="margin-top:3px"><strong>{{ printConditionsLine }}</strong></div>
+    </div>
+
+    <div class="ps-section">
+      <h2>六大屬性與豁免</h2>
+      <table>
+        <tr><th>屬性</th><th v-for="a in abilityDefs" :key="a.key">{{ a.zh }}</th></tr>
+        <tr><td>數值</td><td v-for="a in abilityDefs" :key="a.key">{{ abilityTotal(a.key) }}</td></tr>
+        <tr><td>調整</td><td v-for="a in abilityDefs" :key="a.key">{{ fmt(abilityModFor(a.key)) }}</td></tr>
+        <tr><td>豁免</td><td v-for="a in abilityDefs" :key="a.key">{{ fmt(saveValue(a.key)) }}<span v-if="c.saves[a.key]">●</span></td></tr>
+      </table>
+      <div class="ps-muted" style="font-size:9px">豁免欄中 ● 表示已熟練</div>
+    </div>
+
+    <div class="ps-section">
+      <h2>技能</h2>
+      <table>
+        <tr><th>熟</th><th>技能</th><th>關聯</th><th>值</th><th>熟</th><th>技能</th><th>關聯</th><th>值</th></tr>
+        <tr v-for="row in printSkillRows" :key="row.k">
+          <td>{{ row.a ? (c.skills[row.a.zh].proficient ? '●' : '') : '' }}</td>
+          <td>{{ row.a ? row.a.zh : '' }}</td>
+          <td>{{ row.a ? row.a.attrZh : '' }}</td>
+          <td>{{ row.a ? fmt(skillValue(row.a.zh)) : '' }}</td>
+          <td>{{ row.b ? (c.skills[row.b.zh].proficient ? '●' : '') : '' }}</td>
+          <td>{{ row.b ? row.b.zh : '' }}</td>
+          <td>{{ row.b ? row.b.attrZh : '' }}</td>
+          <td>{{ row.b ? fmt(skillValue(row.b.zh)) : '' }}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="ps-section">
+      <h2>法術</h2>
+      <div class="ps-grid" v-if="printSlots.length">
+        <div v-for="s in printSlots" :key="s.level"><strong>{{ s.level }}環位：</strong>{{ Number(s.max)-Number(s.used||0) }} / {{ s.max }}</div>
+      </div>
+      <ul v-if="printSpells.length">
+        <li v-for="(sp,i) in printSpells" :key="i">[{{ sp.levelText || '—' }}] {{ sp.name }}<span v-if="!sp.prepared" class="ps-muted">（未準備）</span></li>
+      </ul>
+      <p v-else class="ps-empty">無法術清單</p>
+      <p v-if="safeText(c.spellsText)" class="ps-muted" style="white-space:pre-line">自由文字：{{ safeText(c.spellsText) }}</p>
+    </div>
+
+    <div class="ps-section">
+      <h2>背包物品</h2>
+      <div class="ps-grid ps-muted" style="margin-bottom:2px">
+        <div>銅 {{ c.coins.cp }}</div><div>銀 {{ c.coins.sp }}</div><div>金 {{ c.coins.gp }}</div><div>白金 {{ c.coins.pp }}</div>
+      </div>
+      <table v-if="c.inventory.length">
+        <tr><th style="width:32px">數</th><th>物品</th><th>屬性</th></tr>
+        <tr v-for="(it,i) in c.inventory" :key="i">
+          <td>{{ it.qty }}</td>
+          <td>{{ safeText(it.name) }}</td>
+          <td class="ps-muted">{{ itemById(it.itemId) ? itemStats(itemById(it.itemId)) : '' }}</td>
+        </tr>
+      </table>
+      <p v-else class="ps-empty">背包為空</p>
+    </div>
+
+    <div class="ps-section" v-if="c.familiar">
+      <h2>魔寠</h2>
+      <div class="ps-grid">
+        <div><strong>名稱：</strong>{{ safeText(c.familiar.name) || '—' }}</div>
+        <div><strong>種類：</strong>{{ safeText(c.familiar.type) || '—' }}</div>
+        <div><strong>HP：</strong>{{ c.familiar.hp.current }} / {{ c.familiar.hp.max }}</div>
+        <div><strong>AC：</strong>{{ c.familiar.ac }}</div>
+        <div><strong>速度：</strong>{{ safeText(c.familiar.speed) || '—' }}</div>
+      </div>
+      <p v-if="safeText(c.familiar.attacks)" style="white-space:pre-line"><strong>攻擊：</strong>{{ safeText(c.familiar.attacks) }}</p>
+      <p v-if="safeText(c.familiar.notes)" class="ps-muted" style="white-space:pre-line"><strong>備註：</strong>{{ safeText(c.familiar.notes) }}</p>
+    </div>
+
+    <div class="ps-section" v-if="languagesText || proficienciesSummary || safeText(c.notes)">
+      <h2>筆記 / 其他</h2>
+      <p v-if="languagesText"><strong>語言：</strong>{{ languagesText }}</p>
+      <p v-if="proficienciesSummary"><strong>熟練：</strong>{{ proficienciesSummary }}</p>
+      <p v-if="safeText(c.notes)" style="white-space:pre-line">{{ safeText(c.notes) }}</p>
+    </div>
+  </div>
+</div>
+<script>
+/* ===== 內嵌職業資料（離線可用，不靠外部 fetch） ===== */
+const CLASSES = [
+  { "name_zh":"野蠻人","name_en":"Barbarian","hit_dice":"d12","skills_choices":["動物認同","運動","威嚇","自然","察覺","求生"] },
+  { "name_zh":"吟遊詩人","name_en":"Bard","hit_dice":"d8","skills_choices":["任何技能"] },
+  { "name_zh":"牧師","name_en":"Cleric","hit_dice":"d8","skills_choices":["歷史","洞悉","醫藥","遊說","宗教"] },
+  { "name_zh":"德魯伊","name_en":"Druid","hit_dice":"d8","skills_choices":["奧秘","動物認同","洞悉","醫藥","自然","察覺","宗教","求生"] },
+  { "name_zh":"戰士","name_en":"Fighter","hit_dice":"d10","skills_choices":["特技","動物認同","運動","歷史","洞悉","威嚇","察覺","求生"] },
+  { "name_zh":"武僧","name_en":"Monk","hit_dice":"d8","skills_choices":["特技","運動","歷史","洞悉","宗教","隱匿"] },
+  { "name_zh":"聖騎士","name_en":"Paladin","hit_dice":"d10","skills_choices":["運動","洞悉","威嚇","醫藥","遊說","宗教"] },
+  { "name_zh":"遊俠","name_en":"Ranger","hit_dice":"d10","skills_choices":["動物認同","運動","洞悉","調查","自然","察覺","隱匿","求生"] },
+  { "name_zh":"盜賊","name_en":"Rogue","hit_dice":"d8","skills_choices":["特技","運動","欺瞞","洞悉","威嚇","調查","察覺","表演","遊說","巧手","隱匿"] },
+  { "name_zh":"術士","name_en":"Sorcerer","hit_dice":"d6","skills_choices":["奧秘","欺瞞","洞悉","威嚇","遊說","宗教"] },
+  { "name_zh":"契術師","name_en":"Warlock","hit_dice":"d8","skills_choices":["奧秘","欺瞞","歷史","威嚇","調查","自然","宗教"] },
+  { "name_zh":"法師","name_en":"Wizard","hit_dice":"d6","skills_choices":["奧秘","歷史","洞悉","調查","醫藥","宗教"] }
+];
+
+/* 18 項標準技能與對應屬性 */
+const SKILLS = [
+  { zh:"特技", attr:"dex", attrZh:"敏捷" },
+  { zh:"動物認同", attr:"wis", attrZh:"感知" },
+  { zh:"奧秘", attr:"int", attrZh:"智力" },
+  { zh:"運動", attr:"str", attrZh:"力量" },
+  { zh:"欺瞞", attr:"cha", attrZh:"魅力" },
+  { zh:"歷史", attr:"int", attrZh:"智力" },
+  { zh:"洞悉", attr:"wis", attrZh:"感知" },
+  { zh:"威嚇", attr:"cha", attrZh:"魅力" },
+  { zh:"調查", attr:"int", attrZh:"智力" },
+  { zh:"醫藥", attr:"wis", attrZh:"感知" },
+  { zh:"自然", attr:"int", attrZh:"智力" },
+  { zh:"察覺", attr:"wis", attrZh:"感知" },
+  { zh:"表演", attr:"cha", attrZh:"魅力" },
+  { zh:"說服", attr:"cha", attrZh:"魅力" },
+  { zh:"宗教", attr:"int", attrZh:"智力" },
+  { zh:"巧手", attr:"dex", attrZh:"敏捷" },
+  { zh:"隱匿", attr:"dex", attrZh:"敏捷" },
+  { zh:"求生", attr:"wis", attrZh:"感知" }
+];
+
+/* JSON 內技能名稱對應到標準 18 技能（合理對應） */
+const SKILL_ALIAS = { "遊說":"說服", "說服":"說服", "潛行":"隱匿" };
+
+/* ===== D&D 5e 標準狀態（14 種）中英對照 ===== */
+const CONDITIONS = [
+  { id:"blinded",      zh:"目盲" },
+  { id:"charmed",      zh:"魅惑" },
+  { id:"deafened",     zh:"耳聾" },
+  { id:"frightened",   zh:"恐懼" },
+  { id:"grappled",     zh:"被擒抱" },
+  { id:"incapacitated",zh:"失能" },
+  { id:"invisible",    zh:"隱形" },
+  { id:"paralyzed",    zh:"麻痺" },
+  { id:"petrified",    zh:"石化" },
+  { id:"poisoned",     zh:"中毒" },
+  { id:"prone",        zh:"倒地" },
+  { id:"restrained",   zh:"束縛" },
+  { id:"stunned",      zh:"震懾" },
+  { id:"unconscious",  zh:"昏迷" }
+];
+
+/* ===== 常見語言（快捷選單；可另外自訂） ===== */
+const COMMON_LANGUAGES = [
+  "通用語","矮人語","精靈語","巨人語","地侏語","半身人語","獸人語","龍語",
+  "地下通用語","炼狱語","天界語","深潛語","原始語","德魯伊語","盜賊黑話"
+];
+
+/* ===== 種族（含 2014 PHB 標準 ASI 建議） ===== */
+const RACES = [
+  { name:"人類",      asi:{ str:1, dex:1, con:1, int:1, wis:1, cha:1 }, note:"" },
+  { name:"精靈",      asi:{ dex:2 }, note:"" },
+  { name:"矮人",      asi:{ con:2 }, note:"" },
+  { name:"半身人",    asi:{ dex:2 }, note:"" },
+  { name:"龍裔",      asi:{ str:2, cha:1 }, note:"" },
+  { name:"地侏",      asi:{ int:2 }, note:"" },
+  { name:"半精靈",    asi:{ cha:2 }, note:"半精靈另有兩項屬性各 +1，請於對應屬性「加值」欄手動填入。" },
+  { name:"半獸人",    asi:{ str:2, con:1 }, note:"" },
+  { name:"提夫林",    asi:{ cha:2, int:1 }, note:"" },
+  { name:"其他/自訂", asi:{}, note:"" }
+];
+
+/* ===== 陣營（九宮格，純角色扮演，不影響數值） ===== */
+const ALIGNMENTS = [
+  "守序善良","中立善良","混亂善良",
+  "守序中立","絕對中立","混亂中立",
+  "守序邪惡","中立邪惡","混亂邪惡"
+];
+
+/* ===== 背景（grantedSkills 名稱對應既有 SKILLS zh：說服=Persuasion） ===== */
+const BACKGROUNDS = [
+  { name:"侍僕",     grantedSkills:["洞悉","宗教"],     note:"語言：兩種任選" },
+  { name:"罪犯",     grantedSkills:["欺瞞","隱匿"],     note:"工具：一種遊戲組、盜賊工具" },
+  { name:"民間英雄", grantedSkills:["動物認同","求生"], note:"工具：一種匠人工具、載具（陸地）" },
+  { name:"貴族",     grantedSkills:["歷史","說服"],     note:"工具：一種遊戲組；語言：一種任選" },
+  { name:"賢者",     grantedSkills:["奧秘","歷史"],     note:"語言：兩種任選" },
+  { name:"士兵",     grantedSkills:["運動","威嚇"],     note:"工具：一種遊戲組、載具（陸地）" },
+  { name:"藝人",     grantedSkills:["特技","表演"],     note:"工具：易容工具、一種樂器" },
+  { name:"騙子",     grantedSkills:["欺瞞","巧手"],     note:"工具：易容工具、偽造工具" },
+  { name:"公會工匠", grantedSkills:["洞悉","說服"],     note:"工具：一種匠人工具；語言：一種任選" },
+  { name:"隱士",     grantedSkills:["醫藥","宗教"],     note:"工具：藥草工具；語言：一種任選" },
+  { name:"海員",     grantedSkills:["特技","察覺"],     note:"工具：航海工具、載具（水路）" },
+  { name:"城市浪人", grantedSkills:["巧手","隱匿"],     note:"工具：易容工具、盜賊工具" },
+  { name:"其他/自訂", grantedSkills:[],                  note:"" }
+];
+
+const STORAGE_KEY = "parchment_dnd5e_char_v1";   /* 舊版單一角色存檔（遷移用） */
+const LS_CHARS  = "dnd_chars";                    /* 角色陣列 */
+const LS_ACTIVE = "dnd_active";                   /* 目前角色 id */
+const LS_MODE   = "dnd_mode";                     /* 全域模式 */
+const LS_SETTINGS = "dnd_settings";              /* 全域內容設定（非 per-character）：enabledSources / includeUntranslated */
+
+/* 群組顯示定義（順序即顯示順序） */
+const SOURCE_GROUP_DEFS = [
+  { key:"core",      label:"📘 核心規則" },
+  { key:"adventure", label:"🗺️ 冒險模組" },
+  { key:"setting",   label:"🌍 戰役設定" },
+  { key:"ua",        label:"🧪 試行內容（UA / 直播）" },
+  { key:"other",     label:"❓ 其他 / 未分類" }
+];
+
+function uid(){ return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function defaultFamiliar(){
+  return {
+    name:"", type:"", speed:"", ac:10,
+    hp:{ current:1, max:1 },
+    abilities:{ str:10, dex:10, con:10, int:10, wis:10, cha:10 },
+    attacks:"", notes:""
+  };
+}
+
+function defaultChar(){
+  const skills = {};
+  SKILLS.forEach(s => { skills[s.zh] = { proficient:false, override:null }; });
+  return {
+    id: uid(),
+    name:"", race:"", subrace:"", alignment:"", background:"", speed:"30 呎",
+    languages:[], proficiencies:"", notes:"",
+    profArmor:[], profWeapon:[], profTool:[], profSaves:{},
+    ac:10, initiative:0,
+    hp:{ current:10, max:10, temp:0 },
+    abilities:{ str:10, dex:10, con:10, int:10, wis:10, cha:10 },
+    abilityBonus:{ str:0, dex:0, con:0, int:0, wis:0, cha:0 },
+    classes:[],
+    saves:{ str:false, dex:false, con:false, int:false, wis:false, cha:false },
+    skills,
+    spellSlots: Array.from({length:9}, (_,i)=>({ level:i+1, max:0, used:0 })),
+    spellsText:"",
+    spellbook:[],
+    inventory:[],
+    coins:{ cp:0, sp:0, gp:0, pp:0 },
+    conditions:{},
+    exhaustion:0,
+    familiar: null
+  };
+}
+
+const { createApp, reactive, computed, watch, ref, onMounted } = Vue;
+
+/* 安全字串化：物件→取 __text/text 或忽略、陣列→遞迴 map 後串接、其餘→String，永不丟錯 */
+function safeText(v, sep){
+  sep = sep || "、";
+  try {
+    if(v === null || v === undefined) return "";
+    if(typeof v === "string") return v;
+    if(typeof v === "number" || typeof v === "boolean") return String(v);
+    if(Array.isArray(v)) return v.map(x => safeText(x, sep)).filter(Boolean).join(sep);
+    if(typeof v === "object"){
+      if(typeof v.__text === "string") return v.__text;
+      if(typeof v.text === "string") return v.text;
+      const parts = [];
+      for(const k of Object.keys(v)){
+        if(k === "_category" || k === "toString" || k === "valueOf") continue;
+        const t = safeText(v[k], sep);
+        if(t) parts.push(t);
+      }
+      return parts.join(sep);
+    }
+    return String(v);
+  } catch(e){ return ""; }
+}
+
+const app = createApp({
+  setup(){
+    /* ===== 多角色狀態 ===== */
+    const store = loadAll();
+    const chars = reactive(store.chars);   /* 角色陣列（每元素含唯一 id） */
+    const activeId = ref(store.activeId);  /* 目前角色 id */
+    const mode = ref(store.mode);          /* 'setup' | 'play' */
+    const c = reactive(defaultChar());     /* 目前角色工作副本 */
+    loadActiveIntoC();
+
+    const locked = computed(() => mode.value === "play");
+    const tab = ref("base");
+    const msg = ref("");
+    const fileInput = ref(null);
+    const dataState = reactive({ loading:false, error:"", races:[], spells:[], items:[], sources:[] });
+    /* ===== 全域內容設定（來源多選 + 含未繁中開關） ===== */
+    const settings = reactive(loadSettings());
+    const showSettings = ref(false);
+    const showCreditModal = ref(false);
+    const search = reactive({
+      spellQuery:"", spellLevel:"", spellClass:"", spellSource:"",
+      itemQuery:"", itemType:"", itemRarity:"", itemSource:""
+    });
+
+    const tabs = [
+      { id:"base", icon:"📋", label:"基礎" },
+      { id:"class", icon:"🛡️", label:"職業" },
+      { id:"skill", icon:"📖", label:"技能" },
+      { id:"spell", icon:"✨", label:"法術" },
+      { id:"bag", icon:"🎒", label:"背包" },
+      { id:"familiar", icon:"🐾", label:"魔寠" },
+      { id:"manage", icon:"🗂️", label:"管理" }
+    ];
+    const abilityDefs = [
+      { key:"str", zh:"力量" }, { key:"dex", zh:"敏捷" }, { key:"con", zh:"體質" },
+      { key:"int", zh:"智力" }, { key:"wis", zh:"感知" }, { key:"cha", zh:"魅力" }
+    ];
+    const coinDefs = [
+      { key:"cp", zh:"銅幣" }, { key:"sp", zh:"銀幣" }, { key:"gp", zh:"金幣" }, { key:"pp", zh:"白金" }
+    ];
+
+    /* ===== 載入 / 遷移 ===== */
+    function loadAll(){
+      let list = [];
+      /* 1) 新版角色陣列 */
+      try{
+        const raw = localStorage.getItem(LS_CHARS);
+        if(raw){
+          const arr = JSON.parse(raw);
+          if(Array.isArray(arr)) list = arr.map(x => mergeChar(defaultChar(), x));
+        }
+      }catch(e){}
+      /* 2) 舊版單一角色→自動遷移為陣列第一個 */
+      if(!list.length){
+        try{
+          const legacy = localStorage.getItem(STORAGE_KEY);
+          if(legacy){ list = [ mergeChar(defaultChar(), JSON.parse(legacy)) ]; }
+        }catch(e){}
+      }
+      /* 3) 完全空白→建立預設角色 */
+      if(!list.length){ list = [ defaultChar() ]; }
+      /* 補齊 id 與欄位 */
+      list.forEach(ch => { if(!ch.id) ch.id = uid(); });
+      let active = null;
+      try{ active = localStorage.getItem(LS_ACTIVE); }catch(e){}
+      if(!active || !list.some(ch => ch.id === active)) active = list[0].id;
+      let m = "setup";
+      try{ const sm = localStorage.getItem(LS_MODE); if(sm === "play" || sm === "setup") m = sm; }catch(e){}
+      return { chars:list, activeId:active, mode:m };
+    }
+    function activeChar(){ return chars.find(x => x.id === activeId.value) || chars[0]; }
+    function loadActiveIntoC(){
+      const merged = mergeChar(defaultChar(), activeChar());
+      Object.keys(c).forEach(k => { if(!(k in merged)) delete c[k]; });
+      Object.keys(merged).forEach(k => { c[k] = merged[k]; });
+    }
+    function syncBack(){
+      const idx = chars.findIndex(x => x.id === c.id);
+      if(idx >= 0){ chars[idx] = JSON.parse(JSON.stringify(c)); }
+    }
+    function persist(){
+      try{
+        localStorage.setItem(LS_CHARS, JSON.stringify(chars));
+        localStorage.setItem(LS_ACTIVE, activeId.value);
+        localStorage.setItem(LS_MODE, mode.value);
+      }catch(e){}
+    }
+    function mergeChar(base, saved){
+      const out = JSON.parse(JSON.stringify(base));
+      for(const k in saved){
+        if(k==="skills"){
+          for(const sk in saved.skills){ if(out.skills[sk]) out.skills[sk] = Object.assign(out.skills[sk], saved.skills[sk]); }
+        } else if(k==="familiar"){
+          if(saved.familiar && typeof saved.familiar === "object"){
+            const f = defaultFamiliar();
+            for(const fk in saved.familiar){
+              if(fk==="hp" || fk==="abilities"){ f[fk] = Object.assign(f[fk]||{}, saved.familiar[fk]); }
+              else { f[fk] = saved.familiar[fk]; }
+            }
+            out.familiar = f;
+          } else { out.familiar = null; }
+        } else if(typeof saved[k] === "object" && saved[k] !== null && !Array.isArray(saved[k])){
+          out[k] = Object.assign(out[k]||{}, saved[k]);
+        } else { out[k] = saved[k]; }
+      }
+      return out;
+    }
+
+    /* ===== 全域設定：載入 / 儲存 / 調和 ===== */
+    function loadSettings(){
+      const s = { enabledSources:null, includeUntranslated:true, seen:[] };
+      try{
+        const raw = localStorage.getItem(LS_SETTINGS);
+        if(raw){
+          const o = JSON.parse(raw);
+          if(o && typeof o === "object"){
+            if(Array.isArray(o.enabledSources)) s.enabledSources = o.enabledSources.slice();
+            if(typeof o.includeUntranslated === "boolean") s.includeUntranslated = o.includeUntranslated;
+            if(Array.isArray(o.seen)) s.seen = o.seen.slice();
+          }
+        }
+      }catch(e){}
+      return s;
+    }
+    function persistSettings(){
+      try{
+        localStorage.setItem(LS_SETTINGS, JSON.stringify({
+          enabledSources: settings.enabledSources || [],
+          includeUntranslated: settings.includeUntranslated,
+          seen: settings.seen || []
+        }));
+      }catch(e){}
+    }
+    /* 軟體中出現的所有來源代碼（manifest + 實際資料） */
+    function allSourceCodes(){
+      const set = new Set();
+      (dataState.sources || []).forEach(s => { if(s && s.code) set.add(s.code); });
+      (dataState.races  || []).forEach(r => {
+        if(r.source) set.add(r.source);
+        (r.subraces || []).forEach(sr => { set.add(sr.source || r.source); });
+      });
+      (dataState.spells || []).forEach(s => { if(s.source) set.add(s.source); });
+      (dataState.items  || []).forEach(i => { if(i.source) set.add(i.source); });
+      set.delete(undefined); set.delete(null); set.delete("");
+      return Array.from(set);
+    }
+    /* 資料載入後調和：首次預設全開；日後新增來源預設視為啟用 */
+    function reconcileSettings(){
+      const all = allSourceCodes();
+      if(!Array.isArray(settings.enabledSources)){
+        settings.enabledSources = all.slice();
+      } else {
+        all.forEach(code => {
+          if(!settings.seen.includes(code) && !settings.enabledSources.includes(code)){
+            settings.enabledSources.push(code);
+          }
+        });
+      }
+      settings.seen = all.slice();
+      persistSettings();
+    }
+    /* ===== 篩選判斷 ===== */
+    function isSourceEnabled(code){
+      if(!code) return true;                          /* 無來源（如部分物品）視為啟用 */
+      if(!Array.isArray(settings.enabledSources)) return true;
+      if(settings.enabledSources.includes(code)) return true;
+      /* 未被記錄過的來源（sources.json 漏列 / 內建簡表 / 舊存檔）預設視為啟用 */
+      if(!Array.isArray(settings.seen) || !settings.seen.includes(code)) return true;
+      return false;
+    }
+    function isUntranslated(o){
+      return !!(o && o.name_en && o.name_zh && o.name_zh === o.name_en);
+    }
+    /* 可選清單篩選：來源啟用 + （若不含未繁中則排除未繁中） */
+    function passesFilter(o){
+      if(!o) return false;
+      if(!isSourceEnabled(o.source)) return false;
+      if(!settings.includeUntranslated && isUntranslated(o)) return false;
+      return true;
+    }
+    /* 已選項目來源被停用時的提示 */
+    function disabledSourceNote(o){
+      return (o && o.source && !isSourceEnabled(o.source)) ? "（來源已停用）" : "";
+    }
+
+    /* ===== 設定面板：來源目錄與分組 ===== */
+    const sourceCatalog = computed(() => {
+      const map = {};
+      (dataState.sources || []).forEach(s => { if(s && s.code) map[s.code] = Object.assign({}, s); });
+      allSourceCodes().forEach(code => {
+        if(!map[code]) map[code] = { code, name_zh:code, name_en:code, group:"other", official:false, counts:null };
+      });
+      return Object.values(map);
+    });
+    const sourceGroups = computed(() => {
+      const cat = sourceCatalog.value;
+      return SOURCE_GROUP_DEFS.map(g => ({
+        key:g.key, label:g.label,
+        sources: cat.filter(s => (s.group || "other") === g.key).sort((a,b)=>a.code.localeCompare(b.code))
+      })).filter(g => g.sources.length);
+    });
+    const enabledCount = computed(() => (settings.enabledSources || []).filter(code => allSourceCodes().includes(code)).length);
+    const totalSourceCount = computed(() => allSourceCodes().length);
+    function sourceCountsText(s){
+      if(!s || !s.counts) return "";
+      const c0 = s.counts;
+      return "種 " + (c0.races||0) + " · 法 " + (c0.spells||0) + " · 物 " + (c0.items||0);
+    }
+    function sourceLabelOf(s){
+      if(!s) return "";
+      const zh = s.name_zh || s.code;
+      return zh + (s.name_en && s.name_en !== zh ? "（" + s.name_en + "）" : "");
+    }
+    function toggleSource(code){
+      if(!Array.isArray(settings.enabledSources)) settings.enabledSources = [];
+      const i = settings.enabledSources.indexOf(code);
+      if(i >= 0) settings.enabledSources.splice(i,1); else settings.enabledSources.push(code);
+      persistSettings();
+    }
+    function selectAllSources(on){
+      settings.enabledSources = on ? allSourceCodes() : [];
+      persistSettings();
+    }
+    function groupAllEnabled(g){ return g.sources.length > 0 && g.sources.every(s => isSourceEnabled(s.code)); }
+    function toggleGroup(g){
+      if(!Array.isArray(settings.enabledSources)) settings.enabledSources = [];
+      const on = !groupAllEnabled(g);
+      g.sources.forEach(s => {
+        const i = settings.enabledSources.indexOf(s.code);
+        if(on && i < 0) settings.enabledSources.push(s.code);
+        if(!on && i >= 0) settings.enabledSources.splice(i,1);
+      });
+      persistSettings();
+    }
+
+    /* ===== 計算 ===== */
+    const totalLevel = computed(() => c.classes.reduce((s,cl)=> s + (Number(cl.level)||0), 0));
+    const profBonus = computed(() => 2 + Math.floor((Math.max(totalLevel.value,1)-1)/4));
+    const abilityMod = (score) => Math.floor(((Number(score)||0)-10)/2);
+    /* 有效屬性 = 基礎 + 種族/其他加值 */
+    const abilityTotal = (key) => (Number(c.abilities[key])||0) + (Number(c.abilityBonus[key])||0);
+    const abilityModFor = (key) => abilityMod(abilityTotal(key));
+
+    const hitDiceDisplay = computed(() => {
+      const map = {};
+      c.classes.forEach(cl => {
+        const def = CLASSES.find(k=>k.name_en===cl.name_en);
+        const lv = Number(cl.level)||0;
+        if(def && lv>0){ map[def.hit_dice] = (map[def.hit_dice]||0) + lv; }
+      });
+      const order = ["d12","d10","d8","d6","d4"];
+      return Object.keys(map).sort((a,b)=>order.indexOf(a)-order.indexOf(b))
+        .map(d => map[d] + d).join(" + ");
+    });
+
+    const availableSkills = computed(() => {
+      const set = new Set();
+      c.classes.forEach(cl => {
+        const def = CLASSES.find(k=>k.name_en===cl.name_en);
+        if(!def) return;
+        def.skills_choices.forEach(name => {
+          if(name === "任何技能"){ SKILLS.forEach(s=>set.add(s.zh)); return; }
+          const norm = SKILL_ALIAS[name] || name;
+          if(SKILLS.some(s=>s.zh===norm)) set.add(norm);
+        });
+      });
+      /* 背景 grantedSkills 並入可選熟練池 */
+      const bg = BACKGROUNDS.find(b=>b.name===c.background);
+      if(bg){
+        bg.grantedSkills.forEach(name => {
+          const norm = SKILL_ALIAS[name] || name;
+          if(SKILLS.some(s=>s.zh===norm)) set.add(norm);
+        });
+      }
+      return set;
+    });
+    const fallbackRaceOptions = () => RACES.map(r => ({
+      id:r.name, name_zh:r.name, name_en:r.name, source:"內建簡表", page:null,
+      size:null, speed:null, abilityBonus:r.asi || {}, abilityChoose:[],
+      traits_zh:r.note ? [{ name_zh:"備註", desc_zh:r.note }] : [], subraces:[]
+    }));
+    const baseRaceOptions = computed(() => dataState.races.length ? dataState.races : fallbackRaceOptions());
+    const raceSelectOptions = computed(() => {
+      const arr = baseRaceOptions.value.filter(r => passesFilter(r));
+      const sel = resolveRace(c.race);
+      if(sel){
+        const key = sel.id || sel.name_zh;
+        if(!arr.some(r => (r.id || r.name_zh) === key)) arr.push(Object.assign({}, sel, { _disabledSource:true }));
+      } else if(c.race){
+        arr.push({ id:c.race, name_zh:"目前：" + c.race, name_en:c.race, source:"舊存檔/自訂", abilityBonus:{}, abilityChoose:[], traits_zh:[], subraces:[], _disabledSource:true });
+      }
+      return arr;
+    });
+    const selectedRace = computed(() => resolveRace(c.race) || (c.race ? { id:c.race, name_zh:c.race, name_en:c.race, source:"舊存檔/自訂", abilityBonus:{}, abilityChoose:[], traits_zh:[], subraces:[] } : null));
+    const subraceOptions = computed(() => (selectedRace.value && Array.isArray(selectedRace.value.subraces)) ? selectedRace.value.subraces : []);
+    /* 供下拉使用：篩選後的副種族 + 保留已選副種族 */
+    const subraceSelectOptions = computed(() => {
+      const all = subraceOptions.value;
+      const arr = all.filter(sr => passesFilter(sr));
+      const sel = selectedSubrace.value;
+      if(sel){
+        const key = sel.id || sel.name_zh;
+        if(!arr.some(sr => (sr.id || sr.name_zh) === key)) arr.push(Object.assign({}, sel, { _disabledSource:true }));
+      }
+      return arr;
+    });
+    const selectedSubrace = computed(() => resolveSubrace(c.subrace));
+    const combinedRaceBonus = computed(() => {
+      const out = { str:0, dex:0, con:0, int:0, wis:0, cha:0 };
+      [selectedRace.value, selectedSubrace.value].forEach(part => {
+        const bonus = part && part.abilityBonus ? part.abilityBonus : {};
+        Object.keys(out).forEach(k => { out[k] += Number(bonus[k] || 0); });
+      });
+      return out;
+    });
+    const raceChooseNote = computed(() => {
+      const all = [];
+      [selectedRace.value, selectedSubrace.value].forEach(part => {
+        if(part && Array.isArray(part.abilityChoose)) all.push(...part.abilityChoose);
+      });
+      return all.map(formatAbilityChoose).filter(Boolean).join("；");
+    });
+    const raceTraitsSummary = computed(() => {
+      const traits = [];
+      [selectedRace.value, selectedSubrace.value].forEach(part => {
+        if(part && Array.isArray(part.traits_zh)){
+          part.traits_zh.forEach(t => { if(t && t.name_zh) traits.push(t.name_zh); });
+        }
+      });
+      return traits.slice(0, 10).join("、") + (traits.length > 10 ? "…" : "");
+    });
+    const bgNote   = computed(() => { const b = BACKGROUNDS.find(x=>x.name===c.background); return b ? b.note : ""; });
+
+    const spellResults = computed(() => {
+      const q = norm(search.spellQuery);
+      return dataState.spells.filter(sp => {
+        if(!passesFilter(sp)) return false;
+        if(q && !norm((sp.name_zh||"") + " " + (sp.name_en||"")).includes(q)) return false;
+        if(search.spellLevel !== "" && String(sp.level) !== String(search.spellLevel)) return false;
+        if(search.spellClass && !(sp.classes || []).includes(search.spellClass)) return false;
+        if(search.spellSource && sp.source !== search.spellSource) return false;
+        return true;
+      }).slice(0, 50);
+    });
+    const spellSourceOptions = computed(() => uniq(dataState.spells.filter(sp => isSourceEnabled(sp.source)).map(sp => sp.source).filter(Boolean)));
+    const spellClassOptions = computed(() => uniq(dataState.spells.flatMap(sp => sp.classes || []).filter(Boolean)));
+    const itemResults = computed(() => {
+      const q = norm(search.itemQuery);
+      return dataState.items.filter(item => {
+        if(!passesFilter(item)) return false;
+        if(q && !norm((item.name_zh||"") + " " + (item.name_en||"")).includes(q)) return false;
+        if(search.itemType && item.type !== search.itemType) return false;
+        if(search.itemRarity && item.rarity !== search.itemRarity) return false;
+        if(search.itemSource && item.source !== search.itemSource) return false;
+        return true;
+      }).slice(0, 50);
+    });
+    const itemTypeOptions = computed(() => uniq(dataState.items.map(item => item.type).filter(Boolean)));
+    const itemRarityOptions = computed(() => uniq(dataState.items.map(item => item.rarity).filter(Boolean)));
+    const itemSourceOptions = computed(() => uniq(dataState.items.filter(item => isSourceEnabled(item.source)).map(item => item.source).filter(Boolean)));
+
+    const skillValue = (zh) => {
+      const def = SKILLS.find(s=>s.zh===zh);
+      const ov = c.skills[zh].override;
+      if(ov !== null && ov !== "" && ov !== undefined && !Number.isNaN(Number(ov))) return Number(ov);
+      const mod = abilityModFor(def.attr);
+      return mod + (c.skills[zh].proficient ? profBonus.value : 0);
+    };
+    const saveValue = (key) => abilityModFor(key) + ((c.saves[key] || c.profSaves[key]) ? profBonus.value : 0);
+
+    /* ===== 語言與熟練（功能5：手動版） ===== */
+    const langPick = ref("");
+    const newLang = ref("");
+    const newArmor = ref("");
+    const newWeapon = ref("");
+    const newTool = ref("");
+    function ensureLangArr(){ if(!Array.isArray(c.languages)) c.languages = []; }
+    function addLanguage(name){
+      ensureLangArr();
+      const v = String(name || "").trim();
+      if(!v) return;
+      if(!c.languages.some(x => String(x).trim() === v)) c.languages.push(v);
+    }
+    function addLanguageFromPick(){ if(langPick.value){ addLanguage(langPick.value); langPick.value = ""; } }
+    function addCustomLanguage(){ if(newLang.value){ addLanguage(newLang.value); newLang.value = ""; } }
+    function removeLanguage(i){ ensureLangArr(); c.languages.splice(i, 1); }
+    function addProf(listKey, valueRef){
+      if(!Array.isArray(c[listKey])) c[listKey] = [];
+      const v = String(valueRef.value || "").trim();
+      if(!v) return;
+      if(!c[listKey].some(x => String(x).trim() === v)) c[listKey].push(v);
+      valueRef.value = "";
+    }
+    function removeProf(listKey, i){ if(Array.isArray(c[listKey])) c[listKey].splice(i, 1); }
+    const languagesText = computed(() => safeText(c.languages));
+    const profArmorText = computed(() => safeText(c.profArmor));
+    const profWeaponText = computed(() => safeText(c.profWeapon));
+    const profToolText = computed(() => safeText(c.profTool));
+    const profSavesText = computed(() =>
+      abilityDefs.filter(a => c.saves[a.key] || c.profSaves[a.key]).map(a => a.zh).join("、")
+    );
+    const proficienciesSummary = computed(() => {
+      const parts = [];
+      if(profArmorText.value) parts.push("護甲：" + profArmorText.value);
+      if(profWeaponText.value) parts.push("武器：" + profWeaponText.value);
+      if(profToolText.value) parts.push("工具：" + profToolText.value);
+      if(profSavesText.value) parts.push("豁免：" + profSavesText.value);
+      if(safeText(c.proficiencies)) parts.push("其他：" + safeText(c.proficiencies));
+      return parts.join(" / ");
+    });
+
+    /* ===== 顯示輔助 ===== */
+    const fmt = (n) => (Number(n) >= 0 ? "+" : "") + Number(n);
+    const modClass = (n) => Number(n) >= 0 ? "mod-pos" : "mod-neg";
+    const norm = (v) => String(v || "").trim().toLowerCase();
+    const uniq = (arr) => Array.from(new Set(arr)).sort((a,b)=>String(a).localeCompare(String(b)));
+    const abilityZh = { str:"力", dex:"敏", con:"體", int:"智", wis:"感", cha:"魅" };
+    const schoolMap = { A:"防護", C:"咒法", D:"預言", E:"惑控", I:"幻術", N:"死靈", T:"變化", V:"塑能", P:"靈能" };
+    const unitMap = { action:"動作", bonus:"附贈動作", reaction:"反應", minute:"分鐘", hour:"小時", round:"輪", day:"日" };
+    const typeMap = { weapon:"武器", ammunition:"彈藥", armor:"護甲", shield:"盾牌", potion:"藥水", scroll:"卷軸", ring:"戒指", rod:"權杖", wand:"魔杖", focus:"法器", tool:"工具", mount:"坐騎", vehicle:"載具", tack:"騎具", treasure:"財寶", wondrous:"奇物", gear:"裝備", explosive:"爆裂物", "eldritch-machine":"奧法機械", group:"物品集合", variant:"魔法變體模板", other:"其他" };
+    const rarityMap = { common:"普通", uncommon:"罕見", rare:"稀有", "very rare":"極稀有", legendary:"傳奇", artifact:"神器", unknown:"未知" };
+
+    function sourceText(obj){ if(!obj) return "—"; return (obj.source || "未知") + (obj.page ? " p." + obj.page : ""); }
+    function raceDisplayName(r){ if(!r) return ""; return (r.name_zh || r.name_en || r.id || "未命名") + (r.name_en && r.name_en !== r.name_zh ? "（" + r.name_en + "）" : ""); }
+    function raceOptionLabel(r){ return raceDisplayName(r) + (r.source ? " — " + r.source : "") + (r._disabledSource ? " （來源已停用）" : ""); }
+    function subraceLabel(sr){ return (raceDisplayName(sr) || "（未命名副種族）") + (sr.source ? " — " + sr.source : "") + (sr._disabledSource ? " （來源已停用）" : ""); }
+    function sizeText(v){ return ({ T:"超小", S:"小型", M:"中型", L:"大型", H:"巨型" })[v] || v || "—"; }
+    function speedText(v){
+      if(v === null || v === undefined || v === "") return "—";
+      if(typeof v === "number") return v + " 呎";
+      if(typeof v === "string") return v;
+      const names = { walk:"步行", fly:"飛行", swim:"游泳", climb:"攀爬", burrow:"掘穴" };
+      return Object.keys(v).map(k => (names[k] || k) + " " + v[k] + " 呎").join("、") || "—";
+    }
+    function abilitySummary(bonus){
+      return Object.keys(abilityZh).filter(k => Number(bonus && bonus[k])).map(k => abilityZh[k] + fmt(Number(bonus[k]))).join("、");
+    }
+    function formatAbilityChoose(ch){
+      if(!ch) return "";
+      const from = Array.isArray(ch.from) ? ch.from.map(k => abilityZh[k] || k).join("/") : "任選";
+      return from + " 中選 " + (ch.count || 1) + " 項各 +" + (ch.amount || 1);
+    }
+    function resolveRace(value){
+      if(!value) return null;
+      return baseRaceOptions.value.find(r => r && (r.id === value || r.name_zh === value || r.name_en === value || r.name === value)) || null;
+    }
+    function resolveSubrace(value){
+      if(!value) return null;
+      return subraceOptions.value.find(sr => sr && (sr.id === value || sr.name_zh === value || sr.name_en === value)) || null;
+    }
+    function spellById(id){ return dataState.spells.find(sp => sp.id === id) || null; }
+    function spellName(sp){ return sp ? (sp.name_zh || sp.name_en || sp.id) + (sp.name_en && sp.name_en !== sp.name_zh ? "（" + sp.name_en + "）" : "") : ""; }
+    function spellLevelText(level){ return Number(level) === 0 ? "戲法" : String(level) + " 環"; }
+    function formatTime(time){
+      if(!Array.isArray(time) || !time.length) return "—";
+      return time.map(t => (t.number || 1) + " " + safeText(unitMap[t.unit] || t.unit || "") + (t.condition ? "（" + safeText(t.condition) + "）" : "")).join("、");
+    }
+    function formatRange(range){
+      if(!range) return "—";
+      if(typeof range !== "object") return safeText(range) || "—";
+      const dist = range.distance || {};
+      if(dist.amount) return dist.amount + " " + safeText({ feet:"呎", miles:"哩" }[dist.type] || dist.type || "");
+      return safeText(({ self:"自身", touch:"觸及", sight:"視線", unlimited:"無限", special:"特殊" }[dist.type || range.type]) || range.type) || "—";
+    }
+    function formatComponents(cmp){
+      if(!cmp) return "—";
+      const parts = [];
+      if(cmp.v) parts.push("V"); if(cmp.s) parts.push("S"); if(cmp.m) parts.push("M" + (typeof cmp.m === "string" ? "（" + cmp.m + "）" : (cmp.m && typeof cmp.m === "object" ? "（" + safeText(cmp.m) + "）" : ""))); if(cmp.r) parts.push("R");
+      return parts.join("、") || "—";
+    }
+    function formatDuration(duration){
+      if(!Array.isArray(duration) || !duration.length) return "—";
+      return duration.map(d => {
+        if(d.type === "instant") return "立即";
+        if(d.type === "special") return "特殊";
+        if(d.type === "permanent") return "永久";
+        if(d.duration) return (d.concentration ? "專注，最長 " : "") + d.duration.amount + " " + (unitMap[d.duration.type] || d.duration.type || "");
+        return d.type || "—";
+      }).join("、");
+    }
+    function spellDescription(sp, summary){
+      if(!sp) return "";
+      const text = [...(sp.entries_zh || []), ...(sp.entries_higher_level_zh || [])].map(x => safeText(x)).filter(Boolean).join("\n");
+      if(!text) return "（無描述）";
+      return summary && text.length > 220 ? text.slice(0, 220) + "…" : text;
+    }
+    function itemById(id){ return dataState.items.find(item => item.id === id) || null; }
+    function itemName(item){ return item ? (item.name_zh || item.name_en || item.id) + (item.name_en && item.name_en !== item.name_zh ? "（" + item.name_en + "）" : "") : ""; }
+    function itemTypeText(type){ return typeMap[type] || type || "—"; }
+    function rarityText(rarity){ return rarity ? (rarityMap[rarity] || rarity) : "非魔法/無"; }
+    function itemValueWeight(item){
+      if(!item) return "—";
+      const parts = [];
+      if(item.value_cp !== null && item.value_cp !== undefined){ parts.push(item.value_cp >= 100 ? (item.value_cp/100) + " gp" : item.value_cp + " cp"); }
+      if(item.weight !== null && item.weight !== undefined){ parts.push(item.weight + " 磅"); }
+      return parts.join(" / ") || "—";
+    }
+    function itemStats(item){
+      if(!item) return "";
+      const parts = [];
+      try {
+        if(item.ac !== null && item.ac !== undefined) parts.push("AC " + safeText(item.ac));
+        if(Array.isArray(item.damage) && item.damage.length) parts.push("傷害 " + item.damage.map(d => safeText(d.dice) + " " + safeText(d.type) + (d.versatile ? "(雙手)" : "")).join(" / "));
+        const rng = safeText(item.range);
+        if(rng) parts.push("射程 " + rng);
+        if(Array.isArray(item.properties) && item.properties.length) parts.push(safeText(item.properties));
+        else if(item.properties) { const p = safeText(item.properties); if(p) parts.push(p); }
+        const bonus = safeText(item.bonus);
+        if(bonus) parts.push("加值 " + bonus);
+        const bonusAc = safeText(item.bonus_ac);
+        if(bonusAc) parts.push("AC加值 " + bonusAc);
+        if(item.requires_attunement) parts.push("需同調" + (item.attune_note_zh ? "（" + safeText(item.attune_note_zh) + "）" : ""));
+        const appliesTo = safeText(item.applies_to);
+        if(appliesTo) parts.push("套用於：" + appliesTo);
+      } catch(e){ console.error("itemStats failed:", e); }
+      return parts.join("；");
+    }
+    function itemDescription(item, summary){
+      if(!item) return "";
+      const bits = [];
+      if(item.name_pattern_zh) bits.push("品名格式：" + item.name_pattern_zh);
+      if(item.applies_to) bits.push("套用條件：" + item.applies_to);
+      bits.push(...((item.entries_zh || []).map(x => safeText(x))));
+      const text = bits.filter(Boolean).join("\n");
+      if(!text) return "（無描述）";
+      return summary && text.length > 220 ? text.slice(0, 220) + "…" : text;
+    }
+
+    /* ===== 操作 ===== */
+    function onRaceChanged(){ c.subrace = ""; }
+    function applyRaceBonus(){
+      if(locked.value) return;
+      const r = selectedRace.value;
+      if(!r){ flash("請先選擇種族喵～"); return; }
+      ["str","dex","con","int","wis","cha"].forEach(k => { c.abilityBonus[k] = Number(combinedRaceBonus.value[k] || 0); });
+      flash("已套用「" + raceDisplayName(r) + (selectedSubrace.value ? "／" + raceDisplayName(selectedSubrace.value) : "") + "」固定加值喵～" + (raceChooseNote.value ? " 可選加值請手動填入。" : ""));
+    }
+    function addClass(){ c.classes.push({ name_en:"Fighter", level:1 }); }
+    function removeClass(i){ c.classes.splice(i,1); }
+    function addItem(){ if(!locked.value) c.inventory.push({ name:"", qty:1 }); }
+    function addItemFromData(item){
+      if(locked.value || !item) return;
+      c.inventory.push({ name:item.name_zh || item.name_en || item.id, qty:1, itemId:item.id });
+      flash("已加入物品：「" + itemName(item) + "」喵～");
+    }
+    function removeItem(i){ if(!locked.value) c.inventory.splice(i,1); }
+    function addSpellFromData(sp){
+      if(locked.value || !sp) return;
+      if(!Array.isArray(c.spellbook)) c.spellbook = [];
+      if(c.spellbook.some(x => x.id === sp.id)){ flash("這個法術已在清單裡喵～"); return; }
+      c.spellbook.push({ id:sp.id, name:sp.name_zh || sp.name_en || sp.id, prepared:true });
+      flash("已加入法術：「" + spellName(sp) + "」喵～");
+    }
+    function removeSpell(i){ if(!locked.value && Array.isArray(c.spellbook)) c.spellbook.splice(i,1); }
+    function clickBubble(slot, i){ slot.used = (slot.used === i) ? i-1 : i; }
+    const hpDelta = ref(1);
+    const tempInput = ref(0);
+    // 受傷：先扣暫時HP，溢出再扣目前HP（保留負數以利死亡豁免判斷）
+    function damage(n){
+      let amt = Number((n===undefined ? hpDelta.value : n)) || 0;
+      if(amt < 0) amt = -amt;
+      let temp = Number(c.hp.temp||0);
+      let cur = Number(c.hp.current||0);
+      const absorbed = Math.min(temp, amt);
+      temp -= absorbed;
+      const overflow = amt - absorbed;
+      cur -= overflow;
+      c.hp.temp = temp;
+      c.hp.current = cur;
+    }
+    // 治療：current = min(current + amount, max)，不回補 temp
+    function heal(n){
+      let amt = Number((n===undefined ? hpDelta.value : n)) || 0;
+      if(amt < 0) amt = -amt;
+      const max = Number(c.hp.max||0);
+      c.hp.current = Math.min(Number(c.hp.current||0) + amt, max);
+    }
+    // 設定暫時HP（D&D 規則：暫時HP不疊加，取較大值；此處直接設定指定值）
+    function setTemp(n){
+      const amt = Number((n===undefined ? tempInput.value : n)) || 0;
+      c.hp.temp = Math.max(0, amt);
+    }
+
+    function flash(t){ msg.value = t; setTimeout(()=>{ msg.value=""; }, 2500); }
+
+    /* ===== 列印 / 匯出 PDF ===== */
+    function doPrint(){ try{ window.print(); }catch(e){ console.error("print failed:", e); } }
+    const printClasses = computed(() => (c.classes || []).map(cl => {
+      const def = CLASSES.find(k => k.name_en === cl.name_en);
+      const nm = def ? def.name_zh : (cl.name_en || "職業");
+      return safeText(nm) + " " + (Number(cl.level)||0) + " 級";
+    }).join("、"));
+    const printRace = computed(() => {
+      const r = selectedRace.value;
+      let s = r ? raceDisplayName(r) : (c.race ? safeText(c.race) : "—");
+      const sr = selectedSubrace.value;
+      if(sr) s += "／" + raceDisplayName(sr);
+      else if(c.subrace) s += "／" + safeText(c.subrace);
+      return s;
+    });
+    const printSize = computed(() => sizeText(selectedRace.value && selectedRace.value.size));
+    /* ===== 狀態（功能4） ===== */
+    const activeConditions = computed(() => {
+      const cond = c.conditions || {};
+      return CONDITIONS.filter(x => !!cond[x.id]).map(x => x.zh);
+    });
+    const printConditionsLine = computed(() => {
+      const parts = [];
+      if(activeConditions.value.length) parts.push("狀態：" + activeConditions.value.join("、"));
+      if(Number(c.exhaustion) > 0) parts.push("耗竭 " + Number(c.exhaustion) + " 級");
+      return parts.join("；");
+    });
+    const printSpells = computed(() => {
+      if(!Array.isArray(c.spellbook)) return [];
+      return c.spellbook.map(known => {
+        const sp = spellById(known.id);
+        const lvl = sp ? sp.level : null;
+        const hasLvl = !(lvl === null || lvl === undefined);
+        return {
+          name: spellName(sp) || safeText(known.name) || safeText(known.id),
+          level: hasLvl ? Number(lvl) : 99,
+          levelText: hasLvl ? spellLevelText(lvl) : "",
+          prepared: !!known.prepared
+        };
+      }).sort((a,b) => a.level - b.level);
+    });
+    const printSlots = computed(() => (c.spellSlots || []).filter(s => Number(s.max) > 0));
+    /* ===== 法術位區塊壓縮（功能2） ===== */
+    const showSlots = ref(false);   // 法術位卡摺疊狀態，預設收合以省版面
+    const editSlots = ref(false);   // false=只看(有位氣泡) / true=編輯全部 1–9 環 max
+    const spellSlotSummary = computed(() => {
+      const arr = (c.spellSlots || []).filter(s => Number(s.max) > 0);
+      if(!arr.length) return "無";
+      return arr.map(s => s.level + "環 " + (Number(s.used)||0) + "/" + Number(s.max)).join(" ｜ ");
+    });
+    /* 技能兩欄並列，省紙 */
+    const printSkillRows = computed(() => {
+      const rows = [];
+      const half = Math.ceil(SKILLS.length / 2);
+      for(let i = 0; i < half; i++){
+        rows.push({ k:i, a: SKILLS[i] || null, b: SKILLS[i + half] || null });
+      }
+      return rows;
+    });
+
+    /* ===== 雙模式 ===== */
+    function toggleMode(){
+      mode.value = (mode.value === "play") ? "setup" : "play";
+      flash(mode.value === "play" ? "已進入🎲跑團模式喵～" : "已回到⚙️設定模式喵～");
+    }
+
+    /* ===== 多角色管理 ===== */
+    function switchChar(id){
+      if(id === activeId.value) return;
+      syncBack();
+      activeId.value = id;
+      loadActiveIntoC();
+      normalizeActiveCharData();
+      persist();
+      flash("已切換到「" + (c.name || "未命名") + "」喵～");
+    }
+    function addChar(){
+      syncBack();
+      const nc = defaultChar(); nc.name = "新角色";
+      chars.push(nc);
+      activeId.value = nc.id;
+      loadActiveIntoC();
+      normalizeActiveCharData();
+      persist();
+      flash("已新增一位角色喵～");
+    }
+    function copyChar(){
+      syncBack();
+      const clone = JSON.parse(JSON.stringify(c));
+      clone.id = uid();
+      clone.name = (c.name || "角色") + "（複本）";
+      chars.push(clone);
+      activeId.value = clone.id;
+      loadActiveIntoC();
+      normalizeActiveCharData();
+      persist();
+      flash("已複製目前角色喵～");
+    }
+    function deleteChar(){
+      if(chars.length <= 1){ flash("至少需保留一位角色喵～"); return; }
+      if(!confirm("確定刪除角色「" + (c.name || "未命名") + "」？此動作無法復原喵。")) return;
+      const idx = chars.findIndex(x => x.id === activeId.value);
+      chars.splice(idx, 1);
+      activeId.value = chars[Math.max(0, idx-1)].id;
+      loadActiveIntoC();
+      normalizeActiveCharData();
+      persist();
+      flash("已刪除角色喵～");
+    }
+
+    /* ===== 魔寠 ===== */
+    function enableFamiliar(){ if(!c.familiar) c.familiar = defaultFamiliar(); flash("已啟用魔寠喵～"); }
+    function removeFamiliar(){
+      if(!confirm("確定移除魔寠？魔寠資料將被清除喵。")) return;
+      c.familiar = null; flash("已移除魔寠喵～");
+    }
+
+    function exportJSON(){
+      const data = JSON.stringify(c, null, 2);
+      const blob = new Blob([data], { type:"application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const safe = (c.name || "character").replace(/[^\w\u4e00-\u9fa5-]/g,"_");
+      a.href = url; a.download = "dnd5e_" + safe + ".json";
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      flash("已匯出 JSON 喵～");
+    }
+    function exportAllJSON(){
+      syncBack();
+      const data = JSON.stringify({ _type:"dnd5e_chars", chars: JSON.parse(JSON.stringify(chars)) }, null, 2);
+      const blob = new Blob([data], { type:"application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "dnd5e_all_characters.json";
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      flash("已匯出全部角色喵～");
+    }
+    function triggerImport(){ fileInput.value && fileInput.value.click(); }
+    function importJSON(ev){
+      const file = ev.target.files && ev.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try{
+          const obj = JSON.parse(e.target.result);
+          const arr = Array.isArray(obj) ? obj : (obj && Array.isArray(obj.chars) ? obj.chars : null);
+          if(arr){
+            /* 匯入多角色：追加至現有清單 */
+            arr.forEach(o => { const m = mergeChar(defaultChar(), o); m.id = uid(); chars.push(m); });
+            if(arr.length){ activeId.value = chars[chars.length-1].id; loadActiveIntoC(); normalizeActiveCharData(); }
+            persist();
+            flash("已匯入 " + arr.length + " 位角色喵～");
+          } else {
+            /* 匯入單一角色：套用到目前角色 */
+            const merged = mergeChar(defaultChar(), obj);
+            merged.id = c.id;
+            Object.keys(c).forEach(k => { if(!(k in merged)) delete c[k]; });
+            Object.keys(merged).forEach(k => { c[k] = merged[k]; });
+            normalizeActiveCharData();
+            flash("已匯入角色喵～");
+          }
+        }catch(err){ flash("匯入失敗：JSON 格式有誤"); }
+        ev.target.value = "";
+      };
+      reader.readAsText(file);
+    }
+    function resetAll(){
+      if(!confirm("確定清空目前角色？此動作無法復原喵。")) return;
+      const keepId = c.id;
+      const d = defaultChar(); d.id = keepId;
+      Object.keys(c).forEach(k => { if(!(k in d)) delete c[k]; });
+      Object.keys(d).forEach(k => { c[k] = d[k]; });
+      flash("已重置喵～");
+    }
+
+    /* ===== 外部離線資料載入 ===== */
+    async function fetchCollection(url, key){
+      const res = await fetch(url);
+      if(!res.ok) throw new Error(url + " HTTP " + res.status);
+      const json = await res.json();
+      const arr = json && json[key];
+      if(!Array.isArray(arr)) throw new Error(url + " schema mismatch");
+      return arr;
+    }
+    async function loadCompendium(){
+      dataState.loading = true;
+      const errs = [];
+      const jobs = [
+        ["races", "data/races.json", "races"],
+        ["spells", "data/spells.json", "spells"],
+        ["items", "data/items.json", "items"],
+        ["sources", "data/sources.json", "sources"]
+      ];
+      await Promise.all(jobs.map(async ([stateKey, url, collectionKey]) => {
+        try{ dataState[stateKey] = await fetchCollection(url, collectionKey); }
+        catch(e){ dataState[stateKey] = []; if(stateKey !== "sources") errs.push(url); }
+      }));
+      dataState.error = errs.length ? ("部分資料載入失敗：" + errs.join("、")) : "";
+      dataState.loading = false;
+      reconcileSettings();
+      normalizeActiveCharData();
+    }
+    function normalizeActiveCharData(){
+      if(!Array.isArray(c.spellbook)) c.spellbook = [];
+      if(!Array.isArray(c.inventory)) c.inventory = [];
+      if(!c.conditions || typeof c.conditions !== "object" || Array.isArray(c.conditions)) c.conditions = {};
+      c.exhaustion = Math.max(0, Math.min(6, Number(c.exhaustion) || 0));
+      /* --- 語言 / 熟練（功能5）欄位遷移與型別修正 --- */
+      if(typeof c.languages === "string"){
+        c.languages = c.languages.split(/[、,，\n;；]/).map(s => s.trim()).filter(Boolean);
+      } else if(!Array.isArray(c.languages)){
+        c.languages = [];
+      }
+      if(!Array.isArray(c.profArmor)) c.profArmor = [];
+      if(!Array.isArray(c.profWeapon)) c.profWeapon = [];
+      if(!Array.isArray(c.profTool)) c.profTool = [];
+      if(!c.profSaves || typeof c.profSaves !== "object" || Array.isArray(c.profSaves)) c.profSaves = {};
+      if(typeof c.proficiencies !== "string") c.proficiencies = safeText(c.proficiencies);
+      const r = resolveRace(c.race);
+      if(r && r.id && c.race !== r.id) c.race = r.id;
+      const sr = resolveSubrace(c.subrace);
+      if(sr && sr.id && c.subrace !== sr.id) c.subrace = sr.id;
+      if(c.subrace && !resolveSubrace(c.subrace)) c.subrace = "";
+    }
+
+    /* ===== 自動存檔（寫回陣列並持久化） ===== */
+    watch(c, () => { syncBack(); persist(); }, { deep:true });
+    watch(chars, () => { persist(); }, { deep:true });
+    watch(mode, () => { persist(); });
+    watch(settings, () => { persistSettings(); }, { deep:true });
+
+    /* ===== 註冊 Service Worker ===== */
+    onMounted(() => {
+      loadCompendium();
+      if("serviceWorker" in navigator){
+        navigator.serviceWorker.register("./service-worker.js").catch(()=>{});
+      }
+    });
+
+    return {
+      c, tab, tabs, msg, fileInput, dataState, search,
+      settings, showSettings, showCreditModal, sourceGroups, enabledCount, totalSourceCount,
+      sourceCountsText, sourceLabelOf, toggleSource, selectAllSources, groupAllEnabled, toggleGroup,
+      isSourceEnabled, disabledSourceNote, subraceSelectOptions,
+      CLASSES, SKILLS, abilityDefs, coinDefs,
+      RACES: raceSelectOptions, ALIGNMENTS, BACKGROUNDS,
+      totalLevel, profBonus, hitDiceDisplay, availableSkills, bgNote,
+      selectedRace, selectedSubrace, subraceOptions, combinedRaceBonus, raceChooseNote, raceTraitsSummary,
+      spellResults, spellSourceOptions, spellClassOptions, itemResults, itemTypeOptions, itemRarityOptions, itemSourceOptions,
+      abilityMod, abilityTotal, abilityModFor, skillValue, saveValue, fmt, modClass,
+      sourceText, raceDisplayName, raceOptionLabel, subraceLabel, sizeText, speedText, abilitySummary,
+      spellById, spellName, spellLevelText, formatTime, formatRange, formatComponents, formatDuration, spellDescription,
+      itemById, itemName, itemTypeText, rarityText, itemValueWeight, itemStats, itemDescription,
+      onRaceChanged, applyRaceBonus, addClass, removeClass, addItem, addItemFromData, removeItem, addSpellFromData, removeSpell, clickBubble,
+      damage, heal, setTemp, hpDelta, tempInput, exportJSON, exportAllJSON, triggerImport, importJSON, resetAll,
+      mode, locked, chars, activeId, toggleMode,
+      switchChar, addChar, copyChar, deleteChar, enableFamiliar, removeFamiliar,
+      safeText, doPrint, printClasses, printRace, printSize, printSpells, printSlots, printSkillRows,
+      showSlots, editSlots, spellSlotSummary,
+      CONDITIONS, activeConditions, printConditionsLine,
+      COMMON_LANGUAGES, langPick, newLang, newArmor, newWeapon, newTool,
+      addLanguage, addLanguageFromPick, addCustomLanguage, removeLanguage, addProf, removeProf,
+      languagesText, profArmorText, profWeaponText, profToolText, profSavesText, proficienciesSummary
+    };
+  }
+});
+app.config.errorHandler = (err, instance, info) => {
+  console.error("[Vue errorHandler]", info, err);
+};
+app.mount("#app");
+</script>
+</body>
+</html>

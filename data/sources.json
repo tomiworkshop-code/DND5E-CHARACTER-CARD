@@ -1,0 +1,538 @@
+{
+ "_meta": {
+  "schema": "dnd5e-pwa/sources",
+  "version": 1,
+  "generated": "2026-06-24",
+  "note": "來源(擴充)清單與筆數統計。counts 由 races/spells/items JSON 實統；races 含副種族。中文書名查無確切官方譯名者保留英文並標註。"
+ },
+ "sources": [
+  {
+   "code": "DMG",
+   "name_zh": "地下城主指南",
+   "name_en": "Dungeon Master’s Guide",
+   "group": "core",
+   "official": true,
+   "counts": {
+    "races": 18,
+    "spells": 0,
+    "items": 579
+   }
+  },
+  {
+   "code": "EEPC",
+   "name_zh": "元素邪惡玩家伴典",
+   "name_en": "Elemental Evil Player’s Companion",
+   "group": "core",
+   "official": true,
+   "counts": {
+    "races": 7,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "MTF",
+   "name_zh": "莫提凱的眾敵錄",
+   "name_en": "Mordenkainen’s Tome of Foes",
+   "group": "core",
+   "official": true,
+   "counts": {
+    "races": 17,
+    "spells": 0,
+    "items": 2
+   }
+  },
+  {
+   "code": "PHB",
+   "name_zh": "玩家手冊",
+   "name_en": "Player’s Handbook",
+   "group": "core",
+   "official": true,
+   "counts": {
+    "races": 23,
+    "spells": 361,
+    "items": 259
+   }
+  },
+  {
+   "code": "SCAG",
+   "name_zh": "劍灣冒險者指南",
+   "name_en": "Sword Coast Adventurer’s Guide",
+   "group": "core",
+   "official": true,
+   "counts": {
+    "races": 6,
+    "spells": 4,
+    "items": 13
+   }
+  },
+  {
+   "code": "VGM",
+   "name_zh": "沃羅的怪物指南",
+   "name_en": "Volo’s Guide to Monsters",
+   "group": "core",
+   "official": true,
+   "counts": {
+    "races": 16,
+    "spells": 0,
+    "items": 5
+   }
+  },
+  {
+   "code": "XGE",
+   "name_zh": "桑納薩的萬事指南",
+   "name_en": "Xanathar’s Guide to Everything",
+   "group": "core",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 95,
+    "items": 50
+   }
+  },
+  {
+   "code": "CoS",
+   "name_zh": "史特拉德的詛咒",
+   "name_en": "Curse of Strahd",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 0,
+    "items": 14
+   }
+  },
+  {
+   "code": "EET",
+   "name_zh": "Elemental Evil (EET)",
+   "name_en": "Elemental Evil",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 0,
+    "items": 1
+   }
+  },
+  {
+   "code": "HotDQ",
+   "name_zh": "巨龍女王的寶庫",
+   "name_en": "Hoard of the Dragon Queen",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 0,
+    "items": 4
+   }
+  },
+  {
+   "code": "LLK",
+   "name_zh": "卡瓦利許的失落實驗室",
+   "name_en": "Lost Laboratory of Kwalish",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 3,
+    "items": 15
+   }
+  },
+  {
+   "code": "LMoP",
+   "name_zh": "失落的法蘭德林礦坑",
+   "name_en": "Lost Mine of Phandelver",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 0,
+    "items": 4
+   }
+  },
+  {
+   "code": "OGA",
+   "name_zh": "One Grung Above",
+   "name_en": "One Grung Above",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 1,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "OotA",
+   "name_zh": "深淵歷險",
+   "name_en": "Out of the Abyss",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 0,
+    "items": 17
+   }
+  },
+  {
+   "code": "PotA",
+   "name_zh": "天災降臨",
+   "name_en": "Princes of the Apocalypse",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 0,
+    "items": 18
+   }
+  },
+  {
+   "code": "RoT",
+   "name_zh": "提亞瑪特的崛起",
+   "name_en": "The Rise of Tiamat",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 0,
+    "items": 3
+   }
+  },
+  {
+   "code": "RoTOS",
+   "name_zh": "提亞瑪特的崛起（線上補充）",
+   "name_en": "Rise of Tiamat Online Supplement",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 0,
+    "items": 4
+   }
+  },
+  {
+   "code": "SKT",
+   "name_zh": "風暴君王之雷",
+   "name_en": "Storm King’s Thunder",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 0,
+    "items": 17
+   }
+  },
+  {
+   "code": "TftYP",
+   "name_zh": "昏暗傳送門的傳說",
+   "name_en": "Tales from the Yawning Portal",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 0,
+    "items": 18
+   }
+  },
+  {
+   "code": "ToA",
+   "name_zh": "殲滅之墓",
+   "name_en": "Tomb of Annihilation",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 0,
+    "items": 21
+   }
+  },
+  {
+   "code": "TTP",
+   "name_zh": "陸龜套組",
+   "name_en": "The Tortle Package",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 1,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "WDH",
+   "name_zh": "瓦特城：飛龍金庫",
+   "name_en": "Waterdeep: Dragon Heist",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 0,
+    "items": 26
+   }
+  },
+  {
+   "code": "WDMM",
+   "name_zh": "瓦特城：瘋法師地城",
+   "name_en": "Waterdeep: Dungeon of the Mad Mage",
+   "group": "adventure",
+   "official": true,
+   "counts": {
+    "races": 0,
+    "spells": 0,
+    "items": 16
+   }
+  },
+  {
+   "code": "GGR",
+   "name_zh": "公會頭目的拉尼卡指南",
+   "name_en": "Guildmasters’ Guide to Ravnica",
+   "group": "setting",
+   "official": true,
+   "counts": {
+    "races": 6,
+    "spells": 1,
+    "items": 44
+   }
+  },
+  {
+   "code": "PSA",
+   "name_zh": "異界穿梭：阿芒凱",
+   "name_en": "Plane Shift: Amonkhet",
+   "group": "setting",
+   "official": true,
+   "counts": {
+    "races": 7,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "PSD",
+   "name_zh": "異界穿梭：多明納里亞",
+   "name_en": "Plane Shift: Dominaria",
+   "group": "setting",
+   "official": true,
+   "counts": {
+    "races": 2,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "PSI",
+   "name_zh": "異界穿梭：依尼翠",
+   "name_en": "Plane Shift: Innistrad",
+   "group": "setting",
+   "official": true,
+   "counts": {
+    "races": 5,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "PSK",
+   "name_zh": "異界穿梭：卡拉德許",
+   "name_en": "Plane Shift: Kaladesh",
+   "group": "setting",
+   "official": true,
+   "counts": {
+    "races": 7,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "PSX",
+   "name_zh": "異界穿梭：依夏蘭",
+   "name_en": "Plane Shift: Ixalan",
+   "group": "setting",
+   "official": true,
+   "counts": {
+    "races": 8,
+    "spells": 0,
+    "items": 50
+   }
+  },
+  {
+   "code": "PSZ",
+   "name_zh": "異界穿梭：贊迪卡",
+   "name_en": "Plane Shift: Zendikar",
+   "group": "setting",
+   "official": true,
+   "counts": {
+    "races": 14,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "UAWGE",
+   "name_zh": "漫遊者的艾伯倫指南",
+   "name_en": "Wayfinder’s Guide to Eberron",
+   "group": "setting",
+   "official": true,
+   "counts": {
+    "races": 26,
+    "spells": 0,
+    "items": 40
+   }
+  },
+  {
+   "code": "Stream",
+   "name_zh": "官方直播內容",
+   "name_en": "Stream",
+   "group": "ua",
+   "official": false,
+   "counts": {
+    "races": 0,
+    "spells": 4,
+    "items": 0
+   }
+  },
+  {
+   "code": "UAArtificerRevisited",
+   "name_zh": "未知奧秘：神器師再臨",
+   "name_en": "UA: Artificer Revisited",
+   "group": "ua",
+   "official": false,
+   "counts": {
+    "races": 0,
+    "spells": 1,
+    "items": 0
+   }
+  },
+  {
+   "code": "UACentaursMinotaurs",
+   "name_zh": "未知奧秘：半人馬與牛頭人",
+   "name_en": "UA: Centaurs and Minotaurs",
+   "group": "ua",
+   "official": false,
+   "counts": {
+    "races": 2,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "UAEberron",
+   "name_zh": "未知奧秘：艾伯倫",
+   "name_en": "UA: Eberron",
+   "group": "ua",
+   "official": false,
+   "counts": {
+    "races": 9,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "UAEladrinAndGith",
+   "name_zh": "未知奧秘：艾拉竹與吉斯",
+   "name_en": "UA: Eladrin and Gith",
+   "group": "ua",
+   "official": false,
+   "counts": {
+    "races": 4,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "UAElfSubraces",
+   "name_zh": "未知奧秘：精靈副種族",
+   "name_en": "UA: Elf Subraces",
+   "group": "ua",
+   "official": false,
+   "counts": {
+    "races": 4,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "UAFiendishOptions",
+   "name_zh": "未知奧秘：魔鬼選項",
+   "name_en": "UA: Fiendish Options",
+   "group": "ua",
+   "official": false,
+   "counts": {
+    "races": 9,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "UAGothicHeroes",
+   "name_zh": "未知奧秘：哥德英雄",
+   "name_en": "UA: Gothic Heroes",
+   "group": "ua",
+   "official": false,
+   "counts": {
+    "races": 1,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "UAModernMagic",
+   "name_zh": "未知奧秘：現代魔法",
+   "name_en": "UA: Modern Magic",
+   "group": "ua",
+   "official": false,
+   "counts": {
+    "races": 0,
+    "spells": 14,
+    "items": 1
+   }
+  },
+  {
+   "code": "UARacesOfRavnica",
+   "name_zh": "未知奧秘：拉尼卡種族",
+   "name_en": "UA: Races of Ravnica",
+   "group": "ua",
+   "official": false,
+   "counts": {
+    "races": 4,
+    "spells": 0,
+    "items": 0
+   }
+  },
+  {
+   "code": "UAStarterSpells",
+   "name_zh": "未知奧秘：起始法術",
+   "name_en": "UA: Starter Spells",
+   "group": "ua",
+   "official": false,
+   "counts": {
+    "races": 0,
+    "spells": 17,
+    "items": 0
+   }
+  },
+  {
+   "code": "UAThatOldBlackMagic",
+   "name_zh": "未知奧秘：古老黑魔法",
+   "name_en": "UA: That Old Black Magic",
+   "group": "ua",
+   "official": false,
+   "counts": {
+    "races": 1,
+    "spells": 5,
+    "items": 0
+   }
+  },
+  {
+   "code": "UAWaterborneAdventures",
+   "name_zh": "未知奧秘：水上冒險",
+   "name_en": "UA: Waterborne Adventures",
+   "group": "ua",
+   "official": false,
+   "counts": {
+    "races": 1,
+    "spells": 0,
+    "items": 0
+   }
+  }
+ ]
+}

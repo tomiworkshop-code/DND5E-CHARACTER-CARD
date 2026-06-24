@@ -1,0 +1,10 @@
+*.bak
+*.bakA
+*.bakB
+*.bakB6
+*.bakHF
+*.bakHF2
+*.bakP
+*.bakF*
+.DS_Store
+node_modules/
