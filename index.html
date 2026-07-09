@@ -15,6 +15,10 @@
     --ink:#3b2a1a; --ink-soft:#6b5034; --gold:#7c5a3a; --gold-deep:#5a3d22;
     --paper:#f3e9d2; --paper-2:#e9dab6; --line:#caa96f; --accent:#8a5a2b;
   }
+  html[data-theme="dark"]{
+    --ink:#e9dcc2; --ink-soft:#b49b74; --gold:#c8a15f; --gold-deep:#e0bd7a;
+    --paper:#241d15; --paper-2:#312619; --line:#5a4526; --accent:#e0a55c;
+  }
   *{ -webkit-tap-highlight-color: transparent; }
   html,body{ margin:0; padding:0; }
   body{
@@ -141,6 +145,7 @@
       <span class="text-[11px]" style="color:var(--ink-soft)">目前模式</span>
       <div class="flex items-center gap-1 shrink-0">
         <button class="btn-ghost btn px-2 py-1.5 text-sm" :class="{'btn': showSettings}" @click="showSettings=!showSettings" title="內容來源設定">📚 來源</button>
+        <button class="btn-ghost btn px-2 py-1.5 text-sm" @click="toggleTheme" :title="theme==='dark' ? '切換淺色' : '切換深色'">{{ theme==='dark' ? '☀️' : '🌙' }}</button>
         <button class="btn-ghost btn px-2 py-1.5 text-sm" @click="doPrint" title="列印 / 匯出 PDF">🖨️ 列印</button>
         <button class="btn-ghost btn px-2 py-1.5 text-sm" @click="showCreditModal=true" title="關於 / 鳴謝">ℹ️ 關於</button>
         <button class="btn px-3 py-1.5 text-sm" :class="{'btn-danger': mode==='play'}" @click="toggleMode">
@@ -201,6 +206,16 @@
   <section v-show="tab==='base'">
     <div class="card p-3 mb-3">
       <div class="grid grid-cols-2 gap-2">
+        <div class="col-span-2 flex items-center gap-3">
+          <div class="shrink-0 rounded-full overflow-hidden flex items-center justify-center" style="width:56px;height:56px;background:var(--paper-2);border:1px solid var(--line)">
+            <img v-if="c.avatar" :src="c.avatar" alt="avatar" style="width:100%;height:100%;object-fit:cover">
+            <span v-else class="text-2xl">🧙</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <label v-show="!locked" class="btn-ghost btn px-2 py-1 text-[11px] inline-block cursor-pointer">🖼️ 選頭像<input type="file" accept="image/*" class="hidden" @change="onAvatarPick"></label>
+            <button v-show="!locked && c.avatar" class="btn-ghost btn px-2 py-1 text-[11px] ml-1" @click="clearAvatar">清除</button>
+          </div>
+        </div>
         <label class="col-span-2 text-xs">角色姓名
           <input v-model="c.name" :disabled="locked" type="text" class="w-full mt-1 px-2 py-2 text-base font-bold" placeholder="無名英雄">
         </label>
@@ -285,6 +300,51 @@
           <button class="btn-ghost btn flex-1 py-1 text-xs" @click="setTemp()">🛡️ 設定暫時HP</button>
         </div>
       </div>
+    </div>
+
+    <!-- ⚔️ 戰鬥輔助：死亡豁免 / 靈感 / 專注 / 被動數值 -->
+    <div class="card p-3 mb-3">
+      <h2 class="text-sm font-bold title-deco mb-2">💀 戰鬥輔助</h2>
+      <div class="grid grid-cols-3 gap-2 text-center mb-2">
+        <div class="stat-box p-2"><div class="text-[11px]">被動察覺</div><div class="font-bold num">{{ passivePerception }}</div></div>
+        <div class="stat-box p-2"><div class="text-[11px]">被動調查</div><div class="font-bold num">{{ passiveInvestigation }}</div></div>
+        <div class="stat-box p-2"><div class="text-[11px]">被動洞悉</div><div class="font-bold num">{{ passiveInsight }}</div></div>
+      </div>
+      <div class="flex items-center gap-2 mb-2">
+        <button class="btn flex-1 py-1.5 text-xs" :class="c.inspiration ? '' : 'btn-ghost'" @click="toggleInspiration()">✨ 靈感 {{ c.inspiration ? '✔' : '' }}</button>
+        <button class="btn flex-1 py-1.5 text-xs" :class="c.concentration.on ? '' : 'btn-ghost'" @click="toggleConcentration()">🧠 專注 {{ c.concentration.on ? '中' : '' }}</button>
+      </div>
+      <input v-show="c.concentration.on" v-model="c.concentration.spell" type="text" class="w-full px-2 py-1.5 text-sm mb-2" placeholder="專注中的法術名稱">
+      <div class="stat-box p-2">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[12px] font-bold">☠️ 死亡豁免</span>
+          <button class="btn-ghost btn px-2 py-0.5 text-[10px]" @click="resetDeathSaves()">重置</button>
+        </div>
+        <div class="flex items-center gap-1 text-xs mb-1">
+          <span class="w-10" style="color:var(--ink-soft)">成功</span>
+          <span v-for="n in 3" :key="'ds'+n" class="cursor-pointer text-base" @click="toggleDeathSave('success', n)">{{ (Number(c.deathSaves.success)||0) >= n ? '🟢' : '⭕' }}</span>
+        </div>
+        <div class="flex items-center gap-1 text-xs">
+          <span class="w-10" style="color:var(--ink-soft)">失敗</span>
+          <span v-for="n in 3" :key="'df'+n" class="cursor-pointer text-base" @click="toggleDeathSave('fail', n)">{{ (Number(c.deathSaves.fail)||0) >= n ? '🔴' : '⭕' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🛡️ AC 計算輔助 -->
+    <div class="card p-3 mb-3">
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="text-sm font-bold title-deco">🛡️ AC 計算輔助</h2>
+        <span class="num font-bold">= {{ acCalc }}</span>
+      </div>
+      <div class="grid grid-cols-4 gap-2 text-center text-[11px]">
+        <div class="stat-box p-1"><div>基礎甲</div><input v-model.number="c.acHelper.base" type="number" class="w-full text-center num py-1"></div>
+        <div class="stat-box p-1"><div>敏上限</div><input v-model.number="c.acHelper.dexCap" type="number" class="w-full text-center num py-1" placeholder="無"></div>
+        <div class="stat-box p-1"><div>盾牌</div><input v-model.number="c.acHelper.shield" type="number" class="w-full text-center num py-1"></div>
+        <div class="stat-box p-1"><div>其他</div><input v-model.number="c.acHelper.misc" type="number" class="w-full text-center num py-1"></div>
+      </div>
+      <p class="text-[10px] mt-1" style="color:var(--ink-soft)">基礎甲+敏捷調整(可設上限)+盾牌+其他；敏上限留空=不設限。目前敏捷調整 {{ fmt(abilityModFor('dex')) }}。</p>
+      <button class="btn btn-ghost w-full py-1.5 text-xs mt-2" @click="applyAcCalc()">套用至 AC 欄位</button>
     </div>
 
     <!-- 🩹 狀態（跑團模式仍可勾選） -->
@@ -630,6 +690,16 @@
       </div>
     </div>
     <div class="card p-3 mb-3">
+      <div class="flex justify-between items-center">
+        <h2 class="text-sm font-bold title-deco">⚖️ 負重</h2>
+        <span class="num font-bold" :style="carriedWeight > carryCapacity ? 'color:var(--accent)' : ''">{{ Math.round(carriedWeight*10)/10 }} / {{ carryCapacity }} 磅</span>
+      </div>
+      <div class="w-full h-2 mt-2 rounded" style="background:var(--paper-2)">
+        <div class="h-2 rounded" :style="{ width: Math.min(100, carryCapacity ? (carriedWeight/carryCapacity*100) : 0)+'%', background: carriedWeight>carryCapacity ? 'var(--accent)' : 'var(--gold)' }"></div>
+      </div>
+      <p class="text-[10px] mt-1" style="color:var(--ink-soft)">負重上限 = 力量×15（自訂物品若未填重量則不計入）。{{ carriedWeight > carryCapacity ? '⚠️ 超重！' : '' }}</p>
+    </div>
+    <div class="card p-3 mb-3">
       <div class="flex justify-between items-center mb-2 gap-2">
         <h2 class="text-sm font-bold title-deco">🔎 物品搜尋</h2>
         <span class="text-[11px]" style="color:var(--ink-soft)">{{ dataState.items.length || 0 }} 筆</span>
@@ -673,6 +743,121 @@
           <span v-if="itemStats(itemById(it.itemId))"> ｜ {{ itemStats(itemById(it.itemId)) }}</span>
           <details class="mt-1"><summary class="cursor-pointer" style="color:var(--accent)">描述</summary><p class="mt-1 whitespace-pre-line">{{ itemDescription(itemById(it.itemId), false) }}</p></details>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 跑團（休息 / 資源 / 骰子 / 攻擊） ===== -->
+  <section v-show="tab==='play'">
+    <div class="card p-3 mb-3">
+      <h2 class="text-sm font-bold title-deco mb-2">☕ 休息</h2>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost flex-1 py-2 text-sm" @click="shortRest()">☕ 短休</button>
+        <button class="btn flex-1 py-2 text-sm" @click="longRest()">🛌 長休</button>
+      </div>
+      <div class="stat-box p-2 mt-2 flex items-center justify-between">
+        <span class="text-[12px]">🎲 生命骰：<span class="num font-bold">{{ hitDiceDisplay || '—' }}</span></span>
+        <span class="text-[12px]">已用 <input v-model.number="c.hitDiceUsed" type="number" min="0" class="w-14 text-center num py-0.5"> / {{ totalLevel }}</span>
+      </div>
+      <p class="text-[10px] mt-1" style="color:var(--ink-soft)">長休：HP滿、法術位/資源重置、生命骰回一半、耗竭-1。短休：重置短休資源。</p>
+    </div>
+
+    <div class="card p-3 mb-3">
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="text-sm font-bold title-deco">🔋 職業資源</h2>
+        <button class="btn-ghost btn px-2 py-1 text-xs" @click="addResource()">＋ 新增</button>
+      </div>
+      <p v-if="!(c.resources||[]).length" class="text-xs text-center py-2" style="color:var(--ink-soft)">例：狂暴次數、氣、術法點、戰技骰、吐息…</p>
+      <div v-for="(r,i) in c.resources" :key="i" class="stat-box p-2 mb-2">
+        <div class="flex gap-2 items-center">
+          <input v-model="r.name" type="text" class="flex-1 px-2 py-1 text-sm min-w-0">
+          <select v-model="r.reset" class="px-1 py-1 text-[11px]"><option value="short">短休</option><option value="long">長休</option><option value="none">手動</option></select>
+          <button class="btn-danger btn px-2 py-1 text-xs" @click="removeResource(i)">✕</button>
+        </div>
+        <div class="flex items-center gap-2 mt-1.5">
+          <button class="btn-ghost btn px-3 py-1 text-sm" @click="resDelta(r,-1)">−</button>
+          <span class="num font-bold text-base">{{ Number(r.cur)||0 }}</span>
+          <span style="color:var(--ink-soft)">/</span>
+          <input v-model.number="r.max" type="number" min="0" class="w-14 text-center num py-0.5">
+          <button class="btn-ghost btn px-3 py-1 text-sm" @click="resDelta(r,1)">＋</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-3 mb-3">
+      <h2 class="text-sm font-bold title-deco mb-2">🎲 骰子工具</h2>
+      <div class="flex gap-1 mb-2">
+        <button class="btn flex-1 py-1 text-[11px]" :class="rollMode==='normal'?'':'btn-ghost'" @click="rollMode='normal'">一般</button>
+        <button class="btn flex-1 py-1 text-[11px]" :class="rollMode==='adv'?'':'btn-ghost'" @click="rollMode='adv'">優勢</button>
+        <button class="btn flex-1 py-1 text-[11px]" :class="rollMode==='dis'?'':'btn-ghost'" @click="rollMode='dis'">劣勢</button>
+      </div>
+      <div class="flex gap-2 items-center mb-2">
+        <span class="text-xs shrink-0">d20 調整</span>
+        <input v-model.number="d20mod" type="number" class="w-16 text-center num py-1">
+        <button class="btn flex-1 py-1.5 text-sm" @click="rollD20('d20 檢定')">🎲 擲 d20</button>
+      </div>
+      <div class="flex gap-1 mb-2">
+        <button v-for="s in [4,6,8,10,12,20,100]" :key="s" class="btn-ghost btn flex-1 py-1 text-[11px]" @click="rollFormula('1d'+s)">d{{ s }}</button>
+      </div>
+      <div class="flex gap-2 items-center mb-2">
+        <input v-model="diceFormula" type="text" class="flex-1 px-2 py-1.5 text-sm" placeholder="2d6+3">
+        <button class="btn py-1.5 px-3 text-sm" @click="rollFormula()">擲</button>
+      </div>
+      <div v-if="rollLog.length" class="stat-box p-2">
+        <div class="flex justify-between items-center mb-1"><span class="text-[11px] font-bold">結果紀錄</span><button class="btn-ghost btn px-2 py-0.5 text-[10px]" @click="clearRollLog()">清除</button></div>
+        <div v-for="(r,i) in rollLog" :key="i" class="flex justify-between text-[11px] py-0.5 border-b border-dashed" style="border-color:rgba(202,169,111,.3)">
+          <span style="color:var(--ink-soft)">{{ r.t }} <span class="opacity-70">{{ r.detail }}</span></span>
+          <span class="num font-bold">{{ r.val }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-3">
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="text-sm font-bold title-deco">⚔️ 攻擊</h2>
+        <button class="btn-ghost btn px-2 py-1 text-xs" @click="addAttack()">＋ 新增</button>
+      </div>
+      <p v-if="!(c.attacks||[]).length" class="text-xs text-center py-2" style="color:var(--ink-soft)">新增武器/攻擊，記錄命中加值與傷害。</p>
+      <div v-for="(a,i) in c.attacks" :key="i" class="stat-box p-2 mb-2">
+        <div class="flex gap-2 items-center mb-1">
+          <input v-model="a.name" type="text" class="flex-1 px-2 py-1 text-sm min-w-0" placeholder="名稱">
+          <button class="btn-danger btn px-2 py-1 text-xs" @click="removeAttack(i)">✕</button>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <input v-model="a.bonus" type="text" class="px-2 py-1 text-sm" placeholder="命中 +5">
+          <input v-model="a.damage" type="text" class="px-2 py-1 text-sm" placeholder="傷害 1d8+3 揮砍">
+        </div>
+        <input v-model="a.notes" type="text" class="w-full px-2 py-1 text-[12px] mt-1" placeholder="備註（射程/性質…）">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 故事（背景 / 專長） ===== -->
+  <section v-show="tab==='story'">
+    <div class="card p-3 mb-3">
+      <h2 class="text-sm font-bold title-deco mb-2">📜 角色背景</h2>
+      <div class="space-y-2">
+        <label class="text-xs block">外貌描述<textarea v-model="c.story.appearance" :disabled="locked" rows="2" class="w-full mt-1 px-2 py-1.5 text-sm"></textarea></label>
+        <label class="text-xs block">性格特點<textarea v-model="c.story.personality" :disabled="locked" rows="2" class="w-full mt-1 px-2 py-1.5 text-sm"></textarea></label>
+        <label class="text-xs block">理想<input v-model="c.story.ideals" :disabled="locked" type="text" class="w-full mt-1 px-2 py-1.5 text-sm"></label>
+        <label class="text-xs block">羈絆<input v-model="c.story.bonds" :disabled="locked" type="text" class="w-full mt-1 px-2 py-1.5 text-sm"></label>
+        <label class="text-xs block">缺點<input v-model="c.story.flaws" :disabled="locked" type="text" class="w-full mt-1 px-2 py-1.5 text-sm"></label>
+        <label class="text-xs block">盟友 / 組織<input v-model="c.story.allies" :disabled="locked" type="text" class="w-full mt-1 px-2 py-1.5 text-sm"></label>
+        <label class="text-xs block">背景故事<textarea v-model="c.story.backstory" :disabled="locked" rows="4" class="w-full mt-1 px-2 py-1.5 text-sm"></textarea></label>
+      </div>
+    </div>
+    <div class="card p-3">
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="text-sm font-bold title-deco">🌟 專長 / 特殊能力</h2>
+        <button v-show="!locked" class="btn-ghost btn px-2 py-1 text-xs" @click="addFeat()">＋ 新增</button>
+      </div>
+      <p v-if="!(c.feats||[]).length" class="text-xs text-center py-2" style="color:var(--ink-soft)">記錄專長(Feats)或自訂特殊能力。</p>
+      <div v-for="(f,i) in c.feats" :key="i" class="stat-box p-2 mb-2">
+        <div class="flex gap-2 items-center mb-1">
+          <input v-model="f.name" :disabled="locked" type="text" class="flex-1 px-2 py-1 text-sm font-bold min-w-0">
+          <button v-show="!locked" class="btn-danger btn px-2 py-1 text-xs" @click="removeFeat(i)">✕</button>
+        </div>
+        <textarea v-model="f.desc" :disabled="locked" rows="2" class="w-full px-2 py-1 text-[12px]" placeholder="效果描述"></textarea>
       </div>
     </div>
   </section>
@@ -1082,6 +1267,17 @@ function defaultChar(){
     coins:{ cp:0, sp:0, gp:0, pp:0 },
     conditions:{},
     exhaustion:0,
+    /* 新增：跑團輔助與角色深度欄位 */
+    deathSaves:{ success:0, fail:0 },
+    inspiration:false,
+    concentration:{ on:false, spell:"" },
+    hitDiceUsed:0,
+    acHelper:{ base:10, dexCap:"", shield:0, misc:0 },
+    resources:[],
+    attacks:[],
+    feats:[],
+    story:{ appearance:"", personality:"", ideals:"", bonds:"", flaws:"", allies:"", backstory:"" },
+    avatar:"",
     familiar: null
   };
 }
@@ -1143,6 +1339,8 @@ const app = createApp({
       { id:"skill", icon:"📖", label:"技能" },
       { id:"spell", icon:"✨", label:"法術" },
       { id:"bag", icon:"🎒", label:"背包" },
+      { id:"play", icon:"🎲", label:"跑團" },
+      { id:"story", icon:"📜", label:"故事" },
       { id:"familiar", icon:"🐾", label:"魔寠" },
       { id:"manage", icon:"🗂️", label:"管理" }
     ];
@@ -1745,6 +1943,114 @@ const app = createApp({
       c.hp.temp = Math.max(0, amt);
     }
 
+    /* ===== 死亡豁免 / 靈感 / 專注 ===== */
+    function toggleDeathSave(type, n){
+      const cur = Number(c.deathSaves[type]||0);
+      c.deathSaves[type] = (cur === n) ? n-1 : n;
+    }
+    function resetDeathSaves(){ c.deathSaves.success = 0; c.deathSaves.fail = 0; }
+    function toggleInspiration(){ c.inspiration = !c.inspiration; }
+    function toggleConcentration(){ c.concentration.on = !c.concentration.on; if(!c.concentration.on) c.concentration.spell=""; }
+
+    /* ===== 休息 ===== */
+    function shortRest(){
+      (c.resources||[]).forEach(r => { if(r.reset==='short' || r.reset==='long'){ /* 短休只重置 short */ } });
+      (c.resources||[]).forEach(r => { if(r.reset==='short'){ r.cur = Number(r.max)||0; } });
+      c.concentration.on = false; c.concentration.spell = "";
+      flash("☕ 短休完成：短休資源已重置（生命骰可手動花用）");
+    }
+    function longRest(){
+      c.hp.current = Number(c.hp.max)||0;
+      c.hp.temp = 0;
+      (c.spellSlots||[]).forEach(s => { s.used = 0; });
+      (c.resources||[]).forEach(r => { r.cur = Number(r.max)||0; });
+      // 生命骰回復一半（向下取整，至少 1）
+      const half = Math.max(1, Math.floor((Number(totalLevel.value)||0)/2));
+      c.hitDiceUsed = Math.max(0, (Number(c.hitDiceUsed)||0) - half);
+      c.deathSaves.success = 0; c.deathSaves.fail = 0;
+      if(Number(c.exhaustion)>0) c.exhaustion = Number(c.exhaustion)-1;
+      c.concentration.on = false; c.concentration.spell = "";
+      flash("🛌 長休完成：HP滿、法術位/資源重置、生命骰回一半、耗竭-1");
+    }
+
+    /* ===== 職業資源 ===== */
+    function addResource(){ if(!Array.isArray(c.resources)) c.resources=[]; c.resources.push({ name:"新資源", cur:0, max:1, reset:"long" }); }
+    function removeResource(i){ c.resources.splice(i,1); }
+    function resDelta(r, n){ const mx=Number(r.max)||0; r.cur = Math.max(0, Math.min(mx, (Number(r.cur)||0)+n)); }
+
+    /* ===== 攻擊 ===== */
+    function addAttack(){ if(!Array.isArray(c.attacks)) c.attacks=[]; c.attacks.push({ name:"新攻擊", bonus:"", damage:"", notes:"" }); }
+    function removeAttack(i){ c.attacks.splice(i,1); }
+
+    /* ===== 專長 ===== */
+    function addFeat(){ if(!Array.isArray(c.feats)) c.feats=[]; c.feats.push({ name:"新專長", desc:"" }); }
+    function removeFeat(i){ c.feats.splice(i,1); }
+
+    /* ===== AC 計算輔助 ===== */
+    const acCalc = computed(() => {
+      const base = Number(c.acHelper.base)||0;
+      const dexMod = abilityModFor('dex');
+      const cap = c.acHelper.dexCap==="" || c.acHelper.dexCap===null ? dexMod : Math.min(dexMod, Number(c.acHelper.dexCap)||0);
+      return base + cap + (Number(c.acHelper.shield)||0) + (Number(c.acHelper.misc)||0);
+    });
+    function applyAcCalc(){ c.ac = acCalc.value; flash("🛡️ 已套用計算的 AC："+acCalc.value); }
+
+    /* ===== 被動數值 ===== */
+    const passivePerception = computed(() => 10 + skillValue('察覺'));
+    const passiveInvestigation = computed(() => 10 + skillValue('調查'));
+    const passiveInsight = computed(() => 10 + skillValue('洞悉'));
+
+    /* ===== 負重 ===== */
+    const carriedWeight = computed(() => (c.inventory||[]).reduce((s,it)=>{
+      const w = Number(itemWeightOf(it))||0; const q = Number(it.qty||it.quantity||1)||1; return s + w*q;
+    }, 0));
+    const carryCapacity = computed(() => (Number(abilityTotal('str'))||0) * 15);
+    function itemWeightOf(it){
+      if(it.weight!=null) return it.weight;
+      const d = itemById(it.id); return d && d.weight!=null ? d.weight : 0;
+    }
+
+    /* ===== 骰子工具 ===== */
+    const rollLog = ref([]);
+    const d20mod = ref(0);
+    const rollMode = ref("normal");
+    const diceFormula = ref("1d6");
+    function d(sides){ return Math.floor(Math.random()*sides)+1; }
+    function pushLog(entry){ rollLog.value.unshift(entry); if(rollLog.value.length>20) rollLog.value.pop(); }
+    function rollD20(label, mod){
+      const m = Number(mod!==undefined?mod:d20mod.value)||0;
+      const a=d(20); let raw=a, note="";
+      if(rollMode.value!=='normal'){ const b=d(20); raw = rollMode.value==='adv'?Math.max(a,b):Math.min(a,b); note=` [${a},${b}${rollMode.value==='adv'?' 優':' 劣'}]`; }
+      const crit = raw===20?' 🌟大成功':(raw===1?' 💥大失敗':'');
+      pushLog({ t:(label||'d20')+note, val:raw+m, detail:`🎲${raw}${m>=0?'+':''}${m}${crit}` });
+    }
+    function rollFormula(expr){
+      const s=(expr||diceFormula.value||'').replace(/\s/g,'').toLowerCase();
+      const m=s.match(/^(\d*)d(\d+)([+-]\d+)?$/);
+      if(!m){ flash("骰子格式例：2d6+3"); return; }
+      const n=Number(m[1]||1), sides=Number(m[2]), bonus=Number(m[3]||0);
+      if(n>50){ flash("骰子數上限 50"); return; }
+      let rolls=[], sum=0; for(let i=0;i<n;i++){ const r=d(sides); rolls.push(r); sum+=r; }
+      pushLog({ t:s, val:sum+bonus, detail:`[${rolls.join(',')}]${bonus?(bonus>0?'+':'')+bonus:''}` });
+    }
+    function clearRollLog(){ rollLog.value = []; }
+
+    /* ===== 主題切換 ===== */
+    const theme = ref((()=>{ try{ return localStorage.getItem('dnd_theme')||'light'; }catch(e){ return 'light'; } })());
+    function applyTheme(){ try{ document.documentElement.setAttribute('data-theme', theme.value); }catch(e){} }
+    function toggleTheme(){ theme.value = theme.value==='dark'?'light':'dark'; try{ localStorage.setItem('dnd_theme', theme.value); }catch(e){} applyTheme(); }
+    applyTheme();
+
+    /* ===== 頭像 ===== */
+    function onAvatarPick(ev){
+      const f = ev.target.files && ev.target.files[0]; if(!f) return;
+      if(f.size > 1024*1024){ flash("頭像請小於 1MB"); return; }
+      const reader = new FileReader();
+      reader.onload = () => { c.avatar = reader.result; };
+      reader.readAsDataURL(f);
+    }
+    function clearAvatar(){ c.avatar = ""; }
+
     function flash(t){ msg.value = t; setTimeout(()=>{ msg.value=""; }, 2500); }
 
     /* ===== 列印 / 匯出 PDF ===== */
@@ -2011,6 +2317,13 @@ const app = createApp({
       itemById, itemName, itemTypeText, rarityText, itemValueWeight, itemStats, itemDescription,
       onRaceChanged, applyRaceBonus, addClass, removeClass, subclassDef, selectedSubclassDesc, classFeaturesFor, subclassFeaturesFor, featOpen, toggleFeat, addItem, addItemFromData, removeItem, addSpellFromData, removeSpell, clickBubble,
       damage, heal, setTemp, hpDelta, tempInput, exportJSON, exportAllJSON, triggerImport, importJSON, resetAll,
+      toggleDeathSave, resetDeathSaves, toggleInspiration, toggleConcentration,
+      shortRest, longRest, addResource, removeResource, resDelta,
+      addAttack, removeAttack, addFeat, removeFeat,
+      acCalc, applyAcCalc, passivePerception, passiveInvestigation, passiveInsight,
+      carriedWeight, carryCapacity,
+      rollLog, d20mod, rollMode, diceFormula, rollD20, rollFormula, clearRollLog,
+      theme, toggleTheme, onAvatarPick, clearAvatar,
       mode, locked, chars, activeId, toggleMode,
       switchChar, addChar, copyChar, deleteChar, enableFamiliar, removeFamiliar,
       safeText, doPrint, printClasses, printRace, printSize, printSpells, printSlots, printSkillRows,
