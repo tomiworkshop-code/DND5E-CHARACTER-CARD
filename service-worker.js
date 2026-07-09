@@ -1,5 +1,5 @@
 /* 羊皮卷 PWA Service Worker */
-const CACHE = 'parchment-dnd5e-v6-netfirst';
+const CACHE = 'parchment-dnd5e-v7-netfirst';
 const ASSETS = [
   './',
   './manifest.json',
@@ -7,6 +7,7 @@ const ASSETS = [
   './data/spells.json',
   './data/items.json',
   './data/sources.json',
+  './data/classes.json',
   './data/SCHEMA.md',
   'https://unpkg.com/vue@3/dist/vue.global.prod.js',
   'https://cdn.tailwindcss.com'

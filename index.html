@@ -440,12 +440,46 @@
         <button v-show="!locked" class="btn-ghost btn px-2 py-1 text-xs" @click="addClass">＋ 新增</button>
       </div>
       <div v-if="c.classes.length===0" class="text-xs text-center py-3" style="color:var(--ink-soft)">尚未加入職業，點「新增」開始。</div>
-      <div v-for="(cl,i) in c.classes" :key="i" class="flex gap-2 items-center mb-2">
-        <select v-model="cl.name_en" :disabled="locked" class="flex-1 px-2 py-2 text-sm">
-          <option v-for="k in CLASSES" :key="k.name_en" :value="k.name_en">{{ k.name_zh }}（{{ k.hit_dice }}）</option>
-        </select>
-        <input v-model.number="cl.level" :disabled="locked" type="number" min="1" class="w-16 px-2 py-2 text-center num" placeholder="Lv">
-        <button v-show="!locked" class="btn-danger btn px-3 py-2 text-sm" @click="removeClass(i)">✕</button>
+      <div v-for="(cl,i) in c.classes" :key="i" class="stat-box p-2 mb-2">
+        <div class="flex gap-2 items-center">
+          <select v-model="cl.name_en" :disabled="locked" class="flex-1 px-2 py-2 text-sm">
+            <option v-for="k in CLASSES" :key="k.name_en" :value="k.name_en">{{ k.name_zh }}（{{ k.hit_dice }}）</option>
+          </select>
+          <input v-model.number="cl.level" :disabled="locked" type="number" min="1" class="w-16 px-2 py-2 text-center num" placeholder="Lv">
+          <button v-show="!locked" class="btn-danger btn px-3 py-2 text-sm" @click="removeClass(i)">✕</button>
+        </div>
+        <div v-if="subclassDef(cl)" class="mt-2 pt-2" style="border-top:1px dashed rgba(202,169,111,.4)">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] shrink-0" style="color:var(--ink-soft)">{{ subclassDef(cl).label }}</span>
+            <select v-model="cl.subclass" :disabled="locked || (Number(cl.level)||0) < subclassDef(cl).level" class="flex-1 px-2 py-1.5 text-xs">
+              <option value="">— 未選擇 —</option>
+              <option v-for="sc in subclassDef(cl).list" :key="sc.name_en" :value="sc.name_en">{{ sc.name_zh }}</option>
+            </select>
+          </div>
+          <p v-if="(Number(cl.level)||0) < subclassDef(cl).level" class="text-[10px] mt-1" style="color:var(--ink-soft)">達 {{ subclassDef(cl).level }} 級後可選擇{{ subclassDef(cl).label }}。</p>
+          <p v-if="selectedSubclassDesc(cl)" class="text-[11px] mt-1 leading-snug" style="color:var(--ink-soft)">{{ selectedSubclassDesc(cl) }}</p>
+        </div>
+        <div v-if="classFeaturesFor(cl).length || subclassFeaturesFor(cl).length" class="mt-2 pt-2" style="border-top:1px dashed rgba(202,169,111,.4)">
+          <button type="button" class="btn-ghost btn px-2 py-1 text-[11px] w-full text-left" @click="toggleFeat(i)">
+            {{ featOpen[i] ? '▾' : '▸' }} 職業特性（至 {{ Number(cl.level)||0 }} 級・共 {{ classFeaturesFor(cl).length + subclassFeaturesFor(cl).length }} 項）
+          </button>
+          <div v-show="featOpen[i]" class="mt-2 space-y-2">
+            <div v-if="classFeaturesFor(cl).length">
+              <div class="text-[11px] font-bold mb-1" style="color:var(--accent)">⚔️ 主職業特性</div>
+              <div v-for="(f,fi) in classFeaturesFor(cl)" :key="'c'+fi" class="mb-1.5">
+                <div class="text-[11px] font-bold"><span class="chip">L{{ f.level }}</span> {{ f.name_zh }} <span style="color:var(--ink-soft)">{{ f.name_en }}</span></div>
+                <p class="text-[11px] leading-snug whitespace-pre-line" style="color:var(--ink-soft)">{{ f.desc }}</p>
+              </div>
+            </div>
+            <div v-if="subclassFeaturesFor(cl).length">
+              <div class="text-[11px] font-bold mb-1" style="color:var(--accent)">✨ {{ subclassDef(cl) ? subclassDef(cl).label : '子職業' }}特性</div>
+              <div v-for="(f,fi) in subclassFeaturesFor(cl)" :key="'s'+fi" class="mb-1.5">
+                <div class="text-[11px] font-bold"><span class="chip able">L{{ f.level }}</span> {{ f.name_zh }} <span style="color:var(--ink-soft)">{{ f.name_en }}</span></div>
+                <p class="text-[11px] leading-snug whitespace-pre-line" style="color:var(--ink-soft)">{{ f.desc }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <hr class="hr-ink my-3">
       <div class="grid grid-cols-2 gap-2 text-center text-sm">
@@ -830,18 +864,82 @@
 <script>
 /* ===== 內嵌職業資料（離線可用，不靠外部 fetch） ===== */
 const CLASSES = [
-  { "name_zh":"野蠻人","name_en":"Barbarian","hit_dice":"d12","skills_choices":["動物認同","運動","威嚇","自然","察覺","求生"] },
-  { "name_zh":"吟遊詩人","name_en":"Bard","hit_dice":"d8","skills_choices":["任何技能"] },
-  { "name_zh":"牧師","name_en":"Cleric","hit_dice":"d8","skills_choices":["歷史","洞悉","醫藥","遊說","宗教"] },
-  { "name_zh":"德魯伊","name_en":"Druid","hit_dice":"d8","skills_choices":["奧秘","動物認同","洞悉","醫藥","自然","察覺","宗教","求生"] },
-  { "name_zh":"戰士","name_en":"Fighter","hit_dice":"d10","skills_choices":["特技","動物認同","運動","歷史","洞悉","威嚇","察覺","求生"] },
-  { "name_zh":"武僧","name_en":"Monk","hit_dice":"d8","skills_choices":["特技","運動","歷史","洞悉","宗教","隱匿"] },
-  { "name_zh":"聖騎士","name_en":"Paladin","hit_dice":"d10","skills_choices":["運動","洞悉","威嚇","醫藥","遊說","宗教"] },
-  { "name_zh":"遊俠","name_en":"Ranger","hit_dice":"d10","skills_choices":["動物認同","運動","洞悉","調查","自然","察覺","隱匿","求生"] },
-  { "name_zh":"盜賊","name_en":"Rogue","hit_dice":"d8","skills_choices":["特技","運動","欺瞞","洞悉","威嚇","調查","察覺","表演","遊說","巧手","隱匿"] },
-  { "name_zh":"術士","name_en":"Sorcerer","hit_dice":"d6","skills_choices":["奧秘","欺瞞","洞悉","威嚇","遊說","宗教"] },
-  { "name_zh":"契術師","name_en":"Warlock","hit_dice":"d8","skills_choices":["奧秘","欺瞞","歷史","威嚇","調查","自然","宗教"] },
-  { "name_zh":"法師","name_en":"Wizard","hit_dice":"d6","skills_choices":["奧秘","歷史","洞悉","調查","醫藥","宗教"] }
+  { "name_zh":"野蠻人","name_en":"Barbarian","hit_dice":"d12","skills_choices":["動物認同","運動","威嚇","自然","察覺","求生"],
+    "subclass_label":"原始之道","subclass_level":3,"subclasses":[
+      { "name_zh":"狂戰士之道","name_en":"Path of the Berserker","desc_zh":"狂暴時可進入『狂亂』獲得額外一次攻擊，代價是回合後陷入力竭。純粹的暴力輸出流。" },
+      { "name_zh":"圖騰武者之道","name_en":"Path of the Totem Warrior","desc_zh":"選擇靈魂圖騰（熊／鷹／狼等）取得對應增益，如熊圖騰在狂暴時抗除精神外所有傷害，適合坦克。" }
+    ] },
+  { "name_zh":"吟遊詩人","name_en":"Bard","hit_dice":"d8","skills_choices":["任何技能"],
+    "subclass_label":"詩人學院","subclass_level":3,"subclasses":[
+      { "name_zh":"知識學院","name_en":"College of Lore","desc_zh":"再獲三項技能熟練與『銳語切磋』（以鼓舞骰扣減敵人攻擊／檢定／傷害），6級可借用他職法術，博學多聞型。" },
+      { "name_zh":"勇氣學院","name_en":"College of Valor","desc_zh":"獲得中甲、盾牌與軍用武器熟練；鼓舞骰可加武器傷害或AC，6級可額外攻擊，前線戰吟型。" }
+    ] },
+  { "name_zh":"牧師","name_en":"Cleric","hit_dice":"d8","skills_choices":["歷史","洞悉","醫藥","遊說","宗教"],
+    "subclass_label":"神聖領域","subclass_level":1,"subclasses":[
+      { "name_zh":"知識領域","name_en":"Knowledge Domain","desc_zh":"通曉語言與雙倍技能熟練，善用預言與探知，博學導向。" },
+      { "name_zh":"生命領域","name_en":"Life Domain","desc_zh":"重甲熟練，治療法術額外回復生命，最強白值奶媽。" },
+      { "name_zh":"光明領域","name_en":"Light Domain","desc_zh":"焰化爆發護身，擅長塑能範圍傷害與驅散黑暗。" },
+      { "name_zh":"自然領域","name_en":"Nature Domain","desc_zh":"重甲與德魯伊系法術，可魅惑動植物、招喚自然之力。" },
+      { "name_zh":"風暴領域","name_en":"Tempest Domain","desc_zh":"重甲熟練，受擊可電擊反擊，雷電傷害擲最大值。" },
+      { "name_zh":"詭術領域","name_en":"Trickery Domain","desc_zh":"賜予盟友潛行祝福，可製造分身幻影，欺敵滲透導向。" },
+      { "name_zh":"戰爭領域","name_en":"War Domain","desc_zh":"重甲與軍用武器熟練，可額外附贈神力加值攻擊，戰鬥牧師。" }
+    ] },
+  { "name_zh":"德魯伊","name_en":"Druid","hit_dice":"d8","skills_choices":["奧秘","動物認同","洞悉","醫藥","自然","察覺","宗教","求生"],
+    "subclass_label":"德魯伊結社","subclass_level":2,"subclasses":[
+      { "name_zh":"大地結社","name_en":"Circle of the Land","desc_zh":"依地形取得額外領域法術，可休息回復法術位，法術施放型德魯伊。" },
+      { "name_zh":"明月結社","name_en":"Circle of the Moon","desc_zh":"以附贈動作變身戰鬥形態（更高CR野獸），變身可回血，近戰肉搏流。" }
+    ] },
+  { "name_zh":"戰士","name_en":"Fighter","hit_dice":"d10","skills_choices":["特技","動物認同","運動","歷史","洞悉","威嚇","察覺","求生"],
+    "subclass_label":"武術原型","subclass_level":3,"subclasses":[
+      { "name_zh":"鬥士","name_en":"Champion","desc_zh":"重擊範圍擴大（19–20暴擊）、體能出眾，簡單粗暴穩定輸出。" },
+      { "name_zh":"戰鬥大師","name_en":"Battle Master","desc_zh":"學會戰技招式（擊倒／威逼／佯攻等）並以優勢骰驅動，戰術操作型。" },
+      { "name_zh":"祕法騎士","name_en":"Eldritch Knight","desc_zh":"習得法師系法術（以防護與塑能為主）與武器連結，魔劍士。" }
+    ] },
+  { "name_zh":"武僧","name_en":"Monk","hit_dice":"d8","skills_choices":["特技","運動","歷史","洞悉","宗教","隱匿"],
+    "subclass_label":"修行之道","subclass_level":3,"subclasses":[
+      { "name_zh":"開掌之道","name_en":"Way of the Open Hand","desc_zh":"疾風連擊可附加擊倒／推開／剝奪反應，並能調息回血，格鬥控場王。" },
+      { "name_zh":"暗影之道","name_en":"Way of Shadow","desc_zh":"以氣施展隱匿系法術，可於暗影間瞬移，忍者暗殺流。" },
+      { "name_zh":"四象之道","name_en":"Way of the Four Elements","desc_zh":"以氣施放元素法術（火球、推撞等），元素法武僧。" }
+    ] },
+  { "name_zh":"聖騎士","name_en":"Paladin","hit_dice":"d10","skills_choices":["運動","洞悉","威嚇","醫藥","遊說","宗教"],
+    "subclass_label":"神聖誓言","subclass_level":3,"subclasses":[
+      { "name_zh":"奉獻誓言","name_en":"Oath of Devotion","desc_zh":"神聖武器加值命中、驅散不死與邪祟，正義聖騎典範。" },
+      { "name_zh":"遠古誓言","name_en":"Oath of the Ancients","desc_zh":"自然庇佑抗法術傷害、驅散，守護生機的翠綠騎士。" },
+      { "name_zh":"復仇誓言","name_en":"Oath of Vengeance","desc_zh":"標記仇敵、追擊與驅散，鎖定單體的復仇獵手。" }
+    ] },
+  { "name_zh":"遊俠","name_en":"Ranger","hit_dice":"d10","skills_choices":["動物認同","運動","洞悉","調查","自然","察覺","隱匿","求生"],
+    "subclass_label":"遊俠原型","subclass_level":3,"subclasses":[
+      { "name_zh":"狩獵者","name_en":"Hunter","desc_zh":"選擇對抗群敵或巨敵的戰技（如巨獸剋星、多重射擊），泛用輸出遊俠。" },
+      { "name_zh":"馭獸大師","name_en":"Beast Master","desc_zh":"獲得野獸夥伴並肩作戰，可指揮牠攻擊與行動，馴獸師。" }
+    ] },
+  { "name_zh":"盜賊","name_en":"Rogue","hit_dice":"d8","skills_choices":["特技","運動","欺瞞","洞悉","威嚇","調查","察覺","表演","遊說","巧手","隱匿"],
+    "subclass_label":"盜賊原型","subclass_level":3,"subclasses":[
+      { "name_zh":"神偷","name_en":"Thief","desc_zh":"快手可用附贈動作開鎖／使用物品，攀爬更快、擅長攀樓潛入，經典盜賊。" },
+      { "name_zh":"刺客","name_en":"Assassin","desc_zh":"對尚未行動的目標暴擊、偷襲致命，精通易容與偽造，暗殺專家。" },
+      { "name_zh":"詭術師","name_en":"Arcane Trickster","desc_zh":"習得法師系法術（以惑控與幻術為主）並強化『法師之手』遠程扒竊，魔法盜賊。" }
+    ] },
+  { "name_zh":"術士","name_en":"Sorcerer","hit_dice":"d6","skills_choices":["奧秘","欺瞞","洞悉","威嚇","遊說","宗教"],
+    "subclass_label":"術法之源","subclass_level":1,"subclasses":[
+      { "name_zh":"龍族血脈","name_en":"Draconic Bloodline","desc_zh":"每級額外HP、選定龍屬抗性，無甲時龍鱗提供13+敏AC，硬朗術士。" },
+      { "name_zh":"狂野魔法","name_en":"Wild Magic","desc_zh":"施法可能觸發隨機『狂野魔法效應』，並能扭轉命運骰（機緣潮），混沌賭徒。" }
+    ] },
+  { "name_zh":"契術師","name_en":"Warlock","hit_dice":"d8","skills_choices":["奧秘","欺瞞","歷史","威嚇","調查","自然","宗教"],
+    "subclass_label":"契約庇主","subclass_level":1,"subclasses":[
+      { "name_zh":"妖精領主","name_en":"The Archfey","desc_zh":"迷惑或驚懼敵人的妖精魔法，可短暫隱形脫身，魅惑操控型。" },
+      { "name_zh":"魔鬼","name_en":"The Fiend","desc_zh":"擊殺敵人時獲得臨時生命，額外火焰／地獄系法術，耐打爆發型。" },
+      { "name_zh":"遠古巨物","name_en":"The Great Old One","desc_zh":"心靈感應、支配心智與扭曲精神的異界魔法，克蘇魯風控制流。" }
+    ] },
+  { "name_zh":"法師","name_en":"Wizard","hit_dice":"d6","skills_choices":["奧秘","歷史","洞悉","調查","醫藥","宗教"],
+    "subclass_label":"祕法傳承","subclass_level":2,"subclasses":[
+      { "name_zh":"防護學派","name_en":"School of Abjuration","desc_zh":"生成祕法護盾吸收傷害，擅長反制與解除魔法，防禦大師。" },
+      { "name_zh":"咒法學派","name_en":"School of Conjuration","desc_zh":"召喚生物與物件、瞬間傳送，戰場召喚流。" },
+      { "name_zh":"預言學派","name_en":"School of Divination","desc_zh":"預擲骰替換命運（預兆），洞悉先機的預言者。" },
+      { "name_zh":"惑控學派","name_en":"School of Enchantment","desc_zh":"魅惑與催眠強化，可扭曲敵人心智，操控型。" },
+      { "name_zh":"塑能學派","name_en":"School of Evocation","desc_zh":"塑能法術傷害加成且可保護盟友不被波及，經典炮手法師。" },
+      { "name_zh":"幻術學派","name_en":"School of Illusion","desc_zh":"幻象更逼真可實體化，欺敵與控場的幻術師。" },
+      { "name_zh":"死靈學派","name_en":"School of Necromancy","desc_zh":"操控生死、統御更多不死僕役，死靈法師。" },
+      { "name_zh":"變化學派","name_en":"School of Transmutation","desc_zh":"改變物質與生物，可製作變化寶石施展多種效果，變化大師。" }
+    ] }
 ];
 
 /* 18 項標準技能與對應屬性 */
@@ -1027,7 +1125,9 @@ const app = createApp({
     const tab = ref("base");
     const msg = ref("");
     const fileInput = ref(null);
-    const dataState = reactive({ loading:false, error:"", races:[], spells:[], items:[], sources:[] });
+    const dataState = reactive({ loading:false, error:"", races:[], spells:[], items:[], sources:[], classes:[] });
+    const featOpen = reactive({});
+    function toggleFeat(i){ featOpen[i] = !featOpen[i]; }
     /* ===== 全域內容設定（來源多選 + 含未繁中開關） ===== */
     const settings = reactive(loadSettings());
     const showSettings = ref(false);
@@ -1559,8 +1659,48 @@ const app = createApp({
       ["str","dex","con","int","wis","cha"].forEach(k => { c.abilityBonus[k] = Number(combinedRaceBonus.value[k] || 0); });
       flash("已套用「" + raceDisplayName(r) + (selectedSubrace.value ? "／" + raceDisplayName(selectedSubrace.value) : "") + "」固定加值喵～" + (raceChooseNote.value ? " 可選加值請手動填入。" : ""));
     }
-    function addClass(){ c.classes.push({ name_en:"Fighter", level:1 }); }
+    function addClass(){ c.classes.push({ name_en:"Fighter", level:1, subclass:"" }); }
     function removeClass(i){ c.classes.splice(i,1); }
+    /* 子職業（原型／領域）輔助 */
+    function subclassDef(cl){
+      const def = CLASSES.find(k=>k.name_en===cl.name_en);
+      if(!def || !def.subclasses || !def.subclasses.length) return null;
+      return { label:def.subclass_label, level:def.subclass_level, list:def.subclasses };
+    }
+    function selectedSubclassDesc(cl){
+      const def = CLASSES.find(k=>k.name_en===cl.name_en);
+      if(!def || !def.subclasses || !cl.subclass) return "";
+      const sc = def.subclasses.find(x=>x.name_en===cl.subclass);
+      return sc ? (sc.name_zh + "：" + sc.desc_zh) : "";
+    }
+    /* 將 classes.json 的完整特性合併進內嵌 CLASSES */
+    function mergeClassFeatures(){
+      (dataState.classes || []).forEach(src => {
+        const def = CLASSES.find(k => k.name_en === src.name_en);
+        if(!def) return;
+        def.features = src.features || [];
+        (src.subclasses || []).forEach(ssc => {
+          const tgt = (def.subclasses || []).find(x => x.name_en === ssc.name_en);
+          if(tgt) tgt.features = ssc.features || [];
+        });
+      });
+    }
+    /* 依目前等級取得已解鎖的主職業特性 */
+    function classFeaturesFor(cl){
+      const def = CLASSES.find(k=>k.name_en===cl.name_en);
+      const lv = Number(cl.level)||0;
+      if(!def || !def.features) return [];
+      return def.features.filter(f => !f.level || f.level <= lv);
+    }
+    /* 依目前等級取得已解鎖的子職業特性 */
+    function subclassFeaturesFor(cl){
+      const def = CLASSES.find(k=>k.name_en===cl.name_en);
+      const lv = Number(cl.level)||0;
+      if(!def || !def.subclasses || !cl.subclass) return [];
+      const sc = def.subclasses.find(x=>x.name_en===cl.subclass);
+      if(!sc || !sc.features) return [];
+      return sc.features.filter(f => !f.level || f.level <= lv);
+    }
     function addItem(){ if(!locked.value) c.inventory.push({ name:"", qty:1 }); }
     function addItemFromData(item){
       if(locked.value || !item) return;
@@ -1612,7 +1752,12 @@ const app = createApp({
     const printClasses = computed(() => (c.classes || []).map(cl => {
       const def = CLASSES.find(k => k.name_en === cl.name_en);
       const nm = def ? def.name_zh : (cl.name_en || "職業");
-      return safeText(nm) + " " + (Number(cl.level)||0) + " 級";
+      let s = safeText(nm) + " " + (Number(cl.level)||0) + " 級";
+      if(cl.subclass && def && def.subclasses){
+        const sc = def.subclasses.find(x=>x.name_en===cl.subclass);
+        if(sc) s += "（" + safeText(sc.name_zh) + "）";
+      }
+      return s;
     }).join("、"));
     const printRace = computed(() => {
       const r = selectedRace.value;
@@ -1800,12 +1945,14 @@ const app = createApp({
         ["races", "data/races.json", "races"],
         ["spells", "data/spells.json", "spells"],
         ["items", "data/items.json", "items"],
-        ["sources", "data/sources.json", "sources"]
+        ["sources", "data/sources.json", "sources"],
+        ["classes", "data/classes.json", "classes"]
       ];
       await Promise.all(jobs.map(async ([stateKey, url, collectionKey]) => {
         try{ dataState[stateKey] = await fetchCollection(url, collectionKey); }
         catch(e){ dataState[stateKey] = []; if(stateKey !== "sources") errs.push(url); }
       }));
+      mergeClassFeatures();
       dataState.error = errs.length ? ("部分資料載入失敗：" + errs.join("、")) : "";
       dataState.loading = false;
       reconcileSettings();
@@ -1862,7 +2009,7 @@ const app = createApp({
       sourceText, raceDisplayName, raceOptionLabel, subraceLabel, sizeText, speedText, abilitySummary,
       spellById, spellName, spellLevelText, formatTime, formatRange, formatComponents, formatDuration, spellDescription,
       itemById, itemName, itemTypeText, rarityText, itemValueWeight, itemStats, itemDescription,
-      onRaceChanged, applyRaceBonus, addClass, removeClass, addItem, addItemFromData, removeItem, addSpellFromData, removeSpell, clickBubble,
+      onRaceChanged, applyRaceBonus, addClass, removeClass, subclassDef, selectedSubclassDesc, classFeaturesFor, subclassFeaturesFor, featOpen, toggleFeat, addItem, addItemFromData, removeItem, addSpellFromData, removeSpell, clickBubble,
       damage, heal, setTemp, hpDelta, tempInput, exportJSON, exportAllJSON, triggerImport, importJSON, resetAll,
       mode, locked, chars, activeId, toggleMode,
       switchChar, addChar, copyChar, deleteChar, enableFamiliar, removeFamiliar,
