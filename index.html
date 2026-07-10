@@ -147,6 +147,7 @@
         <button class="btn-ghost btn px-2 py-1.5 text-sm" :class="{'btn': showSettings}" @click="showSettings=!showSettings" title="內容來源設定">📚 來源</button>
         <button class="btn-ghost btn px-2 py-1.5 text-sm" @click="toggleTheme" :title="theme==='dark' ? '切換淺色' : '切換深色'">{{ theme==='dark' ? '☀️' : '🌙' }}</button>
         <button class="btn-ghost btn px-2 py-1.5 text-sm" @click="doPrint" title="列印 / 匯出 PDF">🖨️ 列印</button>
+        <button class="btn-ghost btn px-2 py-1.5 text-sm" :class="{'btn': tab==='manage'}" @click="tab = (tab==='manage' ? 'char' : 'manage')" title="角色管理 / 匯入匯出">🗂️</button>
         <button class="btn-ghost btn px-2 py-1.5 text-sm" @click="showCreditModal=true" title="關於 / 鳴謝">ℹ️ 關於</button>
         <button class="btn px-3 py-1.5 text-sm" :class="{'btn-danger': mode==='play'}" @click="toggleMode">
           {{ mode==='play' ? '🎲 跑團模式' : '⚙️ 設定模式' }}
@@ -203,7 +204,7 @@
   </div>
 
   <!-- ===== 基礎 ===== -->
-  <section v-show="tab==='base'">
+  <section v-show="tab==='char'">
     <div class="card p-3 mb-3">
       <div class="grid grid-cols-2 gap-2">
         <div class="col-span-2 flex items-center gap-3">
@@ -269,6 +270,10 @@
       </div>
     </div>
 
+  </section>
+
+  <!-- ===== 戰鬥 ===== -->
+  <section v-show="tab==='combat'">
     <!-- 戰鬥面板 -->
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2">⚔️ 戰鬥面板</h2>
@@ -376,6 +381,10 @@
       </div>
     </div>
 
+  </section>
+
+  <!-- ===== 角色（續）：屬性 / 語言 / 筆記 ===== -->
+  <section v-show="tab==='char'">
     <!-- 六大屬性 -->
     <div class="card p-3">
       <h2 class="text-sm font-bold title-deco mb-2">🎲 六大屬性</h2>
@@ -493,7 +502,7 @@
   </section>
 
   <!-- ===== 職業 ===== -->
-  <section v-show="tab==='class'">
+  <section v-show="tab==='ability'">
     <div class="card p-3 mb-3">
       <div class="flex justify-between items-center mb-2">
         <h2 class="text-sm font-bold title-deco">🛡️ 職業 / 多職業</h2>
@@ -565,7 +574,7 @@
   </section>
 
   <!-- ===== 技能 ===== -->
-  <section v-show="tab==='skill'">
+  <section v-show="tab==='ability'">
     <div class="card p-3">
       <div class="flex justify-between items-center mb-1">
         <h2 class="text-sm font-bold title-deco">📖 技能</h2>
@@ -679,7 +688,7 @@
   </section>
 
   <!-- ===== 背包 ===== -->
-  <section v-show="tab==='bag'">
+  <section v-show="tab==='item'">
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2">💰 財產</h2>
       <div class="grid grid-cols-4 gap-2 text-center">
@@ -748,7 +757,7 @@
   </section>
 
   <!-- ===== 跑團（休息 / 資源 / 骰子 / 攻擊） ===== -->
-  <section v-show="tab==='play'">
+  <section v-show="tab==='combat'">
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2">☕ 休息</h2>
       <div class="flex gap-2">
@@ -833,7 +842,7 @@
   </section>
 
   <!-- ===== 故事（背景 / 專長） ===== -->
-  <section v-show="tab==='story'">
+  <section v-show="tab==='char'">
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2">📜 角色背景</h2>
       <div class="space-y-2">
@@ -863,7 +872,7 @@
   </section>
 
   <!-- ===== 魔寵 ===== -->
-  <section v-show="tab==='familiar'">
+  <section v-show="tab==='item'">
     <div v-if="!c.familiar" class="card p-4 text-center">
       <p class="text-3xl mb-2">🐾</p>
       <p class="text-sm mb-3" style="color:var(--ink-soft)">目前尚未綁定魔寵喵～</p>
@@ -1318,7 +1327,7 @@ const app = createApp({
     loadActiveIntoC();
 
     const locked = computed(() => mode.value === "play");
-    const tab = ref("base");
+    const tab = ref("char");
     const msg = ref("");
     const fileInput = ref(null);
     const dataState = reactive({ loading:false, error:"", races:[], spells:[], items:[], sources:[], classes:[] });
@@ -1334,15 +1343,11 @@ const app = createApp({
     });
 
     const tabs = [
-      { id:"base", icon:"📋", label:"基礎" },
-      { id:"class", icon:"🛡️", label:"職業" },
-      { id:"skill", icon:"📖", label:"技能" },
+      { id:"char", icon:"👤", label:"角色" },
+      { id:"combat", icon:"⚔️", label:"戰鬥" },
+      { id:"ability", icon:"📖", label:"能力" },
       { id:"spell", icon:"✨", label:"法術" },
-      { id:"bag", icon:"🎒", label:"背包" },
-      { id:"play", icon:"🎲", label:"跑團" },
-      { id:"story", icon:"📜", label:"故事" },
-      { id:"familiar", icon:"🐾", label:"魔寠" },
-      { id:"manage", icon:"🗂️", label:"管理" }
+      { id:"item", icon:"🎒", label:"物品" }
     ];
     const abilityDefs = [
       { key:"str", zh:"力量" }, { key:"dex", zh:"敏捷" }, { key:"con", zh:"體質" },
