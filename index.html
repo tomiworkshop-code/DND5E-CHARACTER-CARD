@@ -16,8 +16,18 @@
     --paper:#f3e9d2; --paper-2:#e9dab6; --line:#caa96f; --accent:#8a5a2b;
   }
   html[data-theme="dark"]{
-    --ink:#e9dcc2; --ink-soft:#b49b74; --gold:#c8a15f; --gold-deep:#e0bd7a;
-    --paper:#241d15; --paper-2:#312619; --line:#5a4526; --accent:#e0a55c;
+    --ink:#f0e6d2; --ink-soft:#d4c2a8; --gold:#e8c37d; --gold-deep:#f5d08a;
+    --paper:#1a1510; --paper-2:#282018; --line:#6a5332; --accent:#f2b86b;
+  }
+  html[data-theme="dark"] .card {
+    background: linear-gradient(180deg, rgba(40,32,24,.9), rgba(30,24,18,.85));
+    box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 6px 14px -8px rgba(0,0,0,.8);
+  }
+  html[data-theme="dark"] .stat-box, html[data-theme="dark"] .chip {
+    background: rgba(48,38,28,.8);
+  }
+  html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="dark"] textarea {
+    background: rgba(30,24,18,.8);
   }
   *{ -webkit-tap-highlight-color: transparent; }
   html,body{ margin:0; padding:0; }
