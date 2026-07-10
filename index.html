@@ -126,7 +126,19 @@
   <div v-if="showCreditModal" class="credit-overlay no-print" @click.self="showCreditModal=false">
     <div class="credit-modal card" role="dialog" aria-modal="true" aria-label="關於">
       <button class="credit-close btn-ghost btn" @click="showCreditModal=false" title="關閉" aria-label="關閉">✕</button>
-      <h2 class="text-base font-bold title-deco mb-3 pr-6">📜 冒險者之書（5E）(PWA)</h2>
+      
+      <div class="flex flex-col items-center mb-4 mt-2 text-center">
+        <img src="tomi-avatar.jpg" alt="Tomi" class="w-20 h-20 rounded-full shadow-sm mb-2" style="border: 2px solid var(--gold-deep); padding: 2px; background: white;" onerror="this.style.display='none'">
+        <h2 class="text-lg font-bold" style="color:var(--gold-deep)">Tomi's Workshop</h2>
+        <p class="text-[11px] mt-1 leading-relaxed px-2" style="color:var(--ink-soft)">
+          Building small, useful AI-powered tools — for work and play.<br>Always free. 
+        </p>
+        <a href="https://ko-fi.com/tomiworkshop" target="_blank" rel="noopener noreferrer" class="btn mt-3 px-4 py-1.5 text-sm flex items-center justify-center gap-2" style="background-color: #29abe0; color: white; border-color: #29abe0; width: 100%; border-radius: 8px;" onclick="window.gtag && window.gtag('event', 'click_donate')">
+          ☕ 請 Tomi 喝杯咖啡
+        </a>
+      </div>
+
+      <h2 class="text-base font-bold title-deco mb-3 mt-4 border-t pt-4" style="border-color:var(--border-color)">📜 冒險者之書（5E）</h2>
       <div class="credit-sec">
         <div class="credit-h">💡 功能許願 / 意見回饋</div>
         <p>加我 Line：<span class="credit-code">tomilam</span></p>
