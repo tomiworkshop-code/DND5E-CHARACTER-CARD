@@ -62,6 +62,8 @@
   .btn-ghost{ background:transparent; color:var(--gold-deep); border:1px dashed var(--line); }
   .btn-danger{ background:linear-gradient(180deg,#9c4a3a,#7e3a2c); border-color:#5e271d; color:#fdf0ea; }
   .stat-box{ background:rgba(255,252,240,.7); border:1px solid var(--line); border-radius:12px; }
+  .src-group-head{ background:rgba(243,233,210,.95); }
+  html[data-theme="dark"] .src-group-head{ background:rgba(26,21,16,.95); }
   .cond-chip{ border-radius:10px; transition:all .12s; user-select:none; }
   .cond-chip.cond-on{ background:linear-gradient(180deg,#9c4a3a,#7e3a2c); border-color:#5e271d; color:#fdf0ea; box-shadow:0 1px 4px rgba(124,58,44,.35); }
   .cond-chip.cond-on .opacity-60{ opacity:.8; }
@@ -222,7 +224,7 @@
     </div>
     <div class="max-h-72 overflow-auto">
       <div v-for="g in sourceGroups" :key="g.key" class="mb-2">
-        <div class="flex items-center justify-between sticky top-0 py-1" style="background:rgba(243,233,210,.95)">
+        <div class="flex items-center justify-between sticky top-0 py-1 src-group-head">
           <span class="text-xs font-bold" style="color:var(--gold-deep)">{{ g.label }}</span>
           <button class="btn-ghost btn px-2 py-0.5 text-[11px]" @click="toggleGroup(g)">
             {{ groupAllEnabled(g) ? '取消本組' : '選取本組' }}
