@@ -105,6 +105,14 @@
     .print-sheet .ps-empty{ color:#666; font-style:italic; }
   }
 </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-PR0C0L5Q5V"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-PR0C0L5Q5V', { send_page_view: false });
+</script>
 </head>
 <body>
 <div id="app" class="max-w-md mx-auto px-3 pt-3 pb-24">
@@ -173,7 +181,8 @@
     </div>
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2">ℹ️ 關於</h2>
-      <button class="btn-ghost btn w-full py-2 text-sm" @click="showCreditModal=true">開啟 關於 / 鳴謝</button>
+      <button class="btn-ghost btn w-full py-2 text-sm mb-2" @click="showCreditModal=true">開啟 關於 / 鳴謝</button>
+      <p class="text-[10px] text-center" style="color:var(--ink-soft)">本工具使用匿名分析來改善體驗。</p>
     </div>
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2">📚 內容來源設定</h2>
@@ -1335,6 +1344,17 @@ const app = createApp({
 
     const locked = computed(() => mode.value === "play");
     const tab = ref("char");
+    
+    // GA4 分頁追蹤
+    watch(tab, (newTab) => {
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'page_view', {
+          page_title: '分頁 - ' + newTab,
+          page_location: location.href.split('#')[0] + '#' + newTab
+        });
+      }
+    }, { immediate: true });
+
     const msg = ref("");
     const fileInput = ref(null);
     const dataState = reactive({ loading:false, error:"", races:[], spells:[], items:[], sources:[], classes:[] });
