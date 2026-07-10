@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#7c5a3a">
+<title>地下城指南 · 世界建構器（原型）</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --ink:#3b2a1a; --ink-soft:#6b5034; --gold:#7c5a3a; --gold-deep:#5a3d22;
+    --paper:#f3e9d2; --paper-2:#e9dab6; --line:#caa96f; --accent:#8a5a2b;
+  }
+  html[data-theme="dark"]{
+    --ink:#f0e6d2; --ink-soft:#d4c2a8; --gold:#e8c37d; --gold-deep:#f5d08a;
+    --paper:#1a1510; --paper-2:#282018; --line:#6a5332; --accent:#f2b86b;
+  }
+  *{ -webkit-tap-highlight-color: transparent; box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:"Noto Serif TC","Songti TC","STKaiti",serif;
+    color:var(--ink); background-color:var(--paper);
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(255,248,225,.55), transparent 55%),
+      radial-gradient(ellipse at 85% 100%, rgba(120,85,45,.18), transparent 55%),
+      repeating-linear-gradient(0deg, rgba(120,85,45,.025) 0 2px, transparent 2px 5px);
+    min-height:100vh;
+  }
+  .card{
+    background:linear-gradient(180deg, rgba(255,252,240,.9), rgba(233,218,182,.78));
+    border:1px solid var(--line); border-radius:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 6px 14px -8px rgba(90,61,34,.5);
+  }
+  html[data-theme="dark"] .card{
+    background:linear-gradient(180deg, rgba(40,32,24,.9), rgba(30,24,18,.85));
+    box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 6px 14px -8px rgba(0,0,0,.8);
+  }
+  input,select,textarea{
+    background:rgba(255,253,247,.85); border:1px solid var(--line);
+    border-radius:10px; color:var(--ink); outline:none; width:100%;
+  }
+  html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="dark"] textarea{ background:rgba(30,24,18,.8); }
+  input:focus,select:focus,textarea:focus{ border-color:var(--accent); box-shadow:0 0 0 2px rgba(138,90,43,.2); }
+  .btn{ border-radius:10px; border:1px solid var(--gold-deep); background:linear-gradient(180deg,#9a6a36,#7c5a3a); color:#fdf6e3; font-weight:600; cursor:pointer; }
+  .btn-ghost{ background:transparent; color:var(--ink); border:1px solid var(--line); }
+  .btn-danger{ background:linear-gradient(180deg,#a4442f,#7e3322); border-color:#7e3322; color:#fdf6e3; }
+  .title-deco{ letter-spacing:.06em; color:var(--gold-deep); }
+  .catbtn{ display:flex; align-items:center; gap:.5rem; width:100%; padding:.5rem .6rem; border-radius:10px; border:1px solid transparent; color:var(--ink-soft); cursor:pointer; background:transparent; text-align:left; }
+  .catbtn.active{ background:rgba(138,90,43,.14); border-color:var(--line); color:var(--gold-deep); font-weight:700; }
+  .catbtn svg{ width:20px; height:20px; flex:none; }
+  .listitem{ padding:.55rem .6rem; border-radius:10px; border:1px solid var(--line); cursor:pointer; }
+  .listitem.active{ border-color:var(--accent); box-shadow:0 0 0 2px rgba(138,90,43,.18); }
+  .chip{ display:inline-flex; align-items:center; gap:.25rem; padding:.15rem .5rem; border-radius:999px; border:1px solid var(--line); background:rgba(202,169,111,.16); font-size:12px; }
+  .chip svg{ width:13px; height:13px; }
+  .ic{ width:16px; height:16px; }
+</style>
+</head>
+<body>
+<div id="app" v-cloak></div>
+
+<template id="root">
+<div class="max-w-5xl mx-auto p-3">
+  <!-- header -->
+  <div class="flex items-center justify-between mb-3">
+    <h1 class="text-xl font-bold title-deco flex items-center gap-2">
+      <svg class="ic" style="width:22px;height:22px"><use href="#w-book"></use></svg>
+      地下城指南 · 世界建構器
+      <span class="text-[10px] px-2 py-0.5 rounded-full" style="background:rgba(138,90,43,.15);color:var(--accent)">原型 Prototype</span>
+    </h1>
+    <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="toggleTheme">
+      <svg class="ic"><use :href="theme==='dark' ? '#w-sun' : '#w-moon'"></use></svg>
+      <span class="hidden sm:inline">{{ theme==='dark' ? '淺色' : '深色' }}</span>
+    </button>
+  </div>
+
+  <div class="grid gap-3" style="grid-template-columns: 170px 1fr;">
+    <!-- category rail -->
+    <aside class="card p-2 self-start">
+      <div class="text-[11px] font-bold mb-1 px-1" style="color:var(--ink-soft)">分類</div>
+      <button v-for="cat in cats" :key="cat.id" class="catbtn" :class="{active: activeCat===cat.id}" @click="selectCat(cat.id)">
+        <svg><use :href="'#'+cat.icon"></use></svg>
+        <span class="flex-1">{{ cat.name }}</span>
+        <span class="text-[11px] px-1.5 rounded-full" style="background:rgba(138,90,43,.15)">{{ countOf(cat.id) }}</span>
+      </button>
+    </aside>
+
+    <!-- main -->
+    <main class="min-w-0">
+      <!-- list panel -->
+      <div class="card p-3 mb-3">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="flex items-center gap-1 flex-1 px-2 rounded-[10px]" style="border:1px solid var(--line);background:rgba(255,253,247,.6)">
+            <svg class="ic" style="opacity:.6"><use href="#w-search"></use></svg>
+            <input v-model="q" placeholder="搜尋…" style="border:0;background:transparent;padding:.4rem 0">
+          </div>
+          <button class="btn px-3 py-2 text-sm flex items-center gap-1" @click="addEntry">
+            <svg class="ic"><use href="#w-plus"></use></svg>新增
+          </button>
+        </div>
+        <div v-if="filtered.length===0" class="text-center text-sm py-6" style="color:var(--ink-soft)">
+          此分類還沒有條目，點「新增」開始創造你的世界吧～
+        </div>
+        <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
+          <div v-for="e in filtered" :key="e.id" class="listitem" :class="{active: sel && sel.id===e.id}" @click="sel=e">
+            <div class="flex items-center gap-1.5">
+              <svg class="ic" style="color:var(--gold-deep)"><use :href="'#'+iconOf(e.cat)"></use></svg>
+              <span class="font-bold text-sm truncate">{{ e.name || '（未命名）' }}</span>
+            </div>
+            <div class="text-[11px] mt-0.5 truncate" style="color:var(--ink-soft)">{{ e.subtype || catName(e.cat) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- detail editor -->
+      <div v-if="sel" class="card p-3">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <svg class="ic" style="color:var(--gold-deep)"><use :href="'#'+iconOf(sel.cat)"></use></svg>
+            <span class="title-deco font-bold">編輯 · {{ catName(sel.cat) }}</span>
+          </div>
+          <button class="btn-danger btn px-2 py-1 text-xs flex items-center gap-1" @click="removeEntry(sel)">
+            <svg class="ic"><use href="#w-trash"></use></svg>刪除
+          </button>
+        </div>
+        <div class="grid gap-2" style="grid-template-columns:1fr 1fr">
+          <label class="text-xs col-span-2 sm:col-span-1">名稱
+            <input v-model="sel.name" class="mt-1 px-2 py-1.5 text-sm" placeholder="例：暮鴉鎮 / 灰鬍德魯伊">
+          </label>
+          <label class="text-xs col-span-2 sm:col-span-1">類型 / 標籤
+            <input v-model="sel.subtype" class="mt-1 px-2 py-1.5 text-sm" placeholder="例：港口城鎮 / 商會會長">
+          </label>
+        </div>
+        <label class="text-xs block mt-2">描述
+          <textarea v-model="sel.desc" rows="4" class="mt-1 px-2 py-2 text-sm" placeholder="外觀、背景、祕密、給 DM 的備註…"></textarea>
+        </label>
+
+        <!-- relations -->
+        <div class="mt-3">
+          <div class="text-xs font-bold flex items-center gap-1 mb-1" style="color:var(--gold-deep)">
+            <svg class="ic"><use href="#w-link"></use></svg>關聯（跨條目連結）
+          </div>
+          <div class="flex flex-wrap gap-1.5 mb-2">
+            <span v-for="rid in sel.links" :key="rid" class="chip">
+              <svg><use :href="'#'+iconOf(entryById(rid).cat)"></use></svg>
+              {{ entryById(rid).name || '（未命名）' }}
+              <svg class="cursor-pointer" style="width:12px;height:12px" @click="unlink(rid)"><use href="#w-x"></use></svg>
+            </span>
+            <span v-if="!sel.links.length" class="text-[11px]" style="color:var(--ink-soft)">尚無關聯</span>
+          </div>
+          <select @change="linkTo($event.target.value); $event.target.value=''" class="px-2 py-1.5 text-sm">
+            <option value="">＋ 連結到其他條目…</option>
+            <optgroup v-for="cat in cats" :key="cat.id" :label="cat.name">
+              <option v-for="e in entriesOf(cat.id)" :key="e.id" :value="e.id" :disabled="e.id===sel.id || sel.links.includes(e.id)">
+                {{ e.name || '（未命名）' }}
+              </option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+      <div v-else class="card p-6 text-center text-sm" style="color:var(--ink-soft)">
+        從上方清單選一個條目來編輯，或按「新增」創造第一個 ✦
+      </div>
+    </main>
+  </div>
+
+  <p class="text-center text-[10px] mt-4" style="color:var(--ink-soft)">
+    原型・資料僅存在本機瀏覽器（localStorage）。未來階段：唯讀分享 → 即時同步（PartyKit / BaaS）。
+  </p>
+</div>
+</template>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="w-town" viewBox="0 0 512 512"><path fill="currentColor" d="M255.95 27.11L180.6 107.614l150.7 1.168-75.35-81.674h-.003zM25 109.895v68.01l19.412 25.99h71.06l19.528-26v-68h-14v15.995h-18v-15.994H89v15.995H71v-15.994H57v15.995H39v-15.994H25zm352 0v68l19.527 26h71.06L487 177.906v-68.01h-14v15.995h-18v-15.994h-14v15.995h-18v-15.994h-14v15.995h-18v-15.994h-14zm-176 15.877V260.89h110V126.63l-110-.857zm55 20.118c8 0 16 4 16 12v32h-32v-32c0-8 8-12 16-12zM41 221.897V484.89h78V221.897H41zm352 0V484.89h78V221.897h-78zM56 241.89c4 0 8 4 8 12v32H48v-32c0-8 4-12 8-12zm400 0c4 0 8 4 8 12v32h-16v-32c0-8 4-12 8-12zm-303 37v23h-16v183h87v-55c0-24 16-36 32-36s32 12 32 36v55h87v-183h-16v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14zm-49 43c4 0 8 4 8 12v32H96v-32c0-8 4-12 8-12zm72 0c8 0 16 4 16 12v32h-32v-32c0-8 8-12 16-12zm80 0c8 0 16 4 16 12v32h-32v-32c0-8 8-12 16-12zm80 0c8 0 16 4 16 12v32h-32v-32c0-8 8-12 16-12zm72 0c4 0 8 4 8 12v32h-16v-32c0-8 4-12 8-12zm-352 64c4 0 8 4 8 12v32H48v-32c0-8 4-12 8-12zm400 0c4 0 8 4 8 12v32h-16v-32c0-8 4-12 8-12z"/></symbol>
+  <symbol id="w-faction" viewBox="0 0 512 512"><path fill="currentColor" d="M356.688 19.188c-6.83-.032-12.837.64-18.125 1.843-24.178 5.495-36.437 21.983-50.938 41.157-14.5 19.175-31.317 40.993-62.78 47.47C195.08 115.78 154.27 108.253 91.25 78.5c-10.013 44.88-33.406 128.62-60.906 178.656 60.093 28.5 97.245 34.926 121 30.875.01 0 .02.004.03 0 21.59-5.827 34.487-20.094 47.876-43.092 17.014-29.227 32.563-72.198 60.25-123.188l16.406 8.938c-16.69 30.735-28.802 58.617-40 82.937 8.552-6.512 18.633-11.77 31.063-14.594 27.71-6.296 65.053-.495 121.655 24.75-6.932-29.276-1.885-61.913 9.875-92.218 12.686-32.69 33.038-62.907 56.28-84.03-42.595-19.553-73.152-27.554-95.124-28.282-1.01-.033-1.993-.058-2.97-.063zm127.54 14.144c-.858-.025-1.752.062-2.664.266-4.378.977-8.94 4.424-12.084 11.097L289.53 497.31h23.61L490.972 49.368c3.475-10.153-.75-15.86-6.746-16.035z"/></symbol>
+  <symbol id="w-npc" viewBox="0 0 512 512"><path fill="currentColor" d="M250.882 22.802c-23.366 3.035-44.553 30.444-44.553 65.935 0 19.558 6.771 36.856 16.695 48.815l11.84 14.263-18.217 3.424c-12.9 2.425-22.358 9.24-30.443 20.336-8.085 11.097-14.266 26.558-18.598 44.375-7.843 32.28-9.568 71.693-9.842 106.436h42.868l11.771 157.836c29.894 6.748 61.811 6.51 90.602.025l10.414-157.86h40.816c-.027-35.169-.477-75.126-7.584-107.65-3.918-17.934-9.858-33.372-18.04-44.343-8.185-10.97-18.08-17.745-32.563-19.989l-18.592-2.88 11.736-14.704c9.495-11.897 15.932-28.997 15.932-48.082 0-37.838-23.655-65.844-49.399-65.844z"/></symbol>
+  <symbol id="w-monster" viewBox="0 0 512 512"><path fill="currentColor" d="M200.947 18.686c-6.98.087-14.64.774-22.85 1.9 27.57 20.468 51.098 45.25 67.594 70.527 1.66 0 3.312.012 4.958.047 18.066.39 35.487 2.906 53.217 7.2-15.695-28.457-29.935-50.19-47.45-63.22-13.817-10.278-30.063-16.168-52.52-16.454-.967-.013-1.95-.013-2.948 0zm-91.66 22.96c-.73-.002-1.46.006-2.195.022-14.045.31-29.36 3.92-46.86 11.13 56.18 18.807 106.985 50.468 133.907 83.585 18.377-5.13 29.44-14.72 36.454-28.817C195.84 78.18 168.118 56.19 140.65 46.96c-10.168-3.418-20.433-5.306-31.363-5.315zm-.203 52.786c-39.42 6.758-74.73 31.854-87.822 74.19v322.345h212.73C100.352 442.58 61.19 206.49 187.115 230.104c5.838-14.164 9.92-28.027 11.018-41.465l18.627 1.522c-1.684 20.592-8.828 40.49-18.033 59.943-.732 2.035-1.472 4.12-2.186 6.063 32.842 85.24 113.77 160.69 169.495 168.197.915.033 1.905-.002 2.953-.09 17.016 1.035 35.86-4.222 52.21-22.304l7.984-8.83-10.473-5.658c-6.507-3.515-14.29-7.094-18.167-10.925-1.938-1.916-2.793-3.47-3.074-5.194-.282-1.725-.13-4.227 2.23-8.578l10.673-19.656-21.484 6.222c-6.304 1.825-17.305-3.032-23.224-10.71-2.96-3.84-4.408-7.907-4.387-10.843.02-2.938.72-5.125 4.747-8.05l19.453-14.125-23.884-2.72c-9.974-1.137-16.37-6.658-19.17-12.294-2.802-5.634-2.312-10.084 1.375-13.31l12.204-10.677-15.358-5.205c-6.717-2.276-10.296-7.555-10.357-10.633-.028-1.373.238-2.666 1.843-4.476 10.93-2.39 21.258-.45 28.088 6.374 6.154 6.146 8.35 15.128 6.977 24.832 8.55-2.254 16.985-1.616 24.112 2.494 9.34 5.387 14.647 15.692 15.67 27.965 15.212-10.132 32.152-12.725 45.262-5.164 15.467 8.92 21.36 29.513 16.805 51.75 23.992-33.355 34.588-75.717 5.617-120.43-46.726-4.442-81.693-30.676-93.293-67.64-5.026-16.016-21.284-28.67-42-37.904l-.08.217c-29.74-10.823-55.575-17.35-82.604-18.733l.08.155c-2.294-.093-4.56-.16-6.762-.172-9.537 22.874-28.662 39.9-57.436 46.054l-5.906 1.262-3.576-4.864c-14.216-19.33-41.23-40.452-74.002-58.074zm156.215 65.26c27.927-.073 44.874 11.617 42.09 44.45-35.844 3.39-51.933-16.683-63.074-42.632 7.507-1.155 14.538-1.8 20.983-1.817zm48.407 66.363c3.708.07 7.14.994 10.014 2.812-1.51 1.102-2.898 2.28-4.16 3.543-5.246 5.24-8.087 12.122-7.956 18.742.183 9.322 5.27 17.184 12.68 22.56-3.14 8.103-2.452 17.455 1.407 25.22 3.813 7.668 10.54 14.273 19.302 18.398-1.445 3.366-2.375 6.862-2.4 10.33-.062 8.407 3.38 16.042 8.273 22.39 6.792 8.81 16.862 15.936 28.026 17.91-.183 2.18-.204 4.333.133 6.407 1.05 6.444 4.515 11.66 8.38 15.48 3.41 3.37 7.19 5.892 10.798 7.993-6.345 4.792-12.414 7.056-18.618 7.79-6.515-7.937-9.71-19.084-9.41-31.454-11.767 6.177-24.21 7.156-34.12 1.44-14.668-8.46-19.393-29.036-13.187-50.33-11.336 2.77-22.13.92-29.187-6.132-8.875-8.865-9.535-23.626-3.094-37.95-3.676-.615-6.963-2.166-9.525-4.725-8.808-8.798-5.773-26.09 6.776-38.626 7.843-7.835 17.546-11.957 25.87-11.8z"/></symbol>
+  <symbol id="w-weapon" viewBox="0 0 512 512"><path fill="currentColor" d="M19.75 14.438c59.538 112.29 142.51 202.35 232.28 292.718l3.626 3.75.063-.062c21.827 21.93 44.04 43.923 66.405 66.25-18.856 14.813-38.974 28.2-59.938 40.312l28.532 28.53 68.717-68.717c42.337 27.636 76.286 63.646 104.094 105.81l28.064-28.06c-42.47-27.493-79.74-60.206-106.03-103.876l68.936-68.938-28.53-28.53c-11.115 21.853-24.413 42.015-39.47 60.593-43.852-43.8-86.462-85.842-130.125-125.47-.224-.203-.432-.422-.656-.625C183.624 122.75 108.515 63.91 19.75 14.437zm471.875 0c-83.038 46.28-154.122 100.78-221.97 161.156l22.814 21.562 56.81-56.812 13.22 13.187-56.438 56.44 24.594 23.186c61.802-66.92 117.6-136.92 160.97-218.72zm-329.53 125.906l200.56 200.53c-4.36 4.443-8.84 8.793-13.405 13.032L148.875 153.53l13.22-13.186zm-76.69 113.28l-28.5 28.532 68.907 68.906c-26.29 43.673-63.53 76.414-106 103.907l28.063 28.06c27.807-42.164 61.758-78.174 104.094-105.81l68.718 68.717 28.53-28.53c-20.962-12.113-41.08-25.5-59.937-40.313 17.865-17.83 35.61-35.433 53.157-52.97l-24.843-25.655-55.47 55.467c-4.565-4.238-9.014-8.62-13.374-13.062l55.844-55.844-24.53-25.374c-18.28 17.856-36.602 36.06-55.158 54.594-15.068-18.587-28.38-38.758-39.5-60.625z"/></symbol>
+  <symbol id="w-treasure" viewBox="0 0 512 512"><path fill="currentColor" d="M303.2 19.338l-161.966 93.51 93.512 161.966 161.967-93.51-4.674-8.093-4.874-8.44-4.127-7.54-.188.07-79.65-137.962zm-20.62 33.486l-50.27 90.14c-19.184-7.687-37.887-17.28-56.165-28.69l106.435-61.45zm19.914 2.664l63.235 109.528c-40.568 2.1-78.993-3.29-115.658-15.536l52.422-93.992zm-251.61 25.68L23.032 167.99l74.302 51.123 27.854-86.822-5.723-3.936-68.578-47.186zm10.118 29.646l32.295 22.22-44.233 14.99 11.938-37.21zm385.836 22.33l-46.143 17.418 9.06 16.557 20.165-7.614 2.992 43.463-39.94 15.077-.878-12.748-18.016 10.4 1.977 28.71 76.457-28.865-5.674-82.402zm-270.55 3.045c31.896 18.617 65.316 32.12 100.267 39.964l-39.52 65.25L176.29 136.19zm-76.604 14.414l-12.467 38.863-33.73-23.207 46.197-15.656zm196.437 29.318c19.028 3.07 38.496 4.478 58.403 4.158l-93.675 54.084 35.273-58.242zM21.187 224.744l1.96 14.336 21.672 158.522 167.026 49.484-1.994-14.59-23.522-12.463L79.99 388.53l59.563-26.098 34.398-54.528 6.943 50.77 16.082-20.33-8.766-64.114-167.024-49.486zm22.435 26.14l121.497 35.997-38.314 60.733-66 28.92-17.182-125.65zm313.064 5.206l-88.914 23.824-1.916 2.395-89.266 111.594 197.365 102.963 118.662-187.66-135.93-53.117zm-13.6 22.988l31.3 55.317-86.09 22.673 2.505-63.978 52.284-14.012zm21.582.193l88.18 34.46-59.778 15.743-28.402-50.202zm-93.035 25.734l-2.232 57.04-54.978 14.48 57.21-71.52zm184.313 27.234l-73.545 116.31 13.94-100.61 59.605-15.7zm-79.185 20.856L362.762 454.11l-67.342-79.594 81.338-21.422zM275.402 379.79l67.532 79.817-124.325-64.86 56.792-14.958z"/></symbol>
+  <symbol id="w-loc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="w-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="w-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+  <symbol id="w-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></symbol>
+  <symbol id="w-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></symbol>
+  <symbol id="w-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="w-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="w-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></symbol>
+  <symbol id="w-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="w-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></symbol>
+</svg>
+
+<script>
+const { createApp, ref, reactive, computed, watch } = Vue;
+const LS = "dm_worldbuilder_v1";
+const uid = () => "e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+createApp({
+  template: "#root",
+  setup(){
+    const cats = [
+      { id:"location", name:"地點",  icon:"w-loc" },
+      { id:"town",     name:"城鎮",  icon:"w-town" },
+      { id:"faction",  name:"勢力",  icon:"w-faction" },
+      { id:"npc",      name:"NPC",   icon:"w-npc" },
+      { id:"monster",  name:"怪物",  icon:"w-monster" },
+      { id:"weapon",   name:"武器",  icon:"w-weapon" },
+      { id:"treasure", name:"寶物",  icon:"w-treasure" },
+    ];
+    const catMap = Object.fromEntries(cats.map(c=>[c.id,c]));
+
+    let saved = [];
+    try{ saved = JSON.parse(localStorage.getItem(LS)) || []; }catch(e){}
+    const entries = reactive(saved);
+    const activeCat = ref("location");
+    const sel = ref(null);
+    const q = ref("");
+    const theme = ref(localStorage.getItem("dm_theme") || "light");
+    document.documentElement.setAttribute("data-theme", theme.value);
+
+    const iconOf = id => (catMap[id]||{}).icon || "w-book";
+    const catName = id => (catMap[id]||{}).name || id;
+    const countOf = id => entries.filter(e=>e.cat===id).length;
+    const entriesOf = id => entries.filter(e=>e.cat===id);
+    const entryById = id => entries.find(e=>e.id===id) || {name:"（已刪除）",cat:"location"};
+
+    const filtered = computed(()=>{
+      const s = q.value.trim().toLowerCase();
+      return entries.filter(e=> e.cat===activeCat.value &&
+        (!s || (e.name||"").toLowerCase().includes(s) || (e.subtype||"").toLowerCase().includes(s)));
+    });
+
+    function selectCat(id){ activeCat.value=id; }
+    function addEntry(){
+      const e = reactive({ id:uid(), cat:activeCat.value, name:"", subtype:"", desc:"", links:[] });
+      entries.push(e); sel.value = e;
+    }
+    function removeEntry(e){
+      const i = entries.indexOf(e); if(i>=0) entries.splice(i,1);
+      entries.forEach(x=>{ const j=x.links.indexOf(e.id); if(j>=0) x.links.splice(j,1); });
+      if(sel.value===e) sel.value=null;
+    }
+    function linkTo(id){ if(id && sel.value && !sel.value.links.includes(id)){
+      sel.value.links.push(id);
+      const other = entryById(id); if(other && Array.isArray(other.links) && !other.links.includes(sel.value.id)) other.links.push(sel.value.id);
+    }}
+    function unlink(id){
+      const i = sel.value.links.indexOf(id); if(i>=0) sel.value.links.splice(i,1);
+      const other = entryById(id); if(other && Array.isArray(other.links)){ const j=other.links.indexOf(sel.value.id); if(j>=0) other.links.splice(j,1); }
+    }
+    function toggleTheme(){
+      theme.value = theme.value==="dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", theme.value);
+      localStorage.setItem("dm_theme", theme.value);
+    }
+
+    watch(entries, ()=>{ try{ localStorage.setItem(LS, JSON.stringify(entries)); }catch(e){} }, {deep:true});
+
+    return { cats, activeCat, sel, q, theme, filtered,
+      iconOf, catName, countOf, entriesOf, entryById,
+      selectCat, addEntry, removeEntry, linkTo, unlink, toggleTheme };
+  }
+}).mount("#app");
+</script>
+</body>
+</html>
