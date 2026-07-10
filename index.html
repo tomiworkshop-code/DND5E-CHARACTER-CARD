@@ -73,6 +73,8 @@
   .chip.able{ background:rgba(180,140,70,.18); border-color:var(--accent); }
   .tabbar{ background:linear-gradient(180deg,#7c5a3a,#5a3d22); }
   .tab{ color:#e9d8b3; font-size:12px; }
+  .tab-ic{ display:inline-flex; align-items:center; justify-content:center; }
+  .tab-ic svg{ width:22px; height:22px; }
   .tab.active{ color:#fff7e0; }
   .num{ font-variant-numeric: tabular-nums; }
   .mod-pos{ color:#3f6b3a; } .mod-neg{ color:#8a3a2c; }
@@ -982,7 +984,7 @@
   <!-- 底部分頁 -->
   <nav class="tabbar fixed bottom-0 left-0 right-0 flex justify-around py-2 px-1 border-t" style="border-color:var(--gold-deep)">
     <button v-for="t in tabs" :key="t.id" class="tab flex flex-col items-center gap-0.5 flex-1" :class="{active: tab===t.id}" @click="tab=t.id">
-      <span class="text-lg">{{ t.icon }}</span><span>{{ t.label }}</span>
+      <span class="tab-ic" v-html="t.svg"></span><span>{{ t.label }}</span>
     </button>
   </nav>
 
