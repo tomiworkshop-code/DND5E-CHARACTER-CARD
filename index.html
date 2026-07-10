@@ -279,8 +279,25 @@
 
   </section>
 
-  <!-- ===== 戰鬥 ===== -->
-  <section v-show="tab==='combat'">
+  <!-- ===== 角色（續）：戰鬥數值 ===== -->
+  <section v-show="tab==='char'">
+    <!-- 六大屬性 -->
+    <div class="card p-3">
+      <h2 class="text-sm font-bold title-deco mb-2">🎲 六大屬性</h2>
+      <div class="grid grid-cols-3 gap-2">
+        <div v-for="a in abilityDefs" :key="a.key" class="stat-box p-2 text-center">
+          <div class="text-[12px] font-bold">{{ a.zh }}</div>
+          <input v-model.number="c.abilities[a.key]" :disabled="locked" type="number" class="w-full my-1 text-center font-bold num py-1" title="基礎分數">
+          <div class="flex items-center justify-center gap-1 text-[10px]" style="color:var(--ink-soft)">
+            <span>加值</span>
+            <input v-model.number="c.abilityBonus[a.key]" :disabled="locked" type="number" class="w-10 text-center num py-0.5 text-[11px]" title="種族/其他加值">
+          </div>
+          <div class="text-[10px] mt-1" style="color:var(--ink-soft)">總分 <span class="num font-bold" style="color:var(--ink)">{{ abilityTotal(a.key) }}</span></div>
+          <div class="text-sm font-bold num" :class="modClass(abilityModFor(a.key))">{{ fmt(abilityModFor(a.key)) }}</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 戰鬥面板 -->
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2">⚔️ 戰鬥面板</h2>
@@ -390,25 +407,8 @@
 
   </section>
 
-  <!-- ===== 角色（續）：屬性 / 語言 / 筆記 ===== -->
-  <section v-show="tab==='char'">
-    <!-- 六大屬性 -->
-    <div class="card p-3">
-      <h2 class="text-sm font-bold title-deco mb-2">🎲 六大屬性</h2>
-      <div class="grid grid-cols-3 gap-2">
-        <div v-for="a in abilityDefs" :key="a.key" class="stat-box p-2 text-center">
-          <div class="text-[12px] font-bold">{{ a.zh }}</div>
-          <input v-model.number="c.abilities[a.key]" :disabled="locked" type="number" class="w-full my-1 text-center font-bold num py-1" title="基礎分數">
-          <div class="flex items-center justify-center gap-1 text-[10px]" style="color:var(--ink-soft)">
-            <span>加值</span>
-            <input v-model.number="c.abilityBonus[a.key]" :disabled="locked" type="number" class="w-10 text-center num py-0.5 text-[11px]" title="種族/其他加值">
-          </div>
-          <div class="text-[10px] mt-1" style="color:var(--ink-soft)">總分 <span class="num font-bold" style="color:var(--ink)">{{ abilityTotal(a.key) }}</span></div>
-          <div class="text-sm font-bold num" :class="modClass(abilityModFor(a.key))">{{ fmt(abilityModFor(a.key)) }}</div>
-        </div>
-      </div>
-    </div>
-
+  <!-- ===== 背景：語言 / 筆記 ===== -->
+  <section v-show="tab==='background'">
     <!-- 語言與熟練（功能5：手動版） -->
     <div class="card p-3 mt-3">
       <h2 class="text-sm font-bold title-deco mb-2">🗣️ 語言與熟練</h2>
@@ -763,8 +763,8 @@
     </div>
   </section>
 
-  <!-- ===== 跑團（休息 / 資源 / 骰子 / 攻擊） ===== -->
-  <section v-show="tab==='combat'">
+  <!-- ===== 角色（續）：休息 / 資源 / 骰子 / 攻擊 ===== -->
+  <section v-show="tab==='char'">
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2">☕ 休息</h2>
       <div class="flex gap-2">
@@ -848,8 +848,8 @@
     </div>
   </section>
 
-  <!-- ===== 故事（背景 / 專長） ===== -->
-  <section v-show="tab==='char'">
+  <!-- ===== 背景：背景故事 / 專長 ===== -->
+  <section v-show="tab==='background'">
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2">📜 角色背景</h2>
       <div class="space-y-2">
@@ -879,7 +879,7 @@
   </section>
 
   <!-- ===== 魔寵 ===== -->
-  <section v-show="tab==='item'">
+  <section v-show="tab==='char'">
     <div v-if="!c.familiar" class="card p-4 text-center">
       <p class="text-3xl mb-2">🐾</p>
       <p class="text-sm mb-3" style="color:var(--ink-soft)">目前尚未綁定魔寵喵～</p>
@@ -1351,7 +1351,7 @@ const app = createApp({
 
     const tabs = [
       { id:"char", icon:"👤", label:"角色" },
-      { id:"combat", icon:"⚔️", label:"戰鬥" },
+      { id:"background", icon:"📜", label:"背景" },
       { id:"ability", icon:"📖", label:"能力" },
       { id:"spell", icon:"✨", label:"法術" },
       { id:"item", icon:"🎒", label:"物品" },
