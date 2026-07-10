@@ -282,7 +282,7 @@
   <!-- ===== 角色（續）：戰鬥數值 ===== -->
   <section v-show="tab==='char'">
     <!-- 六大屬性 -->
-    <div class="card p-3">
+    <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2">🎲 六大屬性</h2>
       <div class="grid grid-cols-3 gap-2">
         <div v-for="a in abilityDefs" :key="a.key" class="stat-box p-2 text-center">
@@ -566,7 +566,7 @@
     </div>
 
     <!-- 豁免 -->
-    <div class="card p-3">
+    <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2">🧿 豁免檢定</h2>
       <div class="grid grid-cols-2 gap-2">
         <label v-for="a in abilityDefs" :key="a.key" class="flex items-center justify-between stat-box px-2 py-2 text-sm">
@@ -828,7 +828,7 @@
       </div>
     </div>
 
-    <div class="card p-3">
+    <div class="card p-3 mb-3">
       <div class="flex justify-between items-center mb-2">
         <h2 class="text-sm font-bold title-deco">⚔️ 攻擊</h2>
         <button class="btn-ghost btn px-2 py-1 text-xs" @click="addAttack()">＋ 新增</button>
