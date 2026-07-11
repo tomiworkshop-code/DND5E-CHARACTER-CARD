@@ -185,6 +185,62 @@
           <textarea v-model="sel.desc" rows="4" class="mt-1 px-2 py-2 text-sm" placeholder="外觀、背景、祕密、給 DM 的備註…"></textarea>
         </label>
 
+        <!-- combat toggle for NPC -->
+        <label v-if="sel.cat==='npc'" class="text-[11px] flex items-center gap-1 mt-2" style="color:var(--ink-soft)">
+          <input type="checkbox" v-model="sel.hasCombat" @change="onToggleCombat(sel)" style="width:auto">
+          此 NPC 會戰鬥（顯示戰鬥數值）
+        </label>
+
+        <!-- stat block (5E) -->
+        <div v-if="showStatBlock(sel) && sel.stats" class="mt-3 pt-3" style="border-top:1px solid var(--line)">
+          <div class="text-xs font-bold flex items-center gap-1 mb-2" style="color:var(--gold-deep)">
+            <svg class="ic"><use href="#w-monster"></use></svg>戰鬥數值（Stat Block · 5E）
+          </div>
+          <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(84px,1fr))">
+            <label class="text-[11px]">CR<input v-model="sel.stats.cr" class="mt-0.5 px-2 py-1 text-sm" placeholder="1/4"></label>
+            <label class="text-[11px]">體型<input v-model="sel.stats.size" class="mt-0.5 px-2 py-1 text-sm" placeholder="中型"></label>
+            <label class="text-[11px]">AC<input v-model="sel.stats.ac" class="mt-0.5 px-2 py-1 text-sm" placeholder="13"></label>
+            <label class="text-[11px]">HP<input v-model="sel.stats.hp" class="mt-0.5 px-2 py-1 text-sm" placeholder="22 (4d8+4)"></label>
+            <label class="text-[11px]">速度<input v-model="sel.stats.speed" class="mt-0.5 px-2 py-1 text-sm" placeholder="30 ft"></label>
+          </div>
+          <div class="grid gap-1 mt-2" style="grid-template-columns:repeat(6,1fr)">
+            <div v-for="a in abilities" :key="a.k" class="text-center">
+              <div class="text-[10px] font-bold" style="color:var(--ink-soft)">{{ a.t }}</div>
+              <input type="number" v-model.number="sel.stats[a.k]" class="px-1 py-1 text-sm text-center">
+              <div class="text-[10px]" style="color:var(--gold-deep)">{{ abilMod(sel.stats[a.k]) }}</div>
+            </div>
+          </div>
+          <div class="grid gap-2 mt-2" style="grid-template-columns:1fr 1fr">
+            <label class="text-[11px]">豁免 (Saves)<input v-model="sel.stats.saves" class="mt-0.5 px-2 py-1 text-sm" placeholder="體質 +3"></label>
+            <label class="text-[11px]">技能 (Skills)<input v-model="sel.stats.skills" class="mt-0.5 px-2 py-1 text-sm" placeholder="察覺 +3, 隱匿 +4"></label>
+            <label class="text-[11px]">感官 (Senses)<input v-model="sel.stats.senses" class="mt-0.5 px-2 py-1 text-sm" placeholder="黑暗視覺 60ft, 被動察覺 12"></label>
+            <label class="text-[11px]">語言<input v-model="sel.stats.languages" class="mt-0.5 px-2 py-1 text-sm" placeholder="通用語, 地精語"></label>
+            <label class="text-[11px] col-span-2">抗性 / 免疫 / 弱點<input v-model="sel.stats.resist" class="mt-0.5 px-2 py-1 text-sm" placeholder="抗:寒冷｜免:毒素｜弱:火焰"></label>
+          </div>
+          <div class="mt-3">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] font-bold" style="color:var(--ink-soft)">特殊能力 (Traits)</span>
+              <button class="btn-ghost btn px-2 py-0.5 text-[11px]" @click="addTrait(sel)">＋新增</button>
+            </div>
+            <div v-for="(t,i) in sel.traits" :key="'t'+i" class="flex gap-1 mb-1">
+              <input v-model="t.name" class="px-2 py-1 text-sm" style="flex:0 0 32%" placeholder="能力名稱">
+              <input v-model="t.desc" class="px-2 py-1 text-sm" style="flex:1" placeholder="效果描述">
+              <button class="btn-danger btn px-2 text-[11px]" @click="removeTrait(sel,i)">✕</button>
+            </div>
+          </div>
+          <div class="mt-2">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] font-bold" style="color:var(--ink-soft)">動作 / 攻擊 (Actions)</span>
+              <button class="btn-ghost btn px-2 py-0.5 text-[11px]" @click="addAction(sel)">＋新增</button>
+            </div>
+            <div v-for="(a,i) in sel.actions" :key="'a'+i" class="flex gap-1 mb-1">
+              <input v-model="a.name" class="px-2 py-1 text-sm" style="flex:0 0 32%" placeholder="爪擊">
+              <input v-model="a.desc" class="px-2 py-1 text-sm" style="flex:1" placeholder="+4 命中, 1d6+2 揮砍傷害">
+              <button class="btn-danger btn px-2 text-[11px]" @click="removeAction(sel,i)">✕</button>
+            </div>
+          </div>
+        </div>
+
         <!-- relations -->
         <div class="mt-3">
           <div class="text-xs font-bold flex items-center gap-1 mb-1" style="color:var(--gold-deep)">
@@ -253,6 +309,11 @@ const RARITY = [
   {v:"Very Rare", t:"非常稀有"},
   {v:"Legendary", t:"傳說"}
 ];
+// 5E 六大屬性
+const ABILITIES = [
+  {k:"str",t:"力量"},{k:"dex",t:"敏捷"},{k:"con",t:"體質"},
+  {k:"int",t:"智力"},{k:"wis",t:"感知"},{k:"cha",t:"魅力"}
+];
 const uid = () => "e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 createApp({
@@ -311,7 +372,8 @@ createApp({
 
     function selectCat(id){ activeCat.value=id; }
     function addEntry(){
-      const e = reactive({ id:uid(), cat:activeCat.value, worldId:activeWorld.value, name:"", subtype:"", desc:"", links:[] });
+      const e = reactive({ id:uid(), cat:activeCat.value, worldId:activeWorld.value, name:"", subtype:"", desc:"", links:[], hasCombat:false });
+      if(e.cat==="monster") ensureStats(e);
       entries.push(e); sel.value = e;
     }
     function removeEntry(e){
@@ -348,6 +410,21 @@ createApp({
       sel.value = null;
     }
 
+    // ---- 5E stat block helpers (monsters / combat NPCs) ----
+    function abilMod(score){ const n = parseInt(score,10); if(isNaN(n)) return "—"; const m = Math.floor((n-10)/2); return (m>=0?"+":"")+m; }
+    function ensureStats(e){
+      if(!e.stats) e.stats = { cr:"", size:"", ac:"", hp:"", speed:"", str:10,dex:10,con:10,int:10,wis:10,cha:10, senses:"", skills:"", saves:"", resist:"", languages:"" };
+      if(!Array.isArray(e.actions)) e.actions = [];
+      if(!Array.isArray(e.traits)) e.traits = [];
+      return e.stats;
+    }
+    function showStatBlock(e){ return !!(e && (e.cat==="monster" || (e.cat==="npc" && e.hasCombat))); }
+    function onToggleCombat(e){ if(e && e.hasCombat) ensureStats(e); }
+    function addTrait(e){ ensureStats(e); e.traits.push({name:"", desc:""}); }
+    function removeTrait(e,i){ if(e.traits) e.traits.splice(i,1); }
+    function addAction(e){ ensureStats(e); e.actions.push({name:"", desc:""}); }
+    function removeAction(e,i){ if(e.actions) e.actions.splice(i,1); }
+
     // persist migration result immediately (watchers only fire on later changes)
     try{
       localStorage.setItem(LS, JSON.stringify(entries));
@@ -358,12 +435,15 @@ createApp({
     watch(entries, ()=>{ try{ localStorage.setItem(LS, JSON.stringify(entries)); }catch(e){} }, {deep:true});
     watch(worlds, ()=>{ try{ localStorage.setItem(LS_WORLDS, JSON.stringify(worlds)); }catch(e){} }, {deep:true});
     watch(activeWorld, ()=>{ try{ localStorage.setItem(LS_ACTIVE, activeWorld.value); }catch(e){} sel.value=null; });
+    watch(sel, ()=>{ if(sel.value && showStatBlock(sel.value)) ensureStats(sel.value); });
 
     return { cats, activeCat, sel, q, theme, filtered, rarityOpts: RARITY,
       worlds, activeWorld, currentWorld, manageOpen,
       iconOf, catName, countOf, entriesOf, entryById,
       selectCat, addEntry, removeEntry, linkTo, unlink, toggleTheme,
-      addWorld, removeWorld };
+      addWorld, removeWorld,
+      abilities: ABILITIES, abilMod, showStatBlock, onToggleCombat,
+      addTrait, removeTrait, addAction, removeAction };
   }
 }).mount("#app");
 </script>
