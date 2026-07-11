@@ -100,6 +100,9 @@
       <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="shopPanelOpen=!shopPanelOpen">
         <svg class="ic"><use href="#w-treasure"></use></svg><span class="hidden sm:inline">商店</span>
       </button>
+      <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="srdPanelOpen=!srdPanelOpen">
+        <svg class="ic"><use href="#w-book"></use></svg><span class="hidden sm:inline">SRD</span>
+      </button>
     </div>
     <div v-if="manageOpen && currentWorld" class="mt-2 pt-2" style="border-top:1px solid var(--line)">
       <label class="text-xs block">世界名稱
@@ -217,6 +220,39 @@
         <svg class="ic" style="color:var(--gold-deep)"><use :href="'#'+iconOf(e.cat)"></use></svg>
         <span class="text-sm flex-1 truncate">{{ e.name || '（未命名）' }}</span>
         <span class="text-[11px] px-1.5 rounded-full" style="background:rgba(138,90,43,.15)">{{ rarityLabel(e.item.rarity) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SRD 5.1 template library -->
+  <div v-if="srdPanelOpen" class="card p-3 mb-3">
+    <div class="text-sm font-bold flex items-center gap-1 mb-1" style="color:var(--gold-deep)">
+      <svg class="ic"><use href="#w-book"></use></svg>SRD 5.1 範本庫
+    </div>
+    <div class="text-[11px] mb-3" style="color:var(--ink-soft)">內建資料取自龍與地下城 SRD 5.1，依 CC-BY-4.0 授權。點「加入」即複製一份到目前世界，可再自由編輯。</div>
+    <div class="mb-3">
+      <div class="text-xs font-bold mb-1">👿 怪物範本</div>
+      <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
+        <div v-for="(m,i) in srdMonsters" :key="'sm'+i" class="flex items-center gap-2 p-2 rounded" style="border:1px solid var(--line)">
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-bold truncate">{{ m.name }}</div>
+            <div class="text-[11px] truncate" style="color:var(--ink-soft)">CR {{ m.stats.cr }} · {{ m.stats.size }}</div>
+          </div>
+          <button class="btn px-2 py-1 text-xs" @click="srdAddMonster(m)">加入</button>
+        </div>
+      </div>
+    </div>
+    <div class="pt-2" style="border-top:1px solid var(--line)">
+      <div class="text-xs font-bold mb-1">⚔️ 物品範本</div>
+      <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
+        <div v-for="(t,i) in srdItems" :key="'si'+i" class="flex items-center gap-2 p-2 rounded" style="border:1px solid var(--line)">
+          <svg class="ic" style="color:var(--gold-deep)"><use :href="'#'+iconOf(t.cat)"></use></svg>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-bold truncate">{{ t.name }}</div>
+            <div class="text-[11px] truncate" style="color:var(--ink-soft)">{{ t.subtype }}</div>
+          </div>
+          <button class="btn px-2 py-1 text-xs" @click="srdAddItem(t)">加入</button>
+        </div>
       </div>
     </div>
   </div>
@@ -572,6 +608,27 @@ const XP_THRESH = [null,
  [300,600,900,1400],[350,750,1100,1700],[450,900,1300,2100],[550,1100,1600,2400],[600,1200,1900,2800],
  [800,1600,2400,3600],[1000,2000,3000,4800],[1100,2200,3400,5200],[1250,2500,3800,5700],[1400,2800,4300,6400],
  [1600,3200,4800,6800],[2000,3900,5900,8500],[2100,4200,6300,9500],[2400,4900,7300,10900],[2800,5700,8500,12700]];
+// SRD 5.1 範本庫（資料取自 D&D SRD 5.1，CC-BY-4.0）
+const SRD_MONSTERS = [
+ {name:"哥布林",subtype:"小型人形/SRD",stats:{cr:"1/4",size:"小型",ac:"15",hp:"7 (2d6)",speed:"30 ft",str:8,dex:14,con:10,int:10,wis:8,cha:8,senses:"黑暗視覺 60ft，被動察覺 9",skills:"隱匿 +6",saves:"",resist:"",languages:"通用語、地精語"},traits:[{name:"靈巧脫逃",desc:"每回合可用奔跑或撤離作為附贈動作。"}],actions:[{name:"彎刀",desc:"+4 命中，觸及5ft，1d6+2 揮砍傷害。"},{name:"短弓",desc:"+4 命中，射程80/320，1d6+2 穿刺傷害。"}]},
+ {name:"狼",subtype:"中型野獸/SRD",stats:{cr:"1/4",size:"中型",ac:"13",hp:"11 (2d8+2)",speed:"40 ft",str:12,dex:15,con:12,int:3,wis:12,cha:6,senses:"被動察覺 13",skills:"察覺 +3、隱匿 +4",saves:"",resist:"",languages:"—"},traits:[{name:"敘銳聽嗅",desc:"聽覺或嗅覺相關察覺具優勢。"},{name:"群戰戰術",desc:"若未失能盟友在目標35ft內，攻擊具優勢。"}],actions:[{name:"撕咬",desc:"+4 命中，2d4+2 穿刺傷害；目標須通過 DC 11 力量豁免否則倒地。"}]},
+ {name:"獸人",subtype:"中型人形/SRD",stats:{cr:"1/2",size:"中型",ac:"13",hp:"15 (2d8+6)",speed:"30 ft",str:16,dex:12,con:16,int:7,wis:11,cha:10,senses:"黑暗視覺 60ft，被動察覺 10",skills:"威嚇 +2",saves:"",resist:"",languages:"通用語、獸人語"},traits:[{name:"好戰",desc:"附贈動作可朝可見敵人移動一次。"}],actions:[{name:"巨斧",desc:"+5 命中，1d12+3 揮砍傷害。"},{name:"標槍",desc:"+5 命中，射程30/120，1d6+3 穿刺傷害。"}]},
+ {name:"骷髅兵",subtype:"中型不死/SRD",stats:{cr:"1/4",size:"中型",ac:"13",hp:"13 (2d8+4)",speed:"30 ft",str:10,dex:14,con:15,int:6,wis:8,cha:5,senses:"黑暗視覺 60ft，被動察覺 9",skills:"",saves:"",resist:"弱:鈍擊｜免:毒素｜狀態免:力竭、中毒",languages:"理解生前語言但不能說"},traits:[],actions:[{name:"短劍",desc:"+4 命中，1d6+2 穿刺傷害。"},{name:"短弓",desc:"+4 命中，射程80/320，1d6+2 穿刺傷害。"}]},
+ {name:"樵屍",subtype:"中型不死/SRD",stats:{cr:"1/4",size:"中型",ac:"8",hp:"22 (3d8+9)",speed:"20 ft",str:13,dex:6,con:16,int:3,wis:6,cha:5,senses:"黑暗視覺 60ft，被動察覺 8",skills:"",saves:"感知 +0",resist:"免:毒素｜狀態免:中毒",languages:"理解生前語言但不能說"},traits:[{name:"不死堅韌",desc:"受傷未歸零時，以 DC 5+傷害 體質豁免成功則 HP 留 1（輻射/爆擊除外）。"}],actions:[{name:"重擊",desc:"+3 命中，1d6+1 鈍擊傷害。"}]},
+ {name:"巨鼠",subtype:"小型野獸/SRD",stats:{cr:"1/8",size:"小型",ac:"12",hp:"7 (2d6)",speed:"30 ft",str:7,dex:15,con:11,int:2,wis:10,cha:4,senses:"黑暗視覺 60ft，被動察覺 10",skills:"",saves:"",resist:"",languages:"—"},traits:[{name:"敘銳嗅覺",desc:"嗅覺相關察覺具優勢。"},{name:"群戰戰術",desc:"盟友在旁時攻擊具優勢。"}],actions:[{name:"撕咬",desc:"+4 命中，1d4+2 穿刺傷害。"}]},
+ {name:"強盜",subtype:"中型人形/SRD",stats:{cr:"1/8",size:"中型",ac:"12",hp:"11 (2d8+2)",speed:"30 ft",str:11,dex:12,con:12,int:10,wis:10,cha:10,senses:"被動察覺 10",skills:"",saves:"",resist:"",languages:"任一種（通常通用語）"},traits:[],actions:[{name:"彎刀",desc:"+3 命中，1d6+1 揮砍傷害。"},{name:"輕弩",desc:"+3 命中，射程80/320，1d8+1 穿刺傷害。"}]},
+ {name:"食人魔",subtype:"大型巨人/SRD",stats:{cr:"2",size:"大型",ac:"11",hp:"59 (7d10+21)",speed:"40 ft",str:19,dex:8,con:16,int:5,wis:7,cha:7,senses:"黑暗視覺 60ft，被動察覺 8",skills:"",saves:"",resist:"",languages:"通用語、巨人語"},traits:[],actions:[{name:"巨棒",desc:"+6 命中，2d8+4 鈍擊傷害。"},{name:"標槍",desc:"+6 命中，射程30/120，2d6+4 穿刺傷害。"}]}
+];
+const SRD_ITEMS = [
+ {cat:"weapon",name:"匕首",subtype:"簡易武器/SRD",item:{weaponCat:"簡易近戰",damage:"1d4",damageType:"穿刺",versatile:"",range:"20/60",props:["靈巧","輕型","投擲"],rarity:"",valueGp:"2",weight:"1 磅"}},
+ {cat:"weapon",name:"短劍",subtype:"軍用武器/SRD",item:{weaponCat:"軍用近戰",damage:"1d6",damageType:"穿刺",versatile:"",range:"",props:["靈巧","輕型"],rarity:"",valueGp:"10",weight:"2 磅"}},
+ {cat:"weapon",name:"長劍",subtype:"軍用武器/SRD",item:{weaponCat:"軍用近戰",damage:"1d8",damageType:"揮砍",versatile:"1d10",range:"",props:["多用"],rarity:"",valueGp:"15",weight:"3 磅"}},
+ {cat:"weapon",name:"巨斧",subtype:"軍用武器/SRD",item:{weaponCat:"軍用近戰",damage:"1d12",damageType:"揮砍",versatile:"",range:"",props:["重型","雙手"],rarity:"",valueGp:"30",weight:"7 磅"}},
+ {cat:"weapon",name:"短弓",subtype:"簡易武器/SRD",item:{weaponCat:"簡易遠程",damage:"1d6",damageType:"穿刺",versatile:"",range:"80/320",props:["彈藥","雙手"],rarity:"",valueGp:"25",weight:"2 磅"}},
+ {cat:"weapon",name:"手斧",subtype:"簡易武器/SRD",item:{weaponCat:"簡易近戰",damage:"1d6",damageType:"揮砍",versatile:"",range:"20/60",props:["輕型","投擲"],rarity:"",valueGp:"5",weight:"2 磅"}},
+ {cat:"treasure",name:"治療藥水",subtype:"藥水/SRD",desc:"飲用後回復 2d4+2 生命值。",item:{itemType:"藥水 (Potion)",rarity:"Common",valueGp:"50",weight:"0.5 磅"}},
+ {cat:"treasure",name:"儲物袋",subtype:"奇物/SRD",desc:"內部空間可裝載 500 磅、體積 64 立方呢；本體恒重 15 磅。",item:{itemType:"奇物 (Wondrous)",rarity:"Uncommon",valueGp:"",weight:"15 磅"}}
+];
 const uid = () => "e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 createApp({
@@ -624,6 +681,7 @@ createApp({
     const shopPanelOpen = ref(false);
     const poolRarityFilter = ref("");
     const rolledItem = ref(null);
+    const srdPanelOpen = ref(false);
     const theme = ref(localStorage.getItem("dm_theme") || "light");
     document.documentElement.setAttribute("data-theme", theme.value);
 
@@ -773,6 +831,23 @@ createApp({
     const poolItems = computed(()=> sortCatalog(catalogItems.value.filter(e=>e.item.inPool)) );
     function rollReward(){ let pool=poolItems.value; if(poolRarityFilter.value) pool=pool.filter(e=>e.item.rarity===poolRarityFilter.value); if(!pool.length){ rolledItem.value=null; return; } rolledItem.value = pool[Math.floor(Math.random()*pool.length)]; }
 
+    // ---- SRD 5.1 template library ----
+    function srdAddMonster(m){
+      const e = reactive({ id:uid(), cat:"monster", worldId:activeWorld.value, name:m.name, subtype:m.subtype||"", desc:m.desc||"", links:[], hasCombat:false });
+      ensureStats(e);
+      Object.assign(e.stats, m.stats);
+      e.traits = JSON.parse(JSON.stringify(m.traits||[]));
+      e.actions = JSON.parse(JSON.stringify(m.actions||[]));
+      if(m.spellcasting) e.spellcasting = JSON.parse(JSON.stringify(m.spellcasting));
+      entries.push(e); activeCat.value="monster"; sel.value=e; srdPanelOpen.value=false;
+    }
+    function srdAddItem(t){
+      const e = reactive({ id:uid(), cat:t.cat, worldId:activeWorld.value, name:t.name, subtype:t.subtype||"", desc:t.desc||"", links:[] });
+      ensureItem(e);
+      Object.assign(e.item, JSON.parse(JSON.stringify(t.item||{})));
+      entries.push(e); activeCat.value=t.cat; sel.value=e; srdPanelOpen.value=false;
+    }
+
     // persist migration result immediately (watchers only fire on later changes)
     try{
       localStorage.setItem(LS, JSON.stringify(entries));
@@ -801,7 +876,8 @@ createApp({
       encPanelOpen, encPick, enc, encWorldMonsters, encName, encCR,
       encAddLine, encRemoveLine, encInc, encTotals, encThresholds, encDifficulty,
       encSaved, newEncounter, saveEncounter, loadEncounter, removeEncounter,
-      shopPanelOpen, poolRarityFilter, rolledItem, shopItems, poolItems, rollReward, rarityLabel };
+      shopPanelOpen, poolRarityFilter, rolledItem, shopItems, poolItems, rollReward, rarityLabel,
+      srdPanelOpen, srdMonsters: SRD_MONSTERS, srdItems: SRD_ITEMS, srdAddMonster, srdAddItem };
   }
 }).mount("#app");
 </script>
