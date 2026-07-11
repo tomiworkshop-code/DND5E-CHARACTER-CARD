@@ -239,6 +239,36 @@
               <button class="btn-danger btn px-2 text-[11px]" @click="removeAction(sel,i)">✕</button>
             </div>
           </div>
+          <!-- spellcasting -->
+          <div v-if="sel.spellcasting" class="mt-3 pt-2" style="border-top:1px dashed var(--line)">
+            <label class="text-[11px] flex items-center gap-1 font-bold" style="color:var(--ink-soft)">
+              <input type="checkbox" v-model="sel.spellcasting.on" style="width:auto">此生物會施法 (Spellcasting)
+            </label>
+            <div v-if="sel.spellcasting.on" class="mt-2">
+              <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(84px,1fr))">
+                <label class="text-[11px]">施法屬性
+                  <select v-model="sel.spellcasting.ability" class="mt-0.5 px-2 py-1 text-sm">
+                    <option v-for="a in abilities" :key="a.k" :value="a.k">{{ a.t }}</option>
+                  </select>
+                </label>
+                <label class="text-[11px]">法術 DC<input v-model="sel.spellcasting.dc" class="mt-0.5 px-2 py-1 text-sm" placeholder="13"></label>
+                <label class="text-[11px]">法術命中<input v-model="sel.spellcasting.atk" class="mt-0.5 px-2 py-1 text-sm" placeholder="+5"></label>
+                <label class="text-[11px]">施法者等級<input v-model="sel.spellcasting.level" class="mt-0.5 px-2 py-1 text-sm" placeholder="3"></label>
+              </div>
+              <div class="flex justify-end mt-1">
+                <button class="btn-ghost btn px-2 py-0.5 text-[11px]" @click="autoSpellStats(sel)">⚙ 自動算 DC/命中（依CR+屬性）</button>
+              </div>
+              <div class="flex items-center justify-between mt-2 mb-1">
+                <span class="text-[11px] font-bold" style="color:var(--ink-soft)">法術清單</span>
+                <button class="btn-ghost btn px-2 py-0.5 text-[11px]" @click="addSpellRow(sel)">＋新增</button>
+              </div>
+              <div v-for="(r,i) in sel.spellcasting.rows" :key="'sp'+i" class="flex gap-1 mb-1">
+                <input v-model="r.label" class="px-2 py-1 text-sm" style="flex:0 0 34%" placeholder="戲法(隨意) / 1環(4 slots) / 每日3次">
+                <input v-model="r.spells" class="px-2 py-1 text-sm" style="flex:1" placeholder="火焰箭, 魔法飛彈, 護盾">
+                <button class="btn-danger btn px-2 text-[11px]" @click="removeSpellRow(sel,i)">✕</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- item fields (weapon / treasure, 5E) -->
@@ -480,6 +510,8 @@ createApp({
       if(!e.stats) e.stats = { cr:"", size:"", ac:"", hp:"", speed:"", str:10,dex:10,con:10,int:10,wis:10,cha:10, senses:"", skills:"", saves:"", resist:"", languages:"" };
       if(!Array.isArray(e.actions)) e.actions = [];
       if(!Array.isArray(e.traits)) e.traits = [];
+      if(!e.spellcasting) e.spellcasting = { on:false, ability:"cha", dc:"", atk:"", level:"", rows:[] };
+      if(!Array.isArray(e.spellcasting.rows)) e.spellcasting.rows = [];
       return e.stats;
     }
     function showStatBlock(e){ return !!(e && (e.cat==="monster" || (e.cat==="npc" && e.hasCombat))); }
@@ -488,6 +520,12 @@ createApp({
     function removeTrait(e,i){ if(e.traits) e.traits.splice(i,1); }
     function addAction(e){ ensureStats(e); e.actions.push({name:"", desc:""}); }
     function removeAction(e,i){ if(e.actions) e.actions.splice(i,1); }
+    // ---- 5E spellcasting helpers ----
+    function crToNum(cr){ if(!cr) return 0; cr=String(cr).trim(); if(cr.indexOf("/")>=0){ const p=cr.split("/").map(Number); return p[1]? p[0]/p[1] : 0; } const v=parseFloat(cr); return isNaN(v)?0:v; }
+    function profFromCR(cr){ const n=crToNum(cr); if(n<=4)return 2; if(n<=8)return 3; if(n<=12)return 4; if(n<=16)return 5; if(n<=20)return 6; if(n<=24)return 7; if(n<=28)return 8; return 9; }
+    function addSpellRow(e){ ensureStats(e); e.spellcasting.rows.push({label:"", spells:""}); }
+    function removeSpellRow(e,i){ if(e.spellcasting && e.spellcasting.rows) e.spellcasting.rows.splice(i,1); }
+    function autoSpellStats(e){ ensureStats(e); const raw=parseInt(e.stats[e.spellcasting.ability],10); const mod=isNaN(raw)?0:Math.floor((raw-10)/2); const prof=profFromCR(e.stats.cr); const atk=prof+mod; e.spellcasting.dc=String(8+prof+mod); e.spellcasting.atk=(atk>=0?"+":"")+atk; }
     // ---- 5E item helpers (weapons / treasures) ----
     function ensureItem(e){
       if(!e.item) e.item = { rarity:"", valueGp:"", weight:"", attunement:false, damage:"", damageType:"", versatile:"", range:"", weaponCat:"", props:[], itemType:"", charges:"" };
@@ -517,7 +555,8 @@ createApp({
       abilities: ABILITIES, abilMod, showStatBlock, onToggleCombat,
       addTrait, removeTrait, addAction, removeAction,
       showItem, isWeapon, weaponCats: WEAPON_CATS, weaponProps: WEAPON_PROPS,
-      dmgTypes: DMG_TYPES, itemTypes: ITEM_TYPES };
+      dmgTypes: DMG_TYPES, itemTypes: ITEM_TYPES,
+      autoSpellStats, addSpellRow, removeSpellRow };
   }
 }).mount("#app");
 </script>
