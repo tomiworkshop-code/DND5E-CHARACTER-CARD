@@ -181,6 +181,19 @@
             <input v-model="sel.subtype" class="mt-1 px-2 py-1.5 text-sm" placeholder="例：港口城鎮 / 商會會長">
           </label>
         </div>
+
+        <!-- category-specific fields -->
+        <div v-if="showFields(sel) && sel.fields" class="grid gap-2 mt-2" style="grid-template-columns:1fr 1fr">
+          <label v-for="f in catFields[sel.cat]" :key="f.k" class="text-xs" :class="f.area ? 'col-span-2' : 'col-span-2 sm:col-span-1'">{{ f.t }}
+            <select v-if="f.opts" v-model="sel.fields[f.k]" class="mt-1 px-2 py-1.5 text-sm">
+              <option value="">—</option>
+              <option v-for="o in f.opts" :key="o" :value="o">{{ o }}</option>
+            </select>
+            <textarea v-else-if="f.area" v-model="sel.fields[f.k]" rows="2" class="mt-1 px-2 py-2 text-sm" :placeholder="f.ph"></textarea>
+            <input v-else v-model="sel.fields[f.k]" class="mt-1 px-2 py-1.5 text-sm" :placeholder="f.ph">
+          </label>
+        </div>
+
         <label class="text-xs block mt-2">描述
           <textarea v-model="sel.desc" rows="4" class="mt-1 px-2 py-2 text-sm" placeholder="外觀、背景、祕密、給 DM 的備註…"></textarea>
         </label>
@@ -407,6 +420,42 @@ const WEAPON_CATS = ["簡易近戰","簡易遠程","軍用近戰","軍用遠程"
 const WEAPON_PROPS = ["靈巧","輕型","重型","雙手","延伸","投擲","彈藥","裝填","多用","特殊"];
 const DMG_TYPES = ["揮砍","穿刺","鈍擊","火焰","寒冷","閃電","雷鳴","酸蝕","毒素","黟蝕","光耀","力場","心靈"];
 const ITEM_TYPES = ["奇物 (Wondrous)","藥水 (Potion)","卷軸 (Scroll)","魔杖 (Wand)","法杖 (Staff)","權杖 (Rod)","戒指 (Ring)","護甲 (Armor)","盾牌 (Shield)","武器 (Weapon)","珍實/藝品 (Gem/Art)","其他"];
+// 5E 陣營 / 態度
+const ALIGNMENTS = ["守序善良 LG","中立善良 NG","混亂善良 CG","守序中立 LN","絕對中立 N","混亂中立 CN","守序邪惡 LE","中立邪惡 NE","混亂邪惡 CE","無陣營"];
+const ATTITUDES = ["友善","中立","敵對"];
+// 分類專屬結構化欄位 schema
+const CAT_FIELDS = {
+  location: [
+    {k:"region",t:"所在地區",ph:"例：北方荒野"},
+    {k:"danger",t:"危險等級",ph:"低 / 中 / 高 / 致命"},
+    {k:"inhabitants",t:"棲息生物",ph:"哥布林、狼群…"},
+    {k:"features",t:"地形特色",ph:"地形、氣候、機關…",area:true}
+  ],
+  town: [
+    {k:"size",t:"規模",opts:["前哨站","村莊","城鎮","城市","大都會"]},
+    {k:"population",t:"人口",ph:"約 1200"},
+    {k:"ruler",t:"統治者/政體",ph:"領主、議會…"},
+    {k:"defense",t:"守備",ph:"衛兵、城牆…"},
+    {k:"economy",t:"經濟/貿易",ph:"礦業、港口…"},
+    {k:"notable",t:"知名地點",ph:"旅店、神廟、市集…",area:true}
+  ],
+  faction: [
+    {k:"alignment",t:"陣營",opts:ALIGNMENTS},
+    {k:"leader",t:"領袖",ph:"人名"},
+    {k:"hq",t:"據點",ph:"總部所在"},
+    {k:"scale",t:"規模/影響力",ph:"地方 / 區域 / 全國"},
+    {k:"goals",t:"目標/動機",ph:"這個勢力想要什麼…",area:true}
+  ],
+  npc: [
+    {k:"race",t:"種族",ph:"人類、精靈、矮人…"},
+    {k:"alignment",t:"陣營",opts:ALIGNMENTS},
+    {k:"role",t:"身份/職業",ph:"鐵匠、盜賣頭目…"},
+    {k:"attitude",t:"態度",opts:ATTITUDES},
+    {k:"whereabouts",t:"所在地",ph:"通常出沒處"},
+    {k:"goal",t:"目標/動機",ph:"想達成什麼…",area:true},
+    {k:"voice",t:"口癖/特徵",ph:"聲音、習慣動作…（跑團用）"}
+  ]
+};
 const uid = () => "e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 createApp({
@@ -468,6 +517,7 @@ createApp({
       const e = reactive({ id:uid(), cat:activeCat.value, worldId:activeWorld.value, name:"", subtype:"", desc:"", links:[], hasCombat:false });
       if(e.cat==="monster") ensureStats(e);
       if(e.cat==="weapon" || e.cat==="treasure") ensureItem(e);
+      if(CAT_FIELDS[e.cat]) ensureFields(e);
       entries.push(e); sel.value = e;
     }
     function removeEntry(e){
@@ -534,6 +584,14 @@ createApp({
     }
     function showItem(e){ return !!(e && (e.cat==="weapon" || e.cat==="treasure")); }
     function isWeapon(e){ return !!(e && e.cat==="weapon"); }
+    // ---- category-specific field schema ----
+    function showFields(e){ return !!(e && CAT_FIELDS[e.cat]); }
+    function ensureFields(e){
+      if(!e.fields) e.fields = {};
+      const schema = CAT_FIELDS[e.cat];
+      if(schema) schema.forEach(f=>{ if(e.fields[f.k]===undefined) e.fields[f.k]=""; });
+      return e.fields;
+    }
 
     // persist migration result immediately (watchers only fire on later changes)
     try{
@@ -545,7 +603,7 @@ createApp({
     watch(entries, ()=>{ try{ localStorage.setItem(LS, JSON.stringify(entries)); }catch(e){} }, {deep:true});
     watch(worlds, ()=>{ try{ localStorage.setItem(LS_WORLDS, JSON.stringify(worlds)); }catch(e){} }, {deep:true});
     watch(activeWorld, ()=>{ try{ localStorage.setItem(LS_ACTIVE, activeWorld.value); }catch(e){} sel.value=null; });
-    watch(sel, ()=>{ if(!sel.value) return; if(showStatBlock(sel.value)) ensureStats(sel.value); if(showItem(sel.value)) ensureItem(sel.value); });
+    watch(sel, ()=>{ if(!sel.value) return; if(showStatBlock(sel.value)) ensureStats(sel.value); if(showItem(sel.value)) ensureItem(sel.value); if(showFields(sel.value)) ensureFields(sel.value); });
 
     return { cats, activeCat, sel, q, theme, filtered, rarityOpts: RARITY,
       worlds, activeWorld, currentWorld, manageOpen,
@@ -556,7 +614,8 @@ createApp({
       addTrait, removeTrait, addAction, removeAction,
       showItem, isWeapon, weaponCats: WEAPON_CATS, weaponProps: WEAPON_PROPS,
       dmgTypes: DMG_TYPES, itemTypes: ITEM_TYPES,
-      autoSpellStats, addSpellRow, removeSpellRow };
+      autoSpellStats, addSpellRow, removeSpellRow,
+      showFields, catFields: CAT_FIELDS };
   }
 }).mount("#app");
 </script>
