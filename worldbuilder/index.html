@@ -94,6 +94,9 @@
       <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="manageOpen=!manageOpen">
         <svg class="ic"><use href="#w-edit"></use></svg><span class="hidden sm:inline">管理</span>
       </button>
+      <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="encPanelOpen=!encPanelOpen">
+        <svg class="ic"><use href="#w-monster"></use></svg><span class="hidden sm:inline">遭遇</span>
+      </button>
     </div>
     <div v-if="manageOpen && currentWorld" class="mt-2 pt-2" style="border-top:1px solid var(--line)">
       <label class="text-xs block">世界名稱
@@ -116,6 +119,64 @@
         <button class="btn-danger btn px-2 py-1 text-xs flex items-center gap-1" @click="removeWorld(currentWorld)" :disabled="worlds.length<=1">
           <svg class="ic"><use href="#w-trash"></use></svg>刪除此世界
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- encounter builder panel -->
+  <div v-if="encPanelOpen" class="card p-3 mb-3">
+    <div class="flex items-center justify-between mb-2">
+      <div class="text-sm font-bold flex items-center gap-1" style="color:var(--gold-deep)">
+        <svg class="ic"><use href="#w-monster"></use></svg>遭遇建構器（5E 難度計算）
+      </div>
+      <button class="btn-ghost btn px-2 py-1 text-xs" @click="newEncounter()">清空</button>
+    </div>
+    <div class="grid gap-2" style="grid-template-columns:2fr 1fr 1fr">
+      <label class="text-xs">遭遇名稱<input v-model="enc.name" class="mt-1 px-2 py-1.5 text-sm" placeholder="例：哥布林伏擊"></label>
+      <label class="text-xs">冒險者人數<input type="number" min="1" max="12" v-model.number="enc.numPCs" class="mt-1 px-2 py-1.5 text-sm"></label>
+      <label class="text-xs">隊伍等級<input type="number" min="1" max="20" v-model.number="enc.level" class="mt-1 px-2 py-1.5 text-sm"></label>
+    </div>
+    <div class="flex items-center gap-2 mt-3">
+      <select v-model="encPick" class="px-2 py-1.5 text-sm" style="flex:1">
+        <option value="">＋ 加入怪物…</option>
+        <option v-for="m in encWorldMonsters" :key="m.id" :value="m.id">{{ m.name || '（未命名）' }}（CR {{ (m.stats&&m.stats.cr)||'?' }}）</option>
+      </select>
+      <button class="btn px-3 py-1.5 text-sm" @click="encAddLine(encPick); encPick=''">加入</button>
+    </div>
+    <div v-if="encWorldMonsters.length===0" class="text-[11px] mt-1" style="color:var(--ink-soft)">此世界還沒有怪物，先到「怪物」分類新增並填 CR 吧～</div>
+    <div v-if="enc.lines.length" class="mt-2">
+      <div v-for="(l,i) in enc.lines" :key="i" class="flex items-center gap-2 py-1" style="border-bottom:1px dashed var(--line)">
+        <span class="text-sm flex-1 truncate">{{ encName(l.monId) }} <span style="color:var(--ink-soft)">· CR {{ encCR(l.monId) }}</span></span>
+        <button class="btn-ghost btn px-2 text-xs" @click="encInc(l,-1)">−</button>
+        <span class="text-sm text-center" style="width:1.5rem">{{ l.count }}</span>
+        <button class="btn-ghost btn px-2 text-xs" @click="encInc(l,1)">＋</button>
+        <button class="btn-danger btn px-2 text-xs" @click="encRemoveLine(i)">✕</button>
+      </div>
+    </div>
+    <div class="mt-3 pt-2" style="border-top:1px solid var(--line)">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="text-sm">
+          <span style="color:var(--ink-soft)">怪物 {{ encTotals.count }} 隻 · 基礎 {{ encTotals.baseXP }} XP · ×{{ encTotals.mult }} → </span>
+          <span class="font-bold">調整後 {{ encTotals.adjXP }} XP</span>
+        </div>
+        <div class="text-sm font-bold px-3 py-1 rounded-full" :style="{ color:'#fff', background: encDifficulty.color }">{{ encDifficulty.label }}</div>
+      </div>
+      <div class="grid gap-1 mt-2 text-[11px]" style="grid-template-columns:repeat(4,1fr)">
+        <div class="text-center rounded p-1" style="background:rgba(46,139,87,.15)">輕鬆<br><b>{{ encThresholds.easy }}</b></div>
+        <div class="text-center rounded p-1" style="background:rgba(184,134,11,.15)">普通<br><b>{{ encThresholds.med }}</b></div>
+        <div class="text-center rounded p-1" style="background:rgba(211,84,0,.15)">困難<br><b>{{ encThresholds.hard }}</b></div>
+        <div class="text-center rounded p-1" style="background:rgba(192,57,43,.15)">致命<br><b>{{ encThresholds.deadly }}</b></div>
+      </div>
+      <div class="flex justify-end mt-2">
+        <button class="btn px-3 py-1.5 text-sm" @click="saveEncounter()">儲存此遭遇</button>
+      </div>
+    </div>
+    <div v-if="encSaved.length" class="mt-3 pt-2" style="border-top:1px solid var(--line)">
+      <div class="text-[11px] font-bold mb-1" style="color:var(--ink-soft)">已存遭遇（本世界）</div>
+      <div v-for="r in encSaved" :key="r.id" class="flex items-center gap-2 py-1">
+        <span class="text-sm flex-1 truncate">{{ r.name }} <span style="color:var(--ink-soft)">· {{ r.numPCs }}人 Lv{{ r.level }}</span></span>
+        <button class="btn-ghost btn px-2 text-xs" @click="loadEncounter(r)">載入</button>
+        <button class="btn-danger btn px-2 text-xs" @click="removeEncounter(r)">✕</button>
       </div>
     </div>
   </div>
@@ -402,6 +463,7 @@ const { createApp, ref, reactive, computed, watch } = Vue;
 const LS = "dm_worldbuilder_v1";
 const LS_WORLDS = "dm_worldbuilder_worlds_v1";
 const LS_ACTIVE = "dm_worldbuilder_active_v1";
+const LS_ENC = "dm_worldbuilder_encounters_v1";
 // 5E 官方稀有度分級（最高原則：一切以 5E 為基底）
 const RARITY = [
   {v:"Common",    t:"普通"},
@@ -456,6 +518,14 @@ const CAT_FIELDS = {
     {k:"voice",t:"口癖/特徵",ph:"聲音、習慣動作…（跑團用）"}
   ]
 };
+// 5E CR → XP
+const XP_BY_CR = {0:10,0.125:25,0.25:50,0.5:100,1:200,2:450,3:700,4:1100,5:1800,6:2300,7:2900,8:3900,9:5000,10:5900,11:7200,12:8400,13:10000,14:11500,15:13000,16:15000,17:18000,18:20000,19:22000,20:25000,21:33000,22:41000,23:50000,24:62000,25:75000,26:90000,27:105000,28:120000,29:135000,30:155000};
+// 5E 每名角色 XP 門檳 [輕鬆,普通,困難,致命]（index=等級）
+const XP_THRESH = [null,
+ [25,50,75,100],[50,100,150,200],[75,150,225,400],[125,250,375,500],[250,500,750,1100],
+ [300,600,900,1400],[350,750,1100,1700],[450,900,1300,2100],[550,1100,1600,2400],[600,1200,1900,2800],
+ [800,1600,2400,3600],[1000,2000,3000,4800],[1100,2200,3400,5200],[1250,2500,3800,5700],[1400,2800,4300,6400],
+ [1600,3200,4800,6800],[2000,3900,5900,8500],[2100,4200,6300,9500],[2400,4900,7300,10900],[2800,5700,8500,12700]];
 const uid = () => "e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 createApp({
@@ -496,6 +566,14 @@ createApp({
     const activeCat = ref("location");
     const sel = ref(null);
     const q = ref("");
+    // ---- encounter builder state ----
+    const encPanelOpen = ref(false);
+    const encPick = ref("");
+    let savedEnc = [];
+    try{ savedEnc = JSON.parse(localStorage.getItem(LS_ENC)||"[]"); }catch(e){ savedEnc=[]; }
+    if(!Array.isArray(savedEnc)) savedEnc=[];
+    const encounters = reactive(savedEnc);
+    const enc = reactive({ name:"", numPCs:4, level:3, lines:[] });
     const theme = ref(localStorage.getItem("dm_theme") || "light");
     document.documentElement.setAttribute("data-theme", theme.value);
 
@@ -593,16 +671,59 @@ createApp({
       return e.fields;
     }
 
+    // ---- encounter helpers (5E DMG) ----
+    const MULT_LADDER = [0.5,1,1.5,2,2.5,3,4];
+    function multIndex(count){ if(count<=1)return 1; if(count===2)return 2; if(count<=6)return 3; if(count<=10)return 4; if(count<=14)return 5; return 6; }
+    function crXP(cr){ const n=crToNum(cr); return XP_BY_CR[n] || 0; }
+    const encWorldMonsters = computed(()=> entries.filter(e=>e.cat==="monster" && e.worldId===activeWorld.value));
+    function encMonById(id){ return entries.find(e=>e.id===id) || null; }
+    function encName(id){ const m=encMonById(id); return m ? (m.name||"（未命名）") : "（已刪除）"; }
+    function encCR(id){ const m=encMonById(id); return (m && m.stats && m.stats.cr) || "?"; }
+    function encAddLine(id){ if(!id) return; const ex=enc.lines.find(l=>l.monId===id); if(ex){ ex.count++; } else { enc.lines.push({monId:id, count:1}); } }
+    function encRemoveLine(i){ enc.lines.splice(i,1); }
+    function encInc(l,d){ l.count = Math.max(1,(l.count||1)+d); }
+    const encTotals = computed(()=>{
+      let count=0, baseXP=0;
+      enc.lines.forEach(l=>{ const m=encMonById(l.monId); if(!m) return; const c=Math.max(0,l.count||0); count+=c; baseXP += c*crXP(m.stats && m.stats.cr); });
+      let idx = multIndex(count);
+      const pcs = Math.max(1, enc.numPCs||1);
+      if(pcs<=2) idx = Math.min(6, idx+1); else if(pcs>=6) idx = Math.max(0, idx-1);
+      const mult = count>0 ? MULT_LADDER[idx] : 0;
+      return { count, baseXP, mult, adjXP: Math.round(baseXP*mult) };
+    });
+    const encThresholds = computed(()=>{
+      const lv = Math.min(20, Math.max(1, enc.level||1));
+      const pcs = Math.max(1, enc.numPCs||1);
+      const t = XP_THRESH[lv];
+      return { easy:t[0]*pcs, med:t[1]*pcs, hard:t[2]*pcs, deadly:t[3]*pcs };
+    });
+    const encDifficulty = computed(()=>{
+      const adj = encTotals.value.adjXP; const th = encThresholds.value;
+      if(encTotals.value.count===0) return { label:"—", color:"var(--ink-soft)" };
+      if(adj >= th.deadly) return { label:"致命 Deadly", color:"#c0392b" };
+      if(adj >= th.hard)   return { label:"困難 Hard", color:"#d35400" };
+      if(adj >= th.med)    return { label:"普通 Medium", color:"#b8860b" };
+      if(adj >= th.easy)   return { label:"輕鬆 Easy", color:"#2e8b57" };
+      return { label:"微不足道 Trivial", color:"#7f8c8d" };
+    });
+    const encSaved = computed(()=> encounters.filter(r=>r.worldId===activeWorld.value));
+    function newEncounter(){ enc.name=""; enc.numPCs=4; enc.level=3; enc.lines=[]; encPick.value=""; }
+    function saveEncounter(){ encounters.push({ id:uid(), worldId:activeWorld.value, name: enc.name||"未命名遭遇", numPCs:enc.numPCs, level:enc.level, lines: JSON.parse(JSON.stringify(enc.lines)) }); }
+    function loadEncounter(r){ enc.name=r.name; enc.numPCs=r.numPCs; enc.level=r.level; enc.lines=JSON.parse(JSON.stringify(r.lines||[])); }
+    function removeEncounter(r){ const i=encounters.indexOf(r); if(i>=0) encounters.splice(i,1); }
+
     // persist migration result immediately (watchers only fire on later changes)
     try{
       localStorage.setItem(LS, JSON.stringify(entries));
       localStorage.setItem(LS_WORLDS, JSON.stringify(worlds));
       localStorage.setItem(LS_ACTIVE, activeWorld.value);
+      localStorage.setItem(LS_ENC, JSON.stringify(encounters));
     }catch(e){}
 
     watch(entries, ()=>{ try{ localStorage.setItem(LS, JSON.stringify(entries)); }catch(e){} }, {deep:true});
     watch(worlds, ()=>{ try{ localStorage.setItem(LS_WORLDS, JSON.stringify(worlds)); }catch(e){} }, {deep:true});
-    watch(activeWorld, ()=>{ try{ localStorage.setItem(LS_ACTIVE, activeWorld.value); }catch(e){} sel.value=null; });
+    watch(activeWorld, ()=>{ try{ localStorage.setItem(LS_ACTIVE, activeWorld.value); }catch(e){} sel.value=null; newEncounter(); });
+    watch(encounters, ()=>{ try{ localStorage.setItem(LS_ENC, JSON.stringify(encounters)); }catch(e){} }, {deep:true});
     watch(sel, ()=>{ if(!sel.value) return; if(showStatBlock(sel.value)) ensureStats(sel.value); if(showItem(sel.value)) ensureItem(sel.value); if(showFields(sel.value)) ensureFields(sel.value); });
 
     return { cats, activeCat, sel, q, theme, filtered, rarityOpts: RARITY,
@@ -615,7 +736,10 @@ createApp({
       showItem, isWeapon, weaponCats: WEAPON_CATS, weaponProps: WEAPON_PROPS,
       dmgTypes: DMG_TYPES, itemTypes: ITEM_TYPES,
       autoSpellStats, addSpellRow, removeSpellRow,
-      showFields, catFields: CAT_FIELDS };
+      showFields, catFields: CAT_FIELDS,
+      encPanelOpen, encPick, enc, encWorldMonsters, encName, encCR,
+      encAddLine, encRemoveLine, encInc, encTotals, encThresholds, encDifficulty,
+      encSaved, newEncounter, saveEncounter, loadEncounter, removeEncounter };
   }
 }).mount("#app");
 </script>
