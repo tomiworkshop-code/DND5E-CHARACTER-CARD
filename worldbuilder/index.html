@@ -97,6 +97,9 @@
       <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="encPanelOpen=!encPanelOpen">
         <svg class="ic"><use href="#w-monster"></use></svg><span class="hidden sm:inline">遭遇</span>
       </button>
+      <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="shopPanelOpen=!shopPanelOpen">
+        <svg class="ic"><use href="#w-treasure"></use></svg><span class="hidden sm:inline">商店</span>
+      </button>
     </div>
     <div v-if="manageOpen && currentWorld" class="mt-2 pt-2" style="border-top:1px solid var(--line)">
       <label class="text-xs block">世界名稱
@@ -177,6 +180,43 @@
         <span class="text-sm flex-1 truncate">{{ r.name }} <span style="color:var(--ink-soft)">· {{ r.numPCs }}人 Lv{{ r.level }}</span></span>
         <button class="btn-ghost btn px-2 text-xs" @click="loadEncounter(r)">載入</button>
         <button class="btn-danger btn px-2 text-xs" @click="removeEncounter(r)">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- shop / reward pool panel (§5.8) -->
+  <div v-if="shopPanelOpen" class="card p-3 mb-3">
+    <div class="text-sm font-bold flex items-center gap-1 mb-1" style="color:var(--gold-deep)">
+      <svg class="ic"><use href="#w-treasure"></use></svg>商店 · 獎勵池（共用物品目錄）
+    </div>
+    <div class="text-[11px] mb-3" style="color:var(--ink-soft)">在「武器 / 寶物」條目勾選「上架商店 / 進獎勵池」，即會出現在這裡。</div>
+    <div class="mb-3">
+      <div class="text-xs font-bold mb-1">🛒 商店（{{ shopItems.length }} 件）</div>
+      <div v-if="shopItems.length===0" class="text-[11px]" style="color:var(--ink-soft)">尚無上架商品。</div>
+      <div v-for="e in shopItems" :key="e.id" class="flex items-center gap-2 py-1" style="border-bottom:1px dashed var(--line)">
+        <svg class="ic" style="color:var(--gold-deep)"><use :href="'#'+iconOf(e.cat)"></use></svg>
+        <span class="text-sm flex-1 truncate">{{ e.name || '（未命名）' }}</span>
+        <span class="text-[11px] px-1.5 rounded-full" style="background:rgba(138,90,43,.15)">{{ rarityLabel(e.item.rarity) }}</span>
+        <span class="text-sm font-bold" style="color:var(--gold-deep)">{{ e.item.valueGp || '—' }} gp</span>
+      </div>
+    </div>
+    <div class="pt-2" style="border-top:1px solid var(--line)">
+      <div class="text-xs font-bold mb-1">🎁 獎勵池（{{ poolItems.length }} 件）</div>
+      <div class="flex items-center gap-2 mb-2">
+        <select v-model="poolRarityFilter" class="px-2 py-1.5 text-sm" style="flex:1">
+          <option value="">全部稀有度</option>
+          <option v-for="r in rarityOpts" :key="r.v" :value="r.v">{{ r.t }}</option>
+        </select>
+        <button class="btn px-3 py-1.5 text-sm" @click="rollReward()">🎲 抽一件</button>
+      </div>
+      <div v-if="rolledItem" class="mb-2 p-2 rounded text-center" style="background:rgba(184,134,11,.15)">
+        抽中：<b>{{ rolledItem.name || '（未命名）' }}</b> <span style="color:var(--ink-soft)">· {{ rarityLabel(rolledItem.item.rarity) }}</span>
+      </div>
+      <div v-if="poolItems.length===0" class="text-[11px]" style="color:var(--ink-soft)">獎勵池是空的。</div>
+      <div v-for="e in poolItems" :key="e.id" class="flex items-center gap-2 py-1" style="border-bottom:1px dashed var(--line)">
+        <svg class="ic" style="color:var(--gold-deep)"><use :href="'#'+iconOf(e.cat)"></use></svg>
+        <span class="text-sm flex-1 truncate">{{ e.name || '（未命名）' }}</span>
+        <span class="text-[11px] px-1.5 rounded-full" style="background:rgba(138,90,43,.15)">{{ rarityLabel(e.item.rarity) }}</span>
       </div>
     </div>
   </div>
@@ -400,6 +440,12 @@
             <label class="text-[11px] flex items-center gap-1 self-end pb-1">
               <input type="checkbox" v-model="sel.item.attunement" style="width:auto">需調諧
             </label>
+            <label class="text-[11px] flex items-center gap-1 self-end pb-1">
+              <input type="checkbox" v-model="sel.item.inShop" style="width:auto">上架商店
+            </label>
+            <label class="text-[11px] flex items-center gap-1 self-end pb-1">
+              <input type="checkbox" v-model="sel.item.inPool" style="width:auto">進獎勵池
+            </label>
           </div>
         </div>
 
@@ -574,6 +620,10 @@ createApp({
     if(!Array.isArray(savedEnc)) savedEnc=[];
     const encounters = reactive(savedEnc);
     const enc = reactive({ name:"", numPCs:4, level:3, lines:[] });
+    // ---- shop / reward pool state ----
+    const shopPanelOpen = ref(false);
+    const poolRarityFilter = ref("");
+    const rolledItem = ref(null);
     const theme = ref(localStorage.getItem("dm_theme") || "light");
     document.documentElement.setAttribute("data-theme", theme.value);
 
@@ -658,6 +708,8 @@ createApp({
     function ensureItem(e){
       if(!e.item) e.item = { rarity:"", valueGp:"", weight:"", attunement:false, damage:"", damageType:"", versatile:"", range:"", weaponCat:"", props:[], itemType:"", charges:"" };
       if(!Array.isArray(e.item.props)) e.item.props = [];
+      if(e.item.inShop===undefined) e.item.inShop=false;
+      if(e.item.inPool===undefined) e.item.inPool=false;
       return e.item;
     }
     function showItem(e){ return !!(e && (e.cat==="weapon" || e.cat==="treasure")); }
@@ -712,6 +764,15 @@ createApp({
     function loadEncounter(r){ enc.name=r.name; enc.numPCs=r.numPCs; enc.level=r.level; enc.lines=JSON.parse(JSON.stringify(r.lines||[])); }
     function removeEncounter(r){ const i=encounters.indexOf(r); if(i>=0) encounters.splice(i,1); }
 
+    // ---- shop / reward pool helpers (§5.8) ----
+    function rarityIdx(v){ if(!v) return -1; return RARITY.findIndex(r=>r.v===v); }
+    function rarityLabel(v){ if(!v) return "一般"; const r=RARITY.find(x=>x.v===v); return r?r.t:v; }
+    const catalogItems = computed(()=> entries.filter(e=>(e.cat==="weapon"||e.cat==="treasure") && e.worldId===activeWorld.value && e.item));
+    function sortCatalog(list){ return list.slice().sort((a,b)=> (rarityIdx(a.item.rarity)-rarityIdx(b.item.rarity)) || ((parseFloat(a.item.valueGp)||0)-(parseFloat(b.item.valueGp)||0)) ); }
+    const shopItems = computed(()=> sortCatalog(catalogItems.value.filter(e=>e.item.inShop)) );
+    const poolItems = computed(()=> sortCatalog(catalogItems.value.filter(e=>e.item.inPool)) );
+    function rollReward(){ let pool=poolItems.value; if(poolRarityFilter.value) pool=pool.filter(e=>e.item.rarity===poolRarityFilter.value); if(!pool.length){ rolledItem.value=null; return; } rolledItem.value = pool[Math.floor(Math.random()*pool.length)]; }
+
     // persist migration result immediately (watchers only fire on later changes)
     try{
       localStorage.setItem(LS, JSON.stringify(entries));
@@ -722,7 +783,7 @@ createApp({
 
     watch(entries, ()=>{ try{ localStorage.setItem(LS, JSON.stringify(entries)); }catch(e){} }, {deep:true});
     watch(worlds, ()=>{ try{ localStorage.setItem(LS_WORLDS, JSON.stringify(worlds)); }catch(e){} }, {deep:true});
-    watch(activeWorld, ()=>{ try{ localStorage.setItem(LS_ACTIVE, activeWorld.value); }catch(e){} sel.value=null; newEncounter(); });
+    watch(activeWorld, ()=>{ try{ localStorage.setItem(LS_ACTIVE, activeWorld.value); }catch(e){} sel.value=null; newEncounter(); rolledItem.value=null; });
     watch(encounters, ()=>{ try{ localStorage.setItem(LS_ENC, JSON.stringify(encounters)); }catch(e){} }, {deep:true});
     watch(sel, ()=>{ if(!sel.value) return; if(showStatBlock(sel.value)) ensureStats(sel.value); if(showItem(sel.value)) ensureItem(sel.value); if(showFields(sel.value)) ensureFields(sel.value); });
 
@@ -739,7 +800,8 @@ createApp({
       showFields, catFields: CAT_FIELDS,
       encPanelOpen, encPick, enc, encWorldMonsters, encName, encCR,
       encAddLine, encRemoveLine, encInc, encTotals, encThresholds, encDifficulty,
-      encSaved, newEncounter, saveEncounter, loadEncounter, removeEncounter };
+      encSaved, newEncounter, saveEncounter, loadEncounter, removeEncounter,
+      shopPanelOpen, poolRarityFilter, rolledItem, shopItems, poolItems, rollReward, rarityLabel };
   }
 }).mount("#app");
 </script>
