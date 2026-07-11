@@ -640,7 +640,18 @@ const SRD_ITEMS = [
  {cat:"weapon",name:"短弓",subtype:"簡易武器/SRD",item:{weaponCat:"簡易遠程",damage:"1d6",damageType:"穿刺",versatile:"",range:"80/320",props:["彈藥","雙手"],rarity:"",valueGp:"25",weight:"2 磅"}},
  {cat:"weapon",name:"手斧",subtype:"簡易武器/SRD",item:{weaponCat:"簡易近戰",damage:"1d6",damageType:"揮砍",versatile:"",range:"20/60",props:["輕型","投擲"],rarity:"",valueGp:"5",weight:"2 磅"}},
  {cat:"treasure",name:"治療藥水",subtype:"藥水/SRD",desc:"飲用後回復 2d4+2 生命值。",item:{itemType:"藥水 (Potion)",rarity:"Common",valueGp:"50",weight:"0.5 磅"}},
- {cat:"treasure",name:"儲物袋",subtype:"奇物/SRD",desc:"內部空間可裝載 500 磅、體積 64 立方呢；本體恒重 15 磅。",item:{itemType:"奇物 (Wondrous)",rarity:"Uncommon",valueGp:"",weight:"15 磅"}}
+ {cat:"treasure",name:"儲物袋",subtype:"奇物/SRD",desc:"內部空間可裝載 500 磅、體積 64 立方呢；本體恒重 15 磅。",item:{itemType:"奇物 (Wondrous)",rarity:"Uncommon",valueGp:"",weight:"15 磅"}},
+ {cat:"treasure",name:"攀爬藥水",subtype:"藥水/SRD",desc:"飲用後 1 小時內獲得等同步行速度的攀爬速度，且攀爬檢定具優勢。",item:{itemType:"藥水 (Potion)",rarity:"Common",valueGp:"",weight:"0.5 磅"}},
+ {cat:"treasure",name:"進階治療藥水",subtype:"藥水/SRD",desc:"飲用後回復 4d4+4 生命值。",item:{itemType:"藥水 (Potion)",rarity:"Uncommon",valueGp:"",weight:"0.5 磅"}},
+ {cat:"treasure",name:"防護披風",subtype:"奇物（需調諧）/SRD",desc:"穿戴期間，AC 與所有豁免檢定 +1。",item:{itemType:"奇物 (Wondrous)",rarity:"Uncommon",attunement:true,valueGp:"",weight:""}},
+ {cat:"treasure",name:"精靈斗篷",subtype:"奇物（需調諧）/SRD",desc:"隔閑拉上帽兵時，你的隱匿檢定具優勢，他人以感知偵測你具劣勢。",item:{itemType:"奇物 (Wondrous)",rarity:"Uncommon",attunement:true,valueGp:"",weight:""}},
+ {cat:"treasure",name:"精靈之靴",subtype:"奇物/SRD",desc:"穿戴期間移動無聲，進行隱匿（潛行）檢定具優勢。",item:{itemType:"奇物 (Wondrous)",rarity:"Uncommon",valueGp:"",weight:"1 磅"}},
+ {cat:"treasure",name:"防護戒指",subtype:"戒指（需調諧）/SRD",desc:"佩戴期間，AC 與所有豁免檢定 +1。",item:{itemType:"戒指 (Ring)",rarity:"Rare",attunement:true,valueGp:"",weight:""}},
+ {cat:"treasure",name:"魔彈魔杖",subtype:"魔杖（需調諧）/SRD",desc:"持有 7 點充能，可消耗充能施放魔法飛彈（每點一枚飛彈）；黎明回復 1d6+1 點。",item:{itemType:"魔杖 (Wand)",rarity:"Uncommon",valueGp:"",weight:"1 磅",charges:"7"}},
+ {cat:"treasure",name:"盾牌 +1",subtype:"盾牌/SRD",desc:"使用期間 AC 額外 +1（含盾牌本身共 +3）。",item:{itemType:"盾牌 (Shield)",rarity:"Uncommon",valueGp:"",weight:"6 磅"}},
+ {cat:"treasure",name:"護甲 +1",subtype:"護甲/SRD",desc:"穿著期間 AC +1。",item:{itemType:"護甲 (Armor)",rarity:"Rare",valueGp:"",weight:""}},
+ {cat:"weapon",name:"長劍 +1",subtype:"魔法武器/SRD",desc:"攻擊與傷害檢定 +1。",item:{weaponCat:"軍用近戰",damage:"1d8",damageType:"揮砍",versatile:"1d10",range:"",props:["多用"],rarity:"Uncommon",valueGp:"",weight:"3 磅"}},
+ {cat:"weapon",name:"火焰舌長劍",subtype:"魔法武器（需調諧）/SRD",desc:"以附贈動作說出指令詞可點燃劉刃，命中時額外造成 2d6 火焰傷害。",item:{weaponCat:"軍用近戰",damage:"1d8",damageType:"揮砍",versatile:"1d10",range:"",props:["多用"],rarity:"Rare",attunement:true,valueGp:"",weight:"3 磅"}}
 ];
 const uid = () => "e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
