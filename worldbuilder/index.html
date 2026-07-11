@@ -144,12 +144,19 @@
     </div>
     <div class="flex items-center gap-2 mt-3">
       <select v-model="encPick" class="px-2 py-1.5 text-sm" style="flex:1">
-        <option value="">＋ 加入怪物…</option>
+        <option value="">＋ 本世界怪物…</option>
         <option v-for="m in encWorldMonsters" :key="m.id" :value="m.id">{{ m.name || '（未命名）' }}（CR {{ (m.stats&&m.stats.cr)||'?' }}）</option>
       </select>
       <button class="btn px-3 py-1.5 text-sm" @click="encAddLine(encPick); encPick=''">加入</button>
     </div>
-    <div v-if="encWorldMonsters.length===0" class="text-[11px] mt-1" style="color:var(--ink-soft)">此世界還沒有怪物，先到「怪物」分類新增並填 CR 吧～</div>
+    <div class="flex items-center gap-2 mt-2">
+      <select v-model="encSrdPick" class="px-2 py-1.5 text-sm" style="flex:1">
+        <option value="">＋ 從官方 SRD 選…</option>
+        <option v-for="m in srdMonsters" :key="'e'+m.name" :value="m.name">{{ m.name }}（CR {{ m.stats.cr }}）</option>
+      </select>
+      <button class="btn px-3 py-1.5 text-sm" @click="encAddSrd(encSrdPick); encSrdPick=''">匯入</button>
+    </div>
+    <div class="text-[11px] mt-1" style="color:var(--ink-soft)">從官方 SRD 選的怪物會自動匯入本世界（同名不重複），之後可到「怪物」分類自行修改。</div>
     <div v-if="enc.lines.length" class="mt-2">
       <div v-for="(l,i) in enc.lines" :key="i" class="flex items-center gap-2 py-1" style="border-bottom:1px dashed var(--line)">
         <span class="text-sm flex-1 truncate">{{ encName(l.monId) }} <span style="color:var(--ink-soft)">· CR {{ encCR(l.monId) }}</span></span>
@@ -739,6 +746,7 @@ createApp({
     // ---- encounter builder state ----
     const encPanelOpen = ref(false);
     const encPick = ref("");
+    const encSrdPick = ref("");
     let savedEnc = [];
     try{ savedEnc = JSON.parse(localStorage.getItem(LS_ENC)||"[]"); }catch(e){ savedEnc=[]; }
     if(!Array.isArray(savedEnc)) savedEnc=[];
@@ -899,15 +907,23 @@ createApp({
     function rollReward(){ let pool=poolItems.value; if(poolRarityFilter.value) pool=pool.filter(e=>e.item.rarity===poolRarityFilter.value); if(!pool.length){ rolledItem.value=null; return; } rolledItem.value = pool[Math.floor(Math.random()*pool.length)]; }
 
     // ---- SRD 5.1 template library ----
-    function srdAddMonster(m){
+    function buildSrdMonster(m){
       const e = reactive({ id:uid(), cat:"monster", worldId:activeWorld.value, name:m.name, subtype:m.subtype||"", desc:m.desc||"", links:[], hasCombat:false });
       ensureStats(e);
       Object.assign(e.stats, m.stats);
       e.traits = JSON.parse(JSON.stringify(m.traits||[]));
       e.actions = JSON.parse(JSON.stringify(m.actions||[]));
       if(m.spellcasting) e.spellcasting = JSON.parse(JSON.stringify(m.spellcasting));
-      entries.push(e); activeCat.value="monster"; sel.value=e; srdPanelOpen.value=false;
+      return e;
     }
+    function srdAddMonster(m){ const e=buildSrdMonster(m); entries.push(e); activeCat.value="monster"; sel.value=e; srdPanelOpen.value=false; }
+    // 遇遇建構器：從官方 SRD 匯入怕物到世界（同名去重）再加入遇遇
+    function encImportMon(name){
+      let e = entries.find(x=>x.cat==="monster" && x.worldId===activeWorld.value && x.name===name);
+      if(!e){ const tpl=SRD_MONSTERS.find(t=>t.name===name); if(!tpl) return null; e=buildSrdMonster(tpl); entries.push(e); }
+      return e;
+    }
+    function encAddSrd(name){ if(!name) return; const e=encImportMon(name); if(e) encAddLine(e.id); }
     function srdAddItem(t){
       const e = reactive({ id:uid(), cat:t.cat, worldId:activeWorld.value, name:t.name, subtype:t.subtype||"", desc:t.desc||"", links:[] });
       ensureItem(e);
@@ -949,7 +965,7 @@ createApp({
       dmgTypes: DMG_TYPES, itemTypes: ITEM_TYPES,
       autoSpellStats, addSpellRow, removeSpellRow,
       showFields, catFields: CAT_FIELDS,
-      encPanelOpen, encPick, enc, encWorldMonsters, encName, encCR,
+      encPanelOpen, encPick, encSrdPick, encAddSrd, enc, encWorldMonsters, encName, encCR,
       encAddLine, encRemoveLine, encInc, encTotals, encThresholds, encDifficulty,
       encSaved, newEncounter, saveEncounter, loadEncounter, removeEncounter,
       shopPanelOpen, poolRarityFilter, rolledItem, shopItems, poolItems, rollReward, rarityLabel,
