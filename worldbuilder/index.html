@@ -255,6 +255,19 @@
         </div>
       </div>
     </div>
+    <div class="pt-2 mt-2" style="border-top:1px solid var(--line)">
+      <div class="text-xs font-bold mb-1">🧑 通用 NPC 範本（官方數值，可自行命名/贋予個性）</div>
+      <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
+        <div v-for="(n,i) in srdNpcs" :key="'sn'+i" class="flex items-center gap-2 p-2 rounded" style="border:1px solid var(--line)">
+          <svg class="ic" style="color:var(--gold-deep)"><use href="#w-npc"></use></svg>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-bold truncate">{{ n.name }}</div>
+            <div class="text-[11px] truncate" style="color:var(--ink-soft)">CR {{ n.stats.cr }}{{ n.spellcasting?' · 施法':'' }}</div>
+          </div>
+          <button class="btn px-2 py-1 text-xs" @click="srdAddNpc(n)">加入</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="layout">
@@ -663,6 +676,26 @@ const SRD_ITEMS = [
  {cat:"weapon",name:"長劍 +1",subtype:"魔法武器/SRD",desc:"攻擊與傷害檢定 +1。",item:{weaponCat:"軍用近戰",damage:"1d8",damageType:"揮砍",versatile:"1d10",range:"",props:["多用"],rarity:"Uncommon",valueGp:"",weight:"3 磅"}},
  {cat:"weapon",name:"火焰舌長劍",subtype:"魔法武器（需調諧）/SRD",desc:"以附贈動作說出指令詞可點燃劉刃，命中時額外造成 2d6 火焰傷害。",item:{weaponCat:"軍用近戰",damage:"1d8",damageType:"揮砍",versatile:"1d10",range:"",props:["多用"],rarity:"Rare",attunement:true,valueGp:"",weight:"3 磅"}}
 ];
+// SRD 5.1 通用 NPC 數值範本（官方授權；無具名/個性，僅戰鬥骨架）
+const SRD_NPCS = [
+ {name:"平民",role:"平民",stats:{cr:"0",size:"中型",ac:"10",hp:"4 (1d8)",speed:"30 ft",str:10,dex:10,con:10,int:10,wis:10,cha:10,senses:"被動察覺 10",skills:"",saves:"",resist:"",languages:"任一種"},traits:[],actions:[{name:"棍棒",desc:"+2 命中，1d4 鈍擊傷害。"}]},
+ {name:"貴族",role:"貴族/領主",stats:{cr:"1/8",size:"中型",ac:"15",hp:"9 (2d8)",speed:"30 ft",str:11,dex:12,con:11,int:12,wis:14,cha:16,senses:"被動察覺 12",skills:"欺瞞 +5、洞察 +4、說服 +5",saves:"",resist:"",languages:"任兩種"},traits:[],actions:[{name:"細劍",desc:"+3 命中，1d8+1 穿刺傷害。"}]},
+ {name:"部落戰士",role:"部落戰士",stats:{cr:"1/8",size:"中型",ac:"12",hp:"11 (2d8+2)",speed:"30 ft",str:13,dex:11,con:12,int:8,wis:11,cha:8,senses:"被動察覺 10",skills:"",saves:"",resist:"",languages:"任一種"},traits:[{name:"群戰戰術",desc:"盟友在旁時攻擊具優勢。"}],actions:[{name:"長矛",desc:"+3 命中，1d6+1（雙手 1d8+1）穿刺傷害。"}]},
+ {name:"斥候",role:"偵察兵/獵人",stats:{cr:"1/2",size:"中型",ac:"13",hp:"16 (3d8+3)",speed:"30 ft",str:11,dex:14,con:12,int:11,wis:13,cha:11,senses:"被動察覺 15",skills:"自然 +4、察覺 +5、隱匿 +6、求生 +5",saves:"",resist:"",languages:"任一種"},traits:[{name:"敏銳視聽",desc:"視覺或聽覺相關察覺具優勢。"}],actions:[{name:"多重攻擊",desc:"進行兩次近戰或兩次遠程攻擊。"},{name:"短劍",desc:"+4 命中，1d6+2 穿刺傷害。"},{name:"長弓",desc:"+4 命中，射程150/600，1d8+2 穿刺傷害。"}]},
+ {name:"惡棍",role:"惡棍/酒吧打手",stats:{cr:"1/2",size:"中型",ac:"11",hp:"32 (5d8+10)",speed:"30 ft",str:15,dex:11,con:14,int:10,wis:10,cha:11,senses:"被動察覺 10",skills:"威嚇 +2",saves:"",resist:"",languages:"任一種"},traits:[{name:"群戰戰術",desc:"盟友在旁時攻擊具優勢。"}],actions:[{name:"多重攻擊",desc:"以钉锤攻擊兩次。"},{name:"钉锤",desc:"+4 命中，1d6+2 鈍擊傷害。"},{name:"重弩",desc:"+2 命中，射程100/400，1d10 穿刺傷害。"}]},
+ {name:"間諜",role:"間諜",stats:{cr:"1",size:"中型",ac:"12",hp:"27 (6d8)",speed:"30 ft",str:10,dex:15,con:10,int:12,wis:14,cha:16,senses:"被動察覺 16",skills:"欺瞞 +5、洞察 +4、調查 +5、察覺 +6、說服 +5、手法 +4、隱匿 +4",saves:"",resist:"",languages:"任兩種"},traits:[{name:"機警行動",desc:"每回合可以附贈動作衝刺、撤離或藏匿。"}],actions:[{name:"多重攻擊",desc:"進行兩次近戰攻擊。"},{name:"短劍",desc:"+4 命中，1d6+2 穿刺傷害。"},{name:"手弩",desc:"+4 命中，射程30/120，1d6+2 穿刺傷害；抑奇攻擊可附加 2d6 傷害。"}]},
+ {name:"狂戰士",role:"狂戰士",stats:{cr:"2",size:"中型",ac:"13",hp:"67 (9d8+27)",speed:"30 ft",str:16,dex:12,con:17,int:9,wis:11,cha:9,senses:"被動察覺 10",skills:"",saves:"",resist:"",languages:"任一種"},traits:[{name:"魯莽",desc:"回合內第一次攻擊可選擇以優勢進行，但本回合受到的攻擊也具優勢。"}],actions:[{name:"巨斧",desc:"+5 命中，1d12+3 揮砍傷害。"}]},
+ {name:"騎士",role:"騎士",stats:{cr:"3",size:"中型",ac:"18",hp:"52 (8d8+16)",speed:"30 ft",str:16,dex:11,con:14,int:11,wis:11,cha:15,senses:"被動察覺 10",skills:"",saves:"體質 +4、感知 +2",resist:"",languages:"任一種"},traits:[{name:"勇敢",desc:"對驚恐狀態的豁免具優勢。"}],actions:[{name:"多重攻擊",desc:"以雙手劍攻擊兩次。"},{name:"雙手劍",desc:"+5 命中，2d6+3 揮砍傷害。"},{name:"重弩",desc:"+2 命中，射程100/400，1d10 穿刺傷害。"},{name:"統率（短/長休息後）",desc:"1 分鐘內，30呎內可聽見其聲音的盟友進行攻擊/豁免時可加 1d4。"}]},
+ {name:"老兵",role:"老兵/傭兵",stats:{cr:"3",size:"中型",ac:"17",hp:"58 (9d8+18)",speed:"30 ft",str:16,dex:13,con:14,int:10,wis:11,cha:10,senses:"被動察覺 12",skills:"運動 +5、察覺 +2",saves:"",resist:"",languages:"任一種"},traits:[],actions:[{name:"多重攻擊",desc:"以長劍攻擊兩次；若拔出短劍則可再攻擊一次。"},{name:"長劍",desc:"+5 命中，1d8+3（雙手 1d10+3）揮砍傷害。"},{name:"短劍",desc:"+5 命中，1d6+3 穿刺傷害。"},{name:"重弩",desc:"+3 命中，射程100/400，1d10+1 穿刺傷害。"}]},
+ {name:"鬥士",role:"鬥士/競技戰士",stats:{cr:"5",size:"中型",ac:"16",hp:"112 (15d8+45)",speed:"30 ft",str:18,dex:15,con:16,int:10,wis:12,cha:15,senses:"被動察覺 11",skills:"運動 +10、威嚇 +5",saves:"力量 +7、敏捷 +5、體質 +6",resist:"",languages:"任一種"},traits:[{name:"勇敢",desc:"對驚恐狀態的豁免具優勢。"}],actions:[{name:"多重攻擊",desc:"以長矛攻擊三次，或長矛兩次加盾擊一次。"},{name:"長矛",desc:"+7 命中，近戰/射程20/60，2d6+4 穿刺傷害。"},{name:"盾擊",desc:"+7 命中，2d4+4 鈍擊傷害；中/小型目標須 DC 15 力量豁免否則倒地。"}]},
+ {name:"刺客",role:"刺客",stats:{cr:"8",size:"中型",ac:"15",hp:"78 (12d8+24)",speed:"30 ft",str:11,dex:16,con:14,int:13,wis:11,cha:10,senses:"被動察覺 13",skills:"雜技 +6、欺瞞 +3、察覺 +3、隱匿 +9",saves:"敏捷 +6、智力 +4",resist:"抗:毒素",languages:"任兩種"},traits:[{name:"曗殺",desc:"戰鬥首回合對尚未行動目標命中即致重擊。"},{name:"抑奇攻擊（4d6）",desc:"符合條件時額外 4d6 傷害。"}],actions:[{name:"多重攻擊",desc:"以短劍攻擊兩次。"},{name:"短劍",desc:"+6 命中，1d6+3 穿刺傷害；目標須 DC 15 體質豁免，否則受 7d6 毒素傷害（成功減半）。"}]},
+ {name:"見習僧",role:"見習僧/低階神職",stats:{cr:"1/4",size:"中型",ac:"10",hp:"9 (2d8)",speed:"30 ft",str:10,dex:10,con:10,int:10,wis:14,cha:11,senses:"被動察覺 12",skills:"醫藥 +4、宗教 +2",saves:"",resist:"",languages:"任一種"},traits:[],actions:[{name:"棍棒",desc:"+2 命中，1d4 鈍擊傷害。"}],spellcasting:{on:true,ability:"wis",dc:"12",atk:"+4",level:"1",rows:[{label:"戲法",spells:"光明、神聖灼燒、奧幻術"},{label:"1環（3個）",spells:"祝福、治療傷口、廟所（以官方5E神職法術表為準）"}]}},
+ {name:"教派狂信者",role:"教派狂信者",stats:{cr:"2",size:"中型",ac:"13",hp:"33 (6d8+6)",speed:"30 ft",str:11,dex:14,con:12,int:10,wis:13,cha:14,senses:"被動察覺 11",skills:"欺瞞 +4、說服 +4、宗教 +2",saves:"",resist:"",languages:"任一種"},traits:[{name:"黑暗虔誠",desc:"對魅惑狀態的豁免具優勢。"}],actions:[{name:"多重攻擊",desc:"以匕首攻擊兩次。"},{name:"匕首",desc:"+4 命中，1d4+2 穿刺傷害。"}],spellcasting:{on:true,ability:"wis",dc:"11",atk:"+3",level:"4",rows:[{label:"戲法",spells:"光明、神聖灼燒、奧幻術"},{label:"1環（4個）",spells:"号令、造成傷口、信念護盾"},{label:"2環（3個）",spells:"定身術、靈體武器（以官方5E法術表為準）"}]}},
+ {name:"德魯伊",role:"德魯伊",stats:{cr:"2",size:"中型",ac:"11",hp:"27 (5d8+5)",speed:"30 ft",str:10,dex:12,con:13,int:12,wis:15,cha:11,senses:"被動察覺 14",skills:"醫藥 +4、自然 +4、察覺 +4",saves:"",resist:"",languages:"德魯伊語、任一種"},traits:[],actions:[{name:"木杖",desc:"+2 命中（吹將蔚時 +4），1d6（雙手 1d8）鈍擊傷害。"}],spellcasting:{on:true,ability:"wis",dc:"12",atk:"+4",level:"4",rows:[{label:"戲法",spells:"德魯伊術、生火、吹將蔚"},{label:"1環（4個）",spells:"纏繛、長步術、與動物交談、雷鳴術"},{label:"2環（3個）",spells:"動物信使、樹皮術（以官方5E法術表為準）"}]}},
+ {name:"牧師",role:"牧師/神職",stats:{cr:"2",size:"中型",ac:"13",hp:"27 (5d8+5)",speed:"25 ft",str:10,dex:10,con:12,int:13,wis:16,cha:13,senses:"被動察覺 13",skills:"醫藥 +7、說服 +3、宗教 +4",saves:"",resist:"",languages:"任兩種"},traits:[{name:"神聖顯耀",desc:"可消耗一個法術位使下一次命中額外造成輛聲/光耀傷害。"}],actions:[{name:"钉锤",desc:"+2 命中，1d6 鈍擊傷害。"}],spellcasting:{on:true,ability:"wis",dc:"13",atk:"+5",level:"5",rows:[{label:"戲法",spells:"光明、神聖灼燒、奧幻術"},{label:"1環（4個）",spells:"治療傷口、引導光矢、廟所"},{label:"2環（3個）",spells:"次級恢復術、靈體武器"},{label:"3環（2個）",spells:"驅魔術、守護靈體（以官方5E法術表為準）"}]}},
+ {name:"法師",role:"法師/法術師",stats:{cr:"6",size:"中型",ac:"12",hp:"40 (9d8)",speed:"30 ft",str:9,dex:14,con:11,int:17,wis:12,cha:11,senses:"被動察覺 11",skills:"奧秘 +6、歷史 +6",saves:"智力 +6、感知 +4",resist:"",languages:"任四種"},traits:[],actions:[{name:"匕首",desc:"+5 命中，1d4+2 穿刺傷害。"}],spellcasting:{on:true,ability:"int",dc:"14",atk:"+6",level:"9",rows:[{label:"戲法",spells:"火焊術、光明、法師之手、幻技"},{label:"1環（4個）",spells:"偵測魔法、法師護甲、魔法飛彈、護盾術"},{label:"2環（3個）",spells:"蜛霧步、暗示術"},{label:"3環（3個）",spells:"反魔法、火球術、飛行術"},{label:"4環（3個）",spells:"高階隱形、冰暴術"},{label:"5環（1個）",spells:"寒冰錐（以官方5E巫師法術表為準）"}]}},
+ {name:"大法師",role:"大法師/高階法術師",stats:{cr:"12",size:"中型",ac:"12",hp:"99 (18d8+18)",speed:"30 ft",str:10,dex:14,con:12,int:20,wis:15,cha:16,senses:"被動察覺 12",skills:"奧秘 +13、歷史 +13",saves:"智力 +9、感知 +6",resist:"石膚術：非魔法物理傷害（施放中）",languages:"任六種"},traits:[{name:"魔法抵抗",desc:"對魔法與魔法效果的豁免具優勢。"}],actions:[{name:"匕首",desc:"+6 命中，1d4+2 穿刺傷害。"}],spellcasting:{on:true,ability:"int",dc:"17",atk:"+9",level:"18",rows:[{label:"戲法",spells:"火焊術、光明、法師之手、幻技、電擊術"},{label:"1環（4個）",spells:"偵測魔法、鑑定術、法師護甲、魔法飛彈"},{label:"2環（3個）",spells:"偵測心智、鏡像術、蜛霧步"},{label:"3環（3個）",spells:"反魔法、飛行術、閃電束"},{label:"4-9環",spells:"逐放術、火焰盾、石膚術、寒冰錐、力場之牆、偵審、無敋防護罩、傳送術、心靈封鎖、時間預止（以官方5E巫師法術表為準）"}]}}
+];
 const uid = () => "e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 createApp({
@@ -881,6 +914,15 @@ createApp({
       Object.assign(e.item, JSON.parse(JSON.stringify(t.item||{})));
       entries.push(e); activeCat.value=t.cat; sel.value=e; srdPanelOpen.value=false;
     }
+    function srdAddNpc(n){
+      const e = reactive({ id:uid(), cat:"npc", worldId:activeWorld.value, name:n.name, subtype:(n.stats.cr?("CR "+n.stats.cr+"/SRD"):"SRD"), desc:n.desc||"", links:[], hasCombat:true });
+      ensureStats(e); Object.assign(e.stats, n.stats);
+      e.traits = JSON.parse(JSON.stringify(n.traits||[]));
+      e.actions = JSON.parse(JSON.stringify(n.actions||[]));
+      if(n.spellcasting) e.spellcasting = JSON.parse(JSON.stringify(n.spellcasting));
+      ensureFields(e); e.fields.race="人類"; e.fields.role=n.role||""; e.fields.attitude="中立";
+      entries.push(e); activeCat.value="npc"; sel.value=e; srdPanelOpen.value=false;
+    }
 
     // persist migration result immediately (watchers only fire on later changes)
     try{
@@ -911,7 +953,7 @@ createApp({
       encAddLine, encRemoveLine, encInc, encTotals, encThresholds, encDifficulty,
       encSaved, newEncounter, saveEncounter, loadEncounter, removeEncounter,
       shopPanelOpen, poolRarityFilter, rolledItem, shopItems, poolItems, rollReward, rarityLabel,
-      srdPanelOpen, srdMonsters: SRD_MONSTERS, srdItems: SRD_ITEMS, srdAddMonster, srdAddItem };
+      srdPanelOpen, srdMonsters: SRD_MONSTERS, srdItems: SRD_ITEMS, srdNpcs: SRD_NPCS, srdAddMonster, srdAddItem, srdAddNpc };
   }
 }).mount("#app");
 </script>
