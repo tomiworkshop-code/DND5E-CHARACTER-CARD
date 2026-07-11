@@ -100,6 +100,9 @@
       <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="shopPanelOpen=!shopPanelOpen">
         <svg class="ic"><use href="#w-treasure"></use></svg><span class="hidden sm:inline">商店</span>
       </button>
+      <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="treePanelOpen=!treePanelOpen">
+        <svg class="ic"><use href="#w-loc"></use></svg><span class="hidden sm:inline">世界樹</span>
+      </button>
       <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="srdPanelOpen=!srdPanelOpen">
         <svg class="ic"><use href="#w-book"></use></svg><span class="hidden sm:inline">SRD</span>
       </button>
@@ -130,6 +133,18 @@
   </div>
 
   <!-- encounter builder panel -->
+  <div v-if="treePanelOpen" class="card p-3 mb-3">
+    <div class="text-sm font-bold flex items-center gap-2 mb-2" style="color:var(--gold-deep)">
+      <svg class="ic"><use href="#w-loc"></use></svg>世界樹（地區 ⊃ 城鎮 ⊃ 地點 ⊃ NPC）
+    </div>
+    <div v-if="treeFlat.length===0" class="text-[11px]" style="color:var(--ink-soft)">還沒有地點/城鎮/NPC，先新增並在編輯器設定「所屬上層」來組成樹狀結構～</div>
+    <div v-for="row in treeFlat" :key="row.e.id" class="flex items-center gap-1 py-1" :style="{ paddingLeft:(row.depth*1.25)+'rem', borderBottom:'1px dashed var(--line)' }">
+      <span v-if="row.hasChildren" class="cursor-pointer text-xs select-none" style="width:1rem;text-align:center" @click="treeToggle(row.e.id)">{{ treeCollapsed[row.e.id] ? '▸' : '▾' }}</span>
+      <span v-else style="width:1rem"></span>
+      <svg class="ic" style="color:var(--gold-deep)"><use :href="'#'+iconOf(row.e.cat)"></use></svg>
+      <span class="text-sm cursor-pointer flex-1 truncate" @click="treeSelect(row.e)">{{ row.e.name || '（未命名）' }}<span class="text-[11px]" style="color:var(--ink-soft)"> · {{ catName(row.e.cat) }}</span></span>
+    </div>
+  </div>
   <div v-if="encPanelOpen" class="card p-3 mb-3">
     <div class="flex items-center justify-between mb-2">
       <div class="text-sm font-bold flex items-center gap-1" style="color:var(--gold-deep)">
@@ -337,6 +352,17 @@
           <label class="text-xs col-span-2 sm:col-span-1">類型 / 標籤
             <input v-model="sel.subtype" class="mt-1 px-2 py-1.5 text-sm" placeholder="例：港口城鎮 / 商會會長">
           </label>
+        </div>
+
+        <!-- containment parent (地區⊃城鎮⊃地點⊃NPC) -->
+        <div v-if="['location','town','npc'].includes(sel.cat)" class="mt-2">
+          <label class="text-xs block">所屬上層（父層）
+            <select v-model="sel.parentId" class="mt-1 px-2 py-1.5 text-sm">
+              <option value="">（頂層 · 無）</option>
+              <option v-for="p in eligibleParents(sel)" :key="p.id" :value="p.id">{{ catName(p.cat) }}：{{ p.name||'（未命名）' }}</option>
+            </select>
+          </label>
+          <div v-if="childrenOf(sel.id).length" class="text-[11px] mt-1" style="color:var(--ink-soft)">下層（{{ childrenOf(sel.id).length }}）：{{ childrenOf(sel.id).map(c=>c.name||'（未命名）').join('、') }}</div>
         </div>
 
         <!-- category-specific fields -->
@@ -732,7 +758,7 @@ createApp({
     // normalize world-layer fields for older saves
     savedWorlds.forEach(w=>{ if(w.levelCap==null) w.levelCap = 20; if(!w.rarityBase) w.rarityBase = "Rare"; });
     // ensure every entry belongs to a world (adopts legacy flat entries)
-    savedEntries.forEach(e=>{ if(!e.worldId) e.worldId = savedWorlds[0].id; });
+    savedEntries.forEach(e=>{ if(!e.worldId) e.worldId = savedWorlds[0].id; if(e.parentId===undefined) e.parentId = ""; });
     const entries = reactive(savedEntries);
     const worlds = reactive(savedWorlds);
     let aw = localStorage.getItem(LS_ACTIVE) || savedWorlds[0].id;
@@ -757,6 +783,9 @@ createApp({
     const poolRarityFilter = ref("");
     const rolledItem = ref(null);
     const srdPanelOpen = ref(false);
+    // ---- containment tree state ----
+    const treePanelOpen = ref(false);
+    const treeCollapsed = ref({});
     const theme = ref(localStorage.getItem("dm_theme") || "light");
     document.documentElement.setAttribute("data-theme", theme.value);
 
@@ -766,6 +795,18 @@ createApp({
     const countOf = id => entries.filter(e=>e.cat===id && inWorld(e)).length;
     const entriesOf = id => entries.filter(e=>e.cat===id && inWorld(e));
     const entryById = id => entries.find(e=>e.id===id) || {name:"（已刪除）",cat:"location"};
+    // ---- containment tree helpers (地區⊃城鎮⊃地點⊃NPC) ----
+    const TREE_CATS = ["location","town","npc"];
+    const PARENT_ALLOW = { town:["location"], location:["town","location"], npc:["location","town"] };
+    const rankOf = { town:0, location:1, npc:2 };
+    function childrenOf(id){ return entries.filter(x=> x.worldId===activeWorld.value && x.parentId===id); }
+    function descendantSet(id){ const set=new Set(); const stack=[id]; while(stack.length){ const cur=stack.pop(); childrenOf(cur).forEach(c=>{ if(!set.has(c.id)){ set.add(c.id); stack.push(c.id); } }); } return set; }
+    function eligibleParents(e){ if(!e||!PARENT_ALLOW[e.cat]) return []; const allow=PARENT_ALLOW[e.cat]; const desc=descendantSet(e.id); return entries.filter(x=> x.worldId===activeWorld.value && x.id!==e.id && allow.includes(x.cat) && !desc.has(x.id)); }
+    function isTreeRoot(e){ if(!TREE_CATS.includes(e.cat)) return false; if(!e.parentId) return true; const p=entries.find(x=>x.id===e.parentId); return !(p && p.worldId===activeWorld.value && TREE_CATS.includes(p.cat)); }
+    function sortNodes(a,b){ const ra=(rankOf[a.cat]!=null?rankOf[a.cat]:9), rb=(rankOf[b.cat]!=null?rankOf[b.cat]:9); if(ra!==rb) return ra-rb; return (a.name||"").localeCompare(b.name||""); }
+    const treeFlat = computed(()=>{ const out=[]; const roots = entries.filter(e=> e.worldId===activeWorld.value && isTreeRoot(e)).slice().sort(sortNodes); const walk=(node,depth)=>{ const kids=childrenOf(node.id).slice().sort(sortNodes); out.push({e:node,depth,hasChildren:kids.length>0}); if(!treeCollapsed.value[node.id]) kids.forEach(k=>walk(k,depth+1)); }; roots.forEach(r=>walk(r,0)); return out; });
+    function treeToggle(id){ treeCollapsed.value = Object.assign({}, treeCollapsed.value, { [id]: !treeCollapsed.value[id] }); }
+    function treeSelect(e){ activeCat.value=e.cat; sel.value=e; treePanelOpen.value=false; }
 
     const filtered = computed(()=>{
       const s = q.value.trim().toLowerCase();
@@ -775,7 +816,7 @@ createApp({
 
     function selectCat(id){ activeCat.value=id; sel.value=null; q.value=""; }
     function addEntry(){
-      const e = reactive({ id:uid(), cat:activeCat.value, worldId:activeWorld.value, name:"", subtype:"", desc:"", links:[], hasCombat:false });
+      const e = reactive({ id:uid(), cat:activeCat.value, worldId:activeWorld.value, name:"", subtype:"", desc:"", links:[], parentId:"", hasCombat:false });
       if(e.cat==="monster") ensureStats(e);
       if(e.cat==="weapon" || e.cat==="treasure") ensureItem(e);
       if(CAT_FIELDS[e.cat]) ensureFields(e);
@@ -783,7 +824,7 @@ createApp({
     }
     function removeEntry(e){
       const i = entries.indexOf(e); if(i>=0) entries.splice(i,1);
-      entries.forEach(x=>{ const j=x.links.indexOf(e.id); if(j>=0) x.links.splice(j,1); });
+      entries.forEach(x=>{ const j=x.links.indexOf(e.id); if(j>=0) x.links.splice(j,1); if(x.parentId===e.id) x.parentId=""; });
       if(sel.value===e) sel.value=null;
     }
     function linkTo(id){ if(id && sel.value && !sel.value.links.includes(id)){
@@ -931,7 +972,7 @@ createApp({
       entries.push(e); activeCat.value=t.cat; sel.value=e; srdPanelOpen.value=false;
     }
     function srdAddNpc(n){
-      const e = reactive({ id:uid(), cat:"npc", worldId:activeWorld.value, name:n.name, subtype:(n.stats.cr?("CR "+n.stats.cr+"/SRD"):"SRD"), desc:n.desc||"", links:[], hasCombat:true });
+      const e = reactive({ id:uid(), cat:"npc", worldId:activeWorld.value, name:n.name, subtype:(n.stats.cr?("CR "+n.stats.cr+"/SRD"):"SRD"), desc:n.desc||"", links:[], parentId:"", hasCombat:true });
       ensureStats(e); Object.assign(e.stats, n.stats);
       e.traits = JSON.parse(JSON.stringify(n.traits||[]));
       e.actions = JSON.parse(JSON.stringify(n.actions||[]));
@@ -965,6 +1006,7 @@ createApp({
       dmgTypes: DMG_TYPES, itemTypes: ITEM_TYPES,
       autoSpellStats, addSpellRow, removeSpellRow,
       showFields, catFields: CAT_FIELDS,
+      treePanelOpen, treeCollapsed, treeFlat, treeToggle, treeSelect, eligibleParents, childrenOf,
       encPanelOpen, encPick, encSrdPick, encAddSrd, enc, encWorldMonsters, encName, encCR,
       encAddLine, encRemoveLine, encInc, encTotals, encThresholds, encDifficulty,
       encSaved, newEncounter, saveEncounter, loadEncounter, removeEncounter,
