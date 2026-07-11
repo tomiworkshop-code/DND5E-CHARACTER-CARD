@@ -54,6 +54,12 @@
   .chip{ display:inline-flex; align-items:center; gap:.25rem; padding:.15rem .5rem; border-radius:999px; border:1px solid var(--line); background:rgba(202,169,111,.16); font-size:12px; }
   .chip svg{ width:13px; height:13px; }
   .ic{ width:16px; height:16px; }
+  .layout{ display:grid; gap:.75rem; grid-template-columns:170px 1fr; align-items:start; }
+  @media (max-width:640px){
+    .layout{ grid-template-columns:1fr; }
+    .catrail{ display:flex; flex-wrap:wrap; }
+    .catrail .catbtn{ width:auto; }
+  }
 </style>
 </head>
 <body>
@@ -74,9 +80,49 @@
     </button>
   </div>
 
-  <div class="grid gap-3" style="grid-template-columns: 170px 1fr;">
+  <!-- world bar (world container layer) -->
+  <div class="card p-2 mb-3">
+    <div class="flex items-center gap-2 flex-wrap">
+      <svg class="ic" style="color:var(--gold-deep)"><use href="#w-globe"></use></svg>
+      <span class="text-sm font-bold" style="color:var(--ink-soft)">世界</span>
+      <select v-model="activeWorld" class="px-2 py-1.5 text-sm" style="flex:1;min-width:140px">
+        <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.name || '（未命名世界）' }}</option>
+      </select>
+      <button class="btn px-2 py-1.5 text-sm flex items-center gap-1" @click="addWorld">
+        <svg class="ic"><use href="#w-plus"></use></svg><span class="hidden sm:inline">新世界</span>
+      </button>
+      <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="manageOpen=!manageOpen">
+        <svg class="ic"><use href="#w-edit"></use></svg><span class="hidden sm:inline">管理</span>
+      </button>
+    </div>
+    <div v-if="manageOpen && currentWorld" class="mt-2 pt-2" style="border-top:1px solid var(--line)">
+      <label class="text-xs block">世界名稱
+        <input v-model="currentWorld.name" class="mt-1 px-2 py-1.5 text-sm" placeholder="例：費倫大陸 / 破碎群島">
+      </label>
+      <label class="text-xs block mt-2">世界設定簡介
+        <textarea v-model="currentWorld.desc" rows="3" class="mt-1 px-2 py-2 text-sm" placeholder="這個世界的基調、規則、風格…（給 DM 的備註）"></textarea>
+      </label>
+      <div class="grid gap-2 mt-2" style="grid-template-columns:1fr 1fr">
+        <label class="text-xs">等級上限 (5E 預設 20)
+          <input type="number" min="1" max="20" v-model.number="currentWorld.levelCap" class="mt-1 px-2 py-1.5 text-sm" placeholder="20">
+        </label>
+        <label class="text-xs">最高稀有度基準
+          <select v-model="currentWorld.rarityBase" class="mt-1 px-2 py-1.5 text-sm">
+            <option v-for="r in rarityOpts" :key="r.v" :value="r.v">{{ r.t }}（{{ r.v }}）</option>
+          </select>
+        </label>
+      </div>
+      <div class="flex justify-end mt-2">
+        <button class="btn-danger btn px-2 py-1 text-xs flex items-center gap-1" @click="removeWorld(currentWorld)" :disabled="worlds.length<=1">
+          <svg class="ic"><use href="#w-trash"></use></svg>刪除此世界
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
     <!-- category rail -->
-    <aside class="card p-2 self-start">
+    <aside class="card p-2 self-start catrail">
       <div class="text-[11px] font-bold mb-1 px-1" style="color:var(--ink-soft)">分類</div>
       <button v-for="cat in cats" :key="cat.id" class="catbtn" :class="{active: activeCat===cat.id}" @click="selectCat(cat.id)">
         <svg><use :href="'#'+cat.icon"></use></svg>
@@ -89,6 +135,10 @@
     <main class="min-w-0">
       <!-- list panel -->
       <div class="card p-3 mb-3">
+        <div class="text-[11px] mb-2" style="color:var(--ink-soft)">
+          <span class="font-bold" style="color:var(--gold-deep)">{{ (currentWorld && currentWorld.name) || '（未命名世界）' }}</span>
+          <span> · {{ catName(activeCat) }}</span>
+        </div>
         <div class="flex items-center gap-2 mb-2">
           <div class="flex items-center gap-1 flex-1 px-2 rounded-[10px]" style="border:1px solid var(--line);background:rgba(255,253,247,.6)">
             <svg class="ic" style="opacity:.6"><use href="#w-search"></use></svg>
@@ -187,11 +237,22 @@
   <symbol id="w-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></symbol>
   <symbol id="w-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
   <symbol id="w-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></symbol>
+  <symbol id="w-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></symbol>
 </svg>
 
 <script>
 const { createApp, ref, reactive, computed, watch } = Vue;
 const LS = "dm_worldbuilder_v1";
+const LS_WORLDS = "dm_worldbuilder_worlds_v1";
+const LS_ACTIVE = "dm_worldbuilder_active_v1";
+// 5E 官方稀有度分級（最高原則：一切以 5E 為基底）
+const RARITY = [
+  {v:"Common",    t:"普通"},
+  {v:"Uncommon",  t:"罕見"},
+  {v:"Rare",      t:"稀有"},
+  {v:"Very Rare", t:"非常稀有"},
+  {v:"Legendary", t:"傳說"}
+];
 const uid = () => "e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 createApp({
@@ -208,9 +269,27 @@ createApp({
     ];
     const catMap = Object.fromEntries(cats.map(c=>[c.id,c]));
 
-    let saved = [];
-    try{ saved = JSON.parse(localStorage.getItem(LS)) || []; }catch(e){}
-    const entries = reactive(saved);
+    // ---- entries ----
+    let savedEntries = [];
+    try{ savedEntries = JSON.parse(localStorage.getItem(LS)) || []; }catch(e){}
+    // ---- worlds (world container layer) ----
+    let savedWorlds = [];
+    try{ savedWorlds = JSON.parse(localStorage.getItem(LS_WORLDS)) || []; }catch(e){}
+    if(savedWorlds.length === 0){
+      // migration: create a default world; pre-existing flat entries get adopted below
+      savedWorlds = [{ id: uid(), name: "預設世界", desc: "", levelCap: 20, rarityBase: "Rare" }];
+    }
+    // normalize world-layer fields for older saves
+    savedWorlds.forEach(w=>{ if(w.levelCap==null) w.levelCap = 20; if(!w.rarityBase) w.rarityBase = "Rare"; });
+    // ensure every entry belongs to a world (adopts legacy flat entries)
+    savedEntries.forEach(e=>{ if(!e.worldId) e.worldId = savedWorlds[0].id; });
+    const entries = reactive(savedEntries);
+    const worlds = reactive(savedWorlds);
+    let aw = localStorage.getItem(LS_ACTIVE) || savedWorlds[0].id;
+    if(!savedWorlds.find(w=>w.id===aw)) aw = savedWorlds[0].id;
+    const activeWorld = ref(aw);
+    const manageOpen = ref(false);
+    const currentWorld = computed(()=> worlds.find(w=>w.id===activeWorld.value) || worlds[0]);
     const activeCat = ref("location");
     const sel = ref(null);
     const q = ref("");
@@ -219,19 +298,20 @@ createApp({
 
     const iconOf = id => (catMap[id]||{}).icon || "w-book";
     const catName = id => (catMap[id]||{}).name || id;
-    const countOf = id => entries.filter(e=>e.cat===id).length;
-    const entriesOf = id => entries.filter(e=>e.cat===id);
+    const inWorld = e => e.worldId === activeWorld.value;
+    const countOf = id => entries.filter(e=>e.cat===id && inWorld(e)).length;
+    const entriesOf = id => entries.filter(e=>e.cat===id && inWorld(e));
     const entryById = id => entries.find(e=>e.id===id) || {name:"（已刪除）",cat:"location"};
 
     const filtered = computed(()=>{
       const s = q.value.trim().toLowerCase();
-      return entries.filter(e=> e.cat===activeCat.value &&
+      return entries.filter(e=> e.cat===activeCat.value && inWorld(e) &&
         (!s || (e.name||"").toLowerCase().includes(s) || (e.subtype||"").toLowerCase().includes(s)));
     });
 
     function selectCat(id){ activeCat.value=id; }
     function addEntry(){
-      const e = reactive({ id:uid(), cat:activeCat.value, name:"", subtype:"", desc:"", links:[] });
+      const e = reactive({ id:uid(), cat:activeCat.value, worldId:activeWorld.value, name:"", subtype:"", desc:"", links:[] });
       entries.push(e); sel.value = e;
     }
     function removeEntry(e){
@@ -253,11 +333,37 @@ createApp({
       localStorage.setItem("dm_theme", theme.value);
     }
 
-    watch(entries, ()=>{ try{ localStorage.setItem(LS, JSON.stringify(entries)); }catch(e){} }, {deep:true});
+    function addWorld(){
+      const w = reactive({ id:uid(), name:"新世界", desc:"", levelCap:20, rarityBase:"Rare" });
+      worlds.push(w); activeWorld.value = w.id; sel.value = null; manageOpen.value = true;
+    }
+    function removeWorld(w){
+      if(worlds.length <= 1) return; // always keep at least one world
+      let ok = true;
+      try{ ok = window.confirm(`刪除世界「${w.name||'未命名'}」及其所有條目？此動作無法復原。`); }catch(e){ ok = true; }
+      if(!ok) return;
+      for(let i=entries.length-1;i>=0;i--){ if(entries[i].worldId===w.id) entries.splice(i,1); }
+      const idx = worlds.indexOf(w); if(idx>=0) worlds.splice(idx,1);
+      if(activeWorld.value===w.id) activeWorld.value = worlds[0].id;
+      sel.value = null;
+    }
 
-    return { cats, activeCat, sel, q, theme, filtered,
+    // persist migration result immediately (watchers only fire on later changes)
+    try{
+      localStorage.setItem(LS, JSON.stringify(entries));
+      localStorage.setItem(LS_WORLDS, JSON.stringify(worlds));
+      localStorage.setItem(LS_ACTIVE, activeWorld.value);
+    }catch(e){}
+
+    watch(entries, ()=>{ try{ localStorage.setItem(LS, JSON.stringify(entries)); }catch(e){} }, {deep:true});
+    watch(worlds, ()=>{ try{ localStorage.setItem(LS_WORLDS, JSON.stringify(worlds)); }catch(e){} }, {deep:true});
+    watch(activeWorld, ()=>{ try{ localStorage.setItem(LS_ACTIVE, activeWorld.value); }catch(e){} sel.value=null; });
+
+    return { cats, activeCat, sel, q, theme, filtered, rarityOpts: RARITY,
+      worlds, activeWorld, currentWorld, manageOpen,
       iconOf, catName, countOf, entriesOf, entryById,
-      selectCat, addEntry, removeEntry, linkTo, unlink, toggleTheme };
+      selectCat, addEntry, removeEntry, linkTo, unlink, toggleTheme,
+      addWorld, removeWorld };
   }
 }).mount("#app");
 </script>
