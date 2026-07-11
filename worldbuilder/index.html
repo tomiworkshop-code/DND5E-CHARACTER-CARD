@@ -241,6 +241,64 @@
           </div>
         </div>
 
+        <!-- item fields (weapon / treasure, 5E) -->
+        <div v-if="showItem(sel) && sel.item" class="mt-3 pt-3" style="border-top:1px solid var(--line)">
+          <div class="text-xs font-bold flex items-center gap-1 mb-2" style="color:var(--gold-deep)">
+            <svg class="ic"><use :href="'#'+iconOf(sel.cat)"></use></svg>{{ isWeapon(sel) ? '武器數值' : '物品資料' }}（5E）
+          </div>
+          <template v-if="isWeapon(sel)">
+            <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(104px,1fr))">
+              <label class="text-[11px]">類別
+                <select v-model="sel.item.weaponCat" class="mt-0.5 px-2 py-1 text-sm">
+                  <option value="">—</option>
+                  <option v-for="c in weaponCats" :key="c" :value="c">{{ c }}</option>
+                </select>
+              </label>
+              <label class="text-[11px]">傷害骰<input v-model="sel.item.damage" class="mt-0.5 px-2 py-1 text-sm" placeholder="1d8"></label>
+              <label class="text-[11px]">傷害類型
+                <select v-model="sel.item.damageType" class="mt-0.5 px-2 py-1 text-sm">
+                  <option value="">—</option>
+                  <option v-for="d in dmgTypes" :key="d" :value="d">{{ d }}</option>
+                </select>
+              </label>
+              <label class="text-[11px]">多用傷害<input v-model="sel.item.versatile" class="mt-0.5 px-2 py-1 text-sm" placeholder="1d10"></label>
+              <label class="text-[11px]">射程<input v-model="sel.item.range" class="mt-0.5 px-2 py-1 text-sm" placeholder="80/320"></label>
+            </div>
+            <div class="mt-2">
+              <div class="text-[11px] font-bold mb-1" style="color:var(--ink-soft)">武器屬性</div>
+              <div class="flex flex-wrap gap-x-3 gap-y-1">
+                <label v-for="p in weaponProps" :key="p" class="text-[11px] flex items-center gap-1">
+                  <input type="checkbox" v-model="sel.item.props" :value="p" style="width:auto">{{ p }}
+                </label>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <div class="grid gap-2" style="grid-template-columns:1fr 1fr">
+              <label class="text-[11px]">物品類型
+                <select v-model="sel.item.itemType" class="mt-0.5 px-2 py-1 text-sm">
+                  <option value="">—</option>
+                  <option v-for="t in itemTypes" :key="t" :value="t">{{ t }}</option>
+                </select>
+              </label>
+              <label class="text-[11px]">充能 (Charges)<input v-model="sel.item.charges" class="mt-0.5 px-2 py-1 text-sm" placeholder="7 (每日 1d6+1)"></label>
+            </div>
+          </template>
+          <div class="grid gap-2 mt-2" style="grid-template-columns:repeat(auto-fill,minmax(104px,1fr))">
+            <label class="text-[11px]">稀有度
+              <select v-model="sel.item.rarity" class="mt-0.5 px-2 py-1 text-sm">
+                <option value="">— 一般 (Mundane)</option>
+                <option v-for="r in rarityOpts" :key="r.v" :value="r.v">{{ r.t }}</option>
+              </select>
+            </label>
+            <label class="text-[11px]">價格 (GP)<input v-model="sel.item.valueGp" class="mt-0.5 px-2 py-1 text-sm" placeholder="50"></label>
+            <label class="text-[11px]">重量<input v-model="sel.item.weight" class="mt-0.5 px-2 py-1 text-sm" placeholder="3 磅"></label>
+            <label class="text-[11px] flex items-center gap-1 self-end pb-1">
+              <input type="checkbox" v-model="sel.item.attunement" style="width:auto">需調諧
+            </label>
+          </div>
+        </div>
+
         <!-- relations -->
         <div class="mt-3">
           <div class="text-xs font-bold flex items-center gap-1 mb-1" style="color:var(--gold-deep)">
@@ -314,6 +372,11 @@ const ABILITIES = [
   {k:"str",t:"力量"},{k:"dex",t:"敏捷"},{k:"con",t:"體質"},
   {k:"int",t:"智力"},{k:"wis",t:"感知"},{k:"cha",t:"魅力"}
 ];
+// 5E 物品相關選單
+const WEAPON_CATS = ["簡易近戰","簡易遠程","軍用近戰","軍用遠程"];
+const WEAPON_PROPS = ["靈巧","輕型","重型","雙手","延伸","投擲","彈藥","裝填","多用","特殊"];
+const DMG_TYPES = ["揮砍","穿刺","鈍擊","火焰","寒冷","閃電","雷鳴","酸蝕","毒素","黟蝕","光耀","力場","心靈"];
+const ITEM_TYPES = ["奇物 (Wondrous)","藥水 (Potion)","卷軸 (Scroll)","魔杖 (Wand)","法杖 (Staff)","權杖 (Rod)","戒指 (Ring)","護甲 (Armor)","盾牌 (Shield)","武器 (Weapon)","珍實/藝品 (Gem/Art)","其他"];
 const uid = () => "e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 createApp({
@@ -374,6 +437,7 @@ createApp({
     function addEntry(){
       const e = reactive({ id:uid(), cat:activeCat.value, worldId:activeWorld.value, name:"", subtype:"", desc:"", links:[], hasCombat:false });
       if(e.cat==="monster") ensureStats(e);
+      if(e.cat==="weapon" || e.cat==="treasure") ensureItem(e);
       entries.push(e); sel.value = e;
     }
     function removeEntry(e){
@@ -424,6 +488,14 @@ createApp({
     function removeTrait(e,i){ if(e.traits) e.traits.splice(i,1); }
     function addAction(e){ ensureStats(e); e.actions.push({name:"", desc:""}); }
     function removeAction(e,i){ if(e.actions) e.actions.splice(i,1); }
+    // ---- 5E item helpers (weapons / treasures) ----
+    function ensureItem(e){
+      if(!e.item) e.item = { rarity:"", valueGp:"", weight:"", attunement:false, damage:"", damageType:"", versatile:"", range:"", weaponCat:"", props:[], itemType:"", charges:"" };
+      if(!Array.isArray(e.item.props)) e.item.props = [];
+      return e.item;
+    }
+    function showItem(e){ return !!(e && (e.cat==="weapon" || e.cat==="treasure")); }
+    function isWeapon(e){ return !!(e && e.cat==="weapon"); }
 
     // persist migration result immediately (watchers only fire on later changes)
     try{
@@ -435,7 +507,7 @@ createApp({
     watch(entries, ()=>{ try{ localStorage.setItem(LS, JSON.stringify(entries)); }catch(e){} }, {deep:true});
     watch(worlds, ()=>{ try{ localStorage.setItem(LS_WORLDS, JSON.stringify(worlds)); }catch(e){} }, {deep:true});
     watch(activeWorld, ()=>{ try{ localStorage.setItem(LS_ACTIVE, activeWorld.value); }catch(e){} sel.value=null; });
-    watch(sel, ()=>{ if(sel.value && showStatBlock(sel.value)) ensureStats(sel.value); });
+    watch(sel, ()=>{ if(!sel.value) return; if(showStatBlock(sel.value)) ensureStats(sel.value); if(showItem(sel.value)) ensureItem(sel.value); });
 
     return { cats, activeCat, sel, q, theme, filtered, rarityOpts: RARITY,
       worlds, activeWorld, currentWorld, manageOpen,
@@ -443,7 +515,9 @@ createApp({
       selectCat, addEntry, removeEntry, linkTo, unlink, toggleTheme,
       addWorld, removeWorld,
       abilities: ABILITIES, abilMod, showStatBlock, onToggleCombat,
-      addTrait, removeTrait, addAction, removeAction };
+      addTrait, removeTrait, addAction, removeAction,
+      showItem, isWeapon, weaponCats: WEAPON_CATS, weaponProps: WEAPON_PROPS,
+      dmgTypes: DMG_TYPES, itemTypes: ITEM_TYPES };
   }
 }).mount("#app");
 </script>
