@@ -370,7 +370,7 @@ createApp({
         (!s || (e.name||"").toLowerCase().includes(s) || (e.subtype||"").toLowerCase().includes(s)));
     });
 
-    function selectCat(id){ activeCat.value=id; }
+    function selectCat(id){ activeCat.value=id; sel.value=null; q.value=""; }
     function addEntry(){
       const e = reactive({ id:uid(), cat:activeCat.value, worldId:activeWorld.value, name:"", subtype:"", desc:"", links:[], hasCombat:false });
       if(e.cat==="monster") ensureStats(e);
