@@ -555,11 +555,116 @@
     </main>
   </div>
 
-  <!-- 📜 任務 tab (Phase 2, coming soon) -->
-  <div v-show="tab==='quest'" class="card p-6 text-center" style="color:var(--ink-soft)">
-    <div class="text-3xl mb-2">📜</div>
-    <div class="text-sm font-bold mb-1" style="color:var(--gold-deep)">任務編輯器</div>
-    <div class="text-xs">Phase 2 建置中～任務將隸屬於目前世界，分「普通任務／角色專屬任務」，可串接 NPC、地點與獎勵。</div>
+  <!-- 📜 任務 tab: Quest editor (Phase 2) -->
+  <div v-show="tab==='quest'">
+    <div class="card p-3 mb-3">
+      <div class="text-[11px] mb-2" style="color:var(--ink-soft)">
+        <span class="font-bold" style="color:var(--gold-deep)">{{ (currentWorld && currentWorld.name) || '（未命名世界）' }}</span>
+        <span> · 任務</span>
+      </div>
+      <div class="flex items-center gap-2 mb-2">
+        <div class="flex items-center gap-1 flex-1 px-2 rounded-[10px]" style="border:1px solid var(--line);background:rgba(255,253,247,.6)">
+          <svg class="ic" style="opacity:.6"><use href="#w-search"></use></svg>
+          <input v-model="questQ" placeholder="搜尋任務…" style="border:0;background:transparent;padding:.4rem 0">
+        </div>
+        <button class="btn px-3 py-2 text-sm flex items-center gap-1" @click="addQuest">
+          <svg class="ic"><use href="#w-plus"></use></svg>新任務
+        </button>
+      </div>
+      <div v-if="questsFiltered.length===0" class="text-center text-sm py-6" style="color:var(--ink-soft)">還沒有任務，點「新任務」開始編排冒險吧～</div>
+      <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
+        <div v-for="qq in questsFiltered" :key="qq.id" class="listitem" :class="{active: selQuest && selQuest.id===qq.id}" @click="selQuest=qq">
+          <div class="flex items-center gap-1.5">
+            <span>{{ qq.type==='character' ? '⭐' : '📜' }}</span>
+            <span class="font-bold text-sm truncate">{{ qq.name || '（未命名任務）' }}</span>
+          </div>
+          <div class="text-[11px] mt-0.5 truncate" style="color:var(--ink-soft)">{{ qq.type==='character' ? ('角色專屬'+(qq.charName?('·'+qq.charName):'')) : '普通任務' }} · 目標 {{ (qq.objectives||[]).length }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="selQuest" class="card p-3">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <span>{{ selQuest.type==='character' ? '⭐' : '📜' }}</span>
+          <span class="title-deco font-bold">編輯任務</span>
+        </div>
+        <button class="btn-danger btn px-2 py-1 text-xs flex items-center gap-1" @click="removeQuest(selQuest)">
+          <svg class="ic"><use href="#w-trash"></use></svg>刪除
+        </button>
+      </div>
+      <div class="grid gap-2" style="grid-template-columns:1fr 1fr">
+        <label class="text-xs col-span-2 sm:col-span-1">任務名稱
+          <input v-model="selQuest.name" class="mt-1 px-2 py-1.5 text-sm" placeholder="例：失蹤的商隊">
+        </label>
+        <label class="text-xs col-span-2 sm:col-span-1">任務類型
+          <select v-model="selQuest.type" class="mt-1 px-2 py-1.5 text-sm">
+            <option value="normal">普通任務</option>
+            <option value="character">角色專屬任務</option>
+          </select>
+        </label>
+      </div>
+      <label v-if="selQuest.type==='character'" class="text-xs block mt-2">專屬角色
+        <input v-model="selQuest.charName" class="mt-1 px-2 py-1.5 text-sm" placeholder="例：索林 / 玩家角色名">
+      </label>
+      <label class="text-xs block mt-2">任務簡介 / 背景
+        <textarea v-model="selQuest.desc" rows="3" class="mt-1 px-2 py-2 text-sm" placeholder="任務的緣由、背景、給 DM 的備註…"></textarea>
+      </label>
+
+      <div class="mt-3">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-bold" style="color:var(--gold-deep)">🎯 任務目標</span>
+          <button class="btn-ghost btn px-2 py-0.5 text-[11px]" @click="addObjective(selQuest)">＋新增</button>
+        </div>
+        <div v-if="!(selQuest.objectives && selQuest.objectives.length)" class="text-[11px]" style="color:var(--ink-soft)">尚無目標</div>
+        <div v-for="(o,i) in selQuest.objectives" :key="o.id" class="flex items-center gap-1 mb-1">
+          <input type="checkbox" v-model="o.done" style="width:auto">
+          <input v-model="o.text" class="px-2 py-1 text-sm" style="flex:1" :style="o.done?'text-decoration:line-through;opacity:.6':''" placeholder="例：找到失蹤的商隊">
+          <button class="btn-danger btn px-2 text-[11px]" @click="removeObjective(selQuest,i)">✕</button>
+        </div>
+      </div>
+
+      <div class="mt-3">
+        <div class="text-xs font-bold mb-1" style="color:var(--gold-deep)">⚔️ 關聯遭遇</div>
+        <div class="flex flex-wrap gap-1.5 mb-2">
+          <span v-for="eid in selQuest.encounters" :key="eid" class="chip">⚔️ {{ encTitle(eid) }}
+            <svg class="cursor-pointer" style="width:12px;height:12px" @click="unlinkEnc(eid)"><use href="#w-x"></use></svg>
+          </span>
+          <span v-if="!(selQuest.encounters && selQuest.encounters.length)" class="text-[11px]" style="color:var(--ink-soft)">尚無關聯遭遇（先到「遭遇」頁建立並儲存）</span>
+        </div>
+        <select @change="linkEnc($event.target.value); $event.target.value=''" class="px-2 py-1.5 text-sm">
+          <option value="">＋ 挂上一個遭遇…</option>
+          <option v-for="r in encSaved" :key="r.id" :value="r.id" :disabled="(selQuest.encounters||[]).includes(r.id)">{{ r.name }}（{{ r.numPCs }}人 Lv{{ r.level }}）</option>
+        </select>
+      </div>
+
+      <div class="mt-3">
+        <div class="text-xs font-bold flex items-center gap-1 mb-1" style="color:var(--gold-deep)">
+          <svg class="ic"><use href="#w-link"></use></svg>關聯條目（NPC／地點／獎勵物品…）
+        </div>
+        <div class="flex flex-wrap gap-1.5 mb-2">
+          <span v-for="rid in selQuest.links" :key="rid" class="chip">
+            <svg><use :href="'#'+iconOf(entryById(rid).cat)"></use></svg>
+            {{ entryById(rid).name || '（未命名）' }}
+            <svg class="cursor-pointer" style="width:12px;height:12px" @click="qUnlink(rid)"><use href="#w-x"></use></svg>
+          </span>
+          <span v-if="!(selQuest.links && selQuest.links.length)" class="text-[11px]" style="color:var(--ink-soft)">尚無關聯</span>
+        </div>
+        <select @change="qLinkTo($event.target.value); $event.target.value=''" class="px-2 py-1.5 text-sm">
+          <option value="">＋ 連結到世界條目…</option>
+          <optgroup v-for="cat in cats" :key="cat.id" :label="cat.name">
+            <option v-for="e in entriesOf(cat.id)" :key="e.id" :value="e.id" :disabled="(selQuest.links||[]).includes(e.id)">{{ e.name || '（未命名）' }}</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <label class="text-xs block mt-3">🎁 獎勵備註
+        <textarea v-model="selQuest.reward" rows="2" class="mt-1 px-2 py-2 text-sm" placeholder="經驗值、金錢、獎勵物品說明…（可搭配上方關聯寶物）"></textarea>
+      </label>
+    </div>
+    <div v-else class="card p-6 text-center text-sm" style="color:var(--ink-soft)">
+      從上方選一個任務編輯，或按「新任務」建立第一個 ✦
+    </div>
   </div>
 
   <!-- ⚙️ 設定 tab -->
@@ -638,6 +743,7 @@ const LS = "dm_worldbuilder_v1";
 const LS_WORLDS = "dm_worldbuilder_worlds_v1";
 const LS_ACTIVE = "dm_worldbuilder_active_v1";
 const LS_ENC = "dm_worldbuilder_encounters_v1";
+const LS_QUESTS = "dm_worldbuilder_quests_v1";
 // 5E 官方稀有度分級（最高原則：一切以 5E 為基底）
 const RARITY = [
   {v:"Common",    t:"普通"},
@@ -835,6 +941,14 @@ createApp({
     if(!Array.isArray(savedEnc)) savedEnc=[];
     const encounters = reactive(savedEnc);
     const enc = reactive({ name:"", numPCs:4, level:3, lines:[] });
+    // ---- quest state (Phase 2) ----
+    let savedQuests = [];
+    try{ savedQuests = JSON.parse(localStorage.getItem(LS_QUESTS)||"[]"); }catch(e){ savedQuests=[]; }
+    if(!Array.isArray(savedQuests)) savedQuests=[];
+    savedQuests.forEach(q=>{ if(!Array.isArray(q.objectives)) q.objectives=[]; if(!Array.isArray(q.links)) q.links=[]; if(!Array.isArray(q.encounters)) q.encounters=[]; if(q.type==null) q.type="normal"; });
+    const quests = reactive(savedQuests);
+    const selQuest = ref(null);
+    const questQ = ref("");
     // ---- shop / reward pool state ----
     const shopPanelOpen = ref(false);
     const poolRarityFilter = ref("");
@@ -1071,17 +1185,38 @@ createApp({
     }
 
     // persist migration result immediately (watchers only fire on later changes)
+    // ---- quest helpers (Phase 2) ----
+    const questsFiltered = computed(()=>{
+      const s = questQ.value.trim().toLowerCase();
+      return quests.filter(q=> q.worldId===activeWorld.value &&
+        (!s || (q.name||"").toLowerCase().includes(s) || (q.desc||"").toLowerCase().includes(s)));
+    });
+    function addQuest(){
+      const q = reactive({ id:uid(), worldId:activeWorld.value, name:"", type:"normal", charName:"", desc:"", objectives:[], links:[], encounters:[], reward:"" });
+      quests.push(q); selQuest.value = q;
+    }
+    function removeQuest(q){ const i=quests.indexOf(q); if(i>=0) quests.splice(i,1); if(selQuest.value===q) selQuest.value=null; }
+    function addObjective(q){ if(!Array.isArray(q.objectives)) q.objectives=[]; q.objectives.push({ id:uid(), text:"", done:false }); }
+    function removeObjective(q,i){ q.objectives.splice(i,1); }
+    function encTitle(id){ const r=encounters.find(x=>x.id===id); return r ? (r.name||"（未命名遭遇）") : "（已刪除遭遇）"; }
+    function linkEnc(id){ if(id && selQuest.value){ if(!Array.isArray(selQuest.value.encounters)) selQuest.value.encounters=[]; if(!selQuest.value.encounters.includes(id)) selQuest.value.encounters.push(id); } }
+    function unlinkEnc(id){ const a=selQuest.value.encounters; const i=a.indexOf(id); if(i>=0) a.splice(i,1); }
+    function qLinkTo(id){ if(id && selQuest.value){ if(!Array.isArray(selQuest.value.links)) selQuest.value.links=[]; if(!selQuest.value.links.includes(id)) selQuest.value.links.push(id); } }
+    function qUnlink(id){ const a=selQuest.value.links; const i=a.indexOf(id); if(i>=0) a.splice(i,1); }
+
     try{
       localStorage.setItem(LS, JSON.stringify(entries));
       localStorage.setItem(LS_WORLDS, JSON.stringify(worlds));
       localStorage.setItem(LS_ACTIVE, activeWorld.value);
       localStorage.setItem(LS_ENC, JSON.stringify(encounters));
+      localStorage.setItem(LS_QUESTS, JSON.stringify(quests));
     }catch(e){}
 
     watch(entries, ()=>{ try{ localStorage.setItem(LS, JSON.stringify(entries)); }catch(e){} }, {deep:true});
     watch(worlds, ()=>{ try{ localStorage.setItem(LS_WORLDS, JSON.stringify(worlds)); }catch(e){} }, {deep:true});
-    watch(activeWorld, ()=>{ try{ localStorage.setItem(LS_ACTIVE, activeWorld.value); }catch(e){} sel.value=null; newEncounter(); rolledItem.value=null; });
+    watch(activeWorld, ()=>{ try{ localStorage.setItem(LS_ACTIVE, activeWorld.value); }catch(e){} sel.value=null; selQuest.value=null; newEncounter(); rolledItem.value=null; });
     watch(encounters, ()=>{ try{ localStorage.setItem(LS_ENC, JSON.stringify(encounters)); }catch(e){} }, {deep:true});
+    watch(quests, ()=>{ try{ localStorage.setItem(LS_QUESTS, JSON.stringify(quests)); }catch(e){} }, {deep:true});
     watch(sel, ()=>{ if(!sel.value) return; if(showStatBlock(sel.value)) ensureStats(sel.value); if(showItem(sel.value)) ensureItem(sel.value); if(showFields(sel.value)) ensureFields(sel.value); });
 
     return { cats, tabs, tab, importFile, activeCat, sel, q, theme, filtered, rarityOpts: RARITY,
@@ -1101,7 +1236,8 @@ createApp({
       encAddLine, encRemoveLine, encInc, encTotals, encThresholds, encDifficulty,
       encSaved, newEncounter, saveEncounter, loadEncounter, removeEncounter,
       shopPanelOpen, poolRarityFilter, rolledItem, shopItems, poolItems, rollReward, rarityLabel,
-      srdPanelOpen, srdMonsters: SRD_MONSTERS, srdItems: SRD_ITEMS, srdNpcs: SRD_NPCS, srdAddMonster, srdAddItem, srdAddNpc };
+      srdPanelOpen, srdMonsters: SRD_MONSTERS, srdItems: SRD_ITEMS, srdNpcs: SRD_NPCS, srdAddMonster, srdAddItem, srdAddNpc,
+      quests, selQuest, questQ, questsFiltered, addQuest, removeQuest, addObjective, removeObjective, encTitle, linkEnc, unlinkEnc, qLinkTo, qUnlink };
   }
 }).mount("#app");
 </script>
