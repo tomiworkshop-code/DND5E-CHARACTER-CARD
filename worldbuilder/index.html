@@ -526,27 +526,33 @@
           </div>
         </div>
 
-        <!-- relations -->
-        <div class="mt-3">
+        <!-- usage / backlinks -->
+        <div class="mt-3 pt-2" style="border-top:1px dashed var(--line)">
           <div class="text-xs font-bold flex items-center gap-1 mb-1" style="color:var(--gold-deep)">
-            <svg class="ic"><use href="#w-link"></use></svg>關聯（跨條目連結）
+            <svg class="ic"><use href="#w-link"></use></svg>使用情形（自動關聯）
           </div>
-          <div class="flex flex-wrap gap-1.5 mb-2">
-            <span v-for="rid in sel.links" :key="rid" class="chip">
-              <svg><use :href="'#'+iconOf(entryById(rid).cat)"></use></svg>
-              {{ entryById(rid).name || '（未命名）' }}
-              <svg class="cursor-pointer" style="width:12px;height:12px" @click="unlink(rid)"><use href="#w-x"></use></svg>
+          
+          <div v-if="['location','town','npc'].includes(sel.cat) && sel.parentId" class="text-[11px] mb-1.5 flex flex-wrap items-center gap-1" style="color:var(--ink-soft)">
+            <span>📍 位置：</span>
+            <span v-for="(p,i) in getPath(sel)" :key="p.id" class="flex items-center gap-1">
+              <span class="cursor-pointer hover:underline" @click="sel=p">{{ p.name || '（未命名）' }}</span> <span>⊃</span>
             </span>
-            <span v-if="!sel.links.length" class="text-[11px]" style="color:var(--ink-soft)">尚無關聯</span>
+            <span class="font-bold text-ink">{{ sel.name || '（未命名）' }}</span>
           </div>
-          <select @change="linkTo($event.target.value); $event.target.value=''" class="px-2 py-1.5 text-sm">
-            <option value="">＋ 連結到其他條目…</option>
-            <optgroup v-for="cat in cats" :key="cat.id" :label="cat.name">
-              <option v-for="e in entriesOf(cat.id)" :key="e.id" :value="e.id" :disabled="e.id===sel.id || sel.links.includes(e.id)">
-                {{ e.name || '（未命名）' }}
-              </option>
-            </optgroup>
-          </select>
+
+          <div v-if="getQuestsUsing(sel).length" class="text-[11px] mb-1.5 flex flex-wrap items-center gap-1" style="color:var(--ink-soft)">
+            <span>📜 任務：</span>
+            <span v-for="q in getQuestsUsing(sel)" :key="q.id" class="chip cursor-pointer" @click="gotoQuest(q)">{{ q.name || '（未命名任務）' }}</span>
+          </div>
+
+          <div v-if="sel.cat==='monster' && getEncountersUsing(sel).length" class="text-[11px] mb-1.5 flex flex-wrap items-center gap-1" style="color:var(--ink-soft)">
+            <span>⚔️ 遭遇：</span>
+            <span v-for="r in getEncountersUsing(sel)" :key="r.id" class="chip cursor-pointer" @click="tab='enc'">{{ r.name || '（未命名遭遇）' }}</span>
+          </div>
+
+          <div v-if="!sel.parentId && !getQuestsUsing(sel).length && !(sel.cat==='monster' && getEncountersUsing(sel).length)" class="text-[11px]" style="color:var(--ink-soft)">
+            尚無其他任務或地點使用此條目
+          </div>
         </div>
       </div>
       <div v-else class="card p-6 text-center text-sm" style="color:var(--ink-soft)">
@@ -1204,6 +1210,11 @@ createApp({
     function qLinkTo(id){ if(id && selQuest.value){ if(!Array.isArray(selQuest.value.links)) selQuest.value.links=[]; if(!selQuest.value.links.includes(id)) selQuest.value.links.push(id); } }
     function qUnlink(id){ const a=selQuest.value.links; const i=a.indexOf(id); if(i>=0) a.splice(i,1); }
 
+    function getPath(e){ const p=[]; let cur=entryById(e.parentId); while(cur && cur.id && cur.cat){ p.unshift(cur); cur=entryById(cur.parentId); } return p; }
+    function getQuestsUsing(e){ return quests.filter(q=> q.worldId===activeWorld.value && q.links && q.links.includes(e.id)); }
+    function getEncountersUsing(e){ if(e.cat!=='monster') return []; return encounters.filter(r=> r.worldId===activeWorld.value && r.lines && r.lines.some(l=>l.monId===e.id)); }
+    function gotoQuest(q){ tab.value='quest'; selQuest.value=q; }
+
     try{
       localStorage.setItem(LS, JSON.stringify(entries));
       localStorage.setItem(LS_WORLDS, JSON.stringify(worlds));
@@ -1232,6 +1243,7 @@ createApp({
       autoSpellStats, addSpellRow, removeSpellRow,
       showFields, catFields: CAT_FIELDS,
       treePanelOpen, treeCollapsed, treeFlat, treeToggle, treeSelect, eligibleParents, childrenOf,
+      getPath, getQuestsUsing, getEncountersUsing, gotoQuest,
       encPanelOpen, encPick, encSrdPick, encAddSrd, enc, encWorldMonsters, encName, encCR,
       encAddLine, encRemoveLine, encInc, encTotals, encThresholds, encDifficulty,
       encSaved, newEncounter, saveEncounter, loadEncounter, removeEncounter,
