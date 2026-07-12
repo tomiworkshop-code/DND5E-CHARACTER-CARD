@@ -91,53 +91,52 @@
       <button class="btn px-2 py-1.5 text-sm flex items-center gap-1" @click="addWorld">
         <svg class="ic"><use href="#w-plus"></use></svg><span class="hidden sm:inline">新世界</span>
       </button>
-      <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="manageOpen=!manageOpen">
-        <svg class="ic"><use href="#w-edit"></use></svg><span class="hidden sm:inline">管理</span>
-      </button>
-      <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="encPanelOpen=!encPanelOpen">
-        <svg class="ic"><use href="#w-monster"></use></svg><span class="hidden sm:inline">遭遇</span>
-      </button>
-      <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="shopPanelOpen=!shopPanelOpen">
-        <svg class="ic"><use href="#w-treasure"></use></svg><span class="hidden sm:inline">商店</span>
-      </button>
-      <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="treePanelOpen=!treePanelOpen">
-        <svg class="ic"><use href="#w-loc"></use></svg><span class="hidden sm:inline">世界樹</span>
-      </button>
-      <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="srdPanelOpen=!srdPanelOpen">
-        <svg class="ic"><use href="#w-book"></use></svg><span class="hidden sm:inline">SRD</span>
-      </button>
-    </div>
-    <div v-if="manageOpen && currentWorld" class="mt-2 pt-2" style="border-top:1px solid var(--line)">
-      <label class="text-xs block">世界名稱
-        <input v-model="currentWorld.name" class="mt-1 px-2 py-1.5 text-sm" placeholder="例：費倫大陸 / 破碎群島">
-      </label>
-      <label class="text-xs block mt-2">世界設定簡介
-        <textarea v-model="currentWorld.desc" rows="3" class="mt-1 px-2 py-2 text-sm" placeholder="這個世界的基調、規則、風格…（給 DM 的備註）"></textarea>
-      </label>
-      <div class="grid gap-2 mt-2" style="grid-template-columns:1fr 1fr">
-        <label class="text-xs">等級上限 (5E 預設 20)
-          <input type="number" min="1" max="20" v-model.number="currentWorld.levelCap" class="mt-1 px-2 py-1.5 text-sm" placeholder="20">
-        </label>
-        <label class="text-xs">最高稀有度基準
-          <select v-model="currentWorld.rarityBase" class="mt-1 px-2 py-1.5 text-sm">
-            <option v-for="r in rarityOpts" :key="r.v" :value="r.v">{{ r.t }}（{{ r.v }}）</option>
-          </select>
-        </label>
-      </div>
-      <div class="flex justify-end mt-2">
-        <button class="btn-danger btn px-2 py-1 text-xs flex items-center gap-1" @click="removeWorld(currentWorld)" :disabled="worlds.length<=1">
-          <svg class="ic"><use href="#w-trash"></use></svg>刪除此世界
-        </button>
-      </div>
     </div>
   </div>
 
-  <!-- encounter builder panel -->
-  <div v-if="treePanelOpen" class="card p-3 mb-3">
-    <div class="text-sm font-bold flex items-center gap-2 mb-2" style="color:var(--gold-deep)">
-      <svg class="ic"><use href="#w-loc"></use></svg>世界樹（地區 ⊃ 城鎮 ⊃ 地點 ⊃ NPC）
+  <!-- top tab nav -->
+  <div class="card p-1.5 mb-3">
+    <div class="flex flex-wrap gap-1">
+      <button v-for="t in tabs" :key="t.id" class="catbtn" :class="{active: tab===t.id}" @click="tab=t.id" style="width:auto">
+        <span>{{ t.name }}</span>
+      </button>
     </div>
-    <div v-if="treeFlat.length===0" class="text-[11px]" style="color:var(--ink-soft)">還沒有地點/城鎮/NPC，先新增並在編輯器設定「所屬上層」來組成樹狀結構～</div>
+  </div>
+
+  <!-- 🌍 世界 tab: world settings -->
+  <div v-show="tab==='world'" class="card p-3 mb-3">
+    <div class="text-sm font-bold flex items-center gap-2 mb-2" style="color:var(--gold-deep)">
+      <svg class="ic"><use href="#w-globe"></use></svg>世界設定
+    </div>
+    <label class="text-xs block">世界名稱
+      <input v-model="currentWorld.name" class="mt-1 px-2 py-1.5 text-sm" placeholder="例：費倫大陸 / 破碎群島">
+    </label>
+    <label class="text-xs block mt-2">世界設定簡介
+      <textarea v-model="currentWorld.desc" rows="3" class="mt-1 px-2 py-2 text-sm" placeholder="這個世界的基調、規則、風格…（給 DM 的備註）"></textarea>
+    </label>
+    <div class="grid gap-2 mt-2" style="grid-template-columns:1fr 1fr">
+      <label class="text-xs">等級上限 (5E 預設 20)
+        <input type="number" min="1" max="20" v-model.number="currentWorld.levelCap" class="mt-1 px-2 py-1.5 text-sm" placeholder="20">
+      </label>
+      <label class="text-xs">最高稀有度基準
+        <select v-model="currentWorld.rarityBase" class="mt-1 px-2 py-1.5 text-sm">
+          <option v-for="r in rarityOpts" :key="r.v" :value="r.v">{{ r.t }}（{{ r.v }}）</option>
+        </select>
+      </label>
+    </div>
+    <div class="flex justify-end mt-2">
+      <button class="btn-danger btn px-2 py-1 text-xs flex items-center gap-1" @click="removeWorld(currentWorld)" :disabled="worlds.length<=1">
+        <svg class="ic"><use href="#w-trash"></use></svg>刪除此世界
+      </button>
+    </div>
+  </div>
+
+  <!-- 🌍 世界 tab: world tree -->
+  <div v-show="tab==='world'" class="card p-3 mb-3">
+    <div class="text-sm font-bold flex items-center gap-2 mb-2" style="color:var(--gold-deep)">
+      <svg class="ic"><use href="#w-loc"></use></svg>世界樹（區域 ⊃ 場所 ⊃ NPC）
+    </div>
+    <div v-if="treeFlat.length===0" class="text-[11px]" style="color:var(--ink-soft)">還沒有區域/場所/NPC，先新增並在編輯器設定「所屬上層」來組成樹狀結構～</div>
     <div v-for="row in treeFlat" :key="row.e.id" class="flex items-center gap-1 py-1" :style="{ paddingLeft:(row.depth*1.25)+'rem', borderBottom:'1px dashed var(--line)' }">
       <span v-if="row.hasChildren" class="cursor-pointer text-xs select-none" style="width:1rem;text-align:center" @click="treeToggle(row.e.id)">{{ treeCollapsed[row.e.id] ? '▸' : '▾' }}</span>
       <span v-else style="width:1rem"></span>
@@ -145,7 +144,7 @@
       <span class="text-sm cursor-pointer flex-1 truncate" @click="treeSelect(row.e)">{{ row.e.name || '（未命名）' }}<span class="text-[11px]" style="color:var(--ink-soft)"> · {{ catName(row.e.cat) }}</span></span>
     </div>
   </div>
-  <div v-if="encPanelOpen" class="card p-3 mb-3">
+  <div v-show="tab==='enc'" class="card p-3 mb-3">
     <div class="flex items-center justify-between mb-2">
       <div class="text-sm font-bold flex items-center gap-1" style="color:var(--gold-deep)">
         <svg class="ic"><use href="#w-monster"></use></svg>遭遇建構器（5E 難度計算）
@@ -209,8 +208,8 @@
     </div>
   </div>
 
-  <!-- shop / reward pool panel (§5.8) -->
-  <div v-if="shopPanelOpen" class="card p-3 mb-3">
+  <!-- 🛒 經濟 tab: shop / reward pool (§5.8) -->
+  <div v-show="tab==='econ'" class="card p-3 mb-3">
     <div class="text-sm font-bold flex items-center gap-1 mb-1" style="color:var(--gold-deep)">
       <svg class="ic"><use href="#w-treasure"></use></svg>商店 · 獎勵池（共用物品目錄）
     </div>
@@ -246,8 +245,8 @@
     </div>
   </div>
 
-  <!-- SRD 5.1 template library -->
-  <div v-if="srdPanelOpen" class="card p-3 mb-3">
+  <!-- 🧩 範本庫 tab: SRD 5.1 template library -->
+  <div v-show="tab==='srd'" class="card p-3 mb-3">
     <div class="text-sm font-bold flex items-center gap-1 mb-1" style="color:var(--gold-deep)">
       <svg class="ic"><use href="#w-book"></use></svg>SRD 5.1 範本庫
     </div>
@@ -292,7 +291,7 @@
     </div>
   </div>
 
-  <div class="layout">
+  <div class="layout" v-show="tab==='build'">
     <!-- category rail -->
     <aside class="card p-2 self-start catrail">
       <div class="text-[11px] font-bold mb-1 px-1" style="color:var(--ink-soft)">分類</div>
@@ -354,7 +353,7 @@
           </label>
         </div>
 
-        <!-- containment parent (地區⊃城鎮⊃地點⊃NPC) -->
+        <!-- containment parent (區域⊃場所⊃NPC) -->
         <div v-if="['location','town','npc'].includes(sel.cat)" class="mt-2">
           <label class="text-xs block">所屬上層（父層）
             <select v-model="sel.parentId" class="mt-1 px-2 py-1.5 text-sm">
@@ -560,6 +559,50 @@
     </main>
   </div>
 
+  <!-- 📜 任務 tab (Phase 2, coming soon) -->
+  <div v-show="tab==='quest'" class="card p-6 text-center" style="color:var(--ink-soft)">
+    <div class="text-3xl mb-2">📜</div>
+    <div class="text-sm font-bold mb-1" style="color:var(--gold-deep)">任務編輯器</div>
+    <div class="text-xs">Phase 2 建置中～任務將隸屬於目前世界，分「普通任務／角色專屬任務」，可串接 NPC、地點與獎勵。</div>
+  </div>
+
+  <!-- ⚙️ 設定 tab -->
+  <div v-show="tab==='settings'" class="card p-3 mb-3">
+    <div class="text-sm font-bold flex items-center gap-2 mb-2" style="color:var(--gold-deep)">
+      <svg class="ic"><use href="#w-edit"></use></svg>設定
+    </div>
+    <div class="flex items-center justify-between py-2" style="border-bottom:1px solid var(--line)">
+      <span class="text-sm">外觀主題</span>
+      <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="toggleTheme">
+        <svg class="ic"><use :href="theme==='dark' ? '#w-sun' : '#w-moon'"></use></svg>
+        {{ theme==='dark' ? '切換淺色' : '切換深色' }}
+      </button>
+    </div>
+    <div class="py-2" style="border-bottom:1px solid var(--line)">
+      <div class="text-sm mb-1">資料備份</div>
+      <div class="text-[11px] mb-2" style="color:var(--ink-soft)">世界、條目、遭遇全部匯出成一個 JSON 檔備份；匯入會覆蓋目前所有本機資料。</div>
+      <div class="flex gap-2">
+        <button class="btn px-3 py-1.5 text-sm flex items-center gap-1" @click="exportData">
+          <svg class="ic"><use href="#w-book"></use></svg>匯出 JSON
+        </button>
+        <button class="btn-ghost btn px-3 py-1.5 text-sm flex items-center gap-1" @click="triggerImport">
+          <svg class="ic"><use href="#w-edit"></use></svg>匯入 JSON
+        </button>
+        <input ref="importFile" type="file" accept="application/json,.json" style="display:none" @change="importData">
+      </div>
+    </div>
+    <div class="py-2">
+      <div class="text-sm mb-1">關於 · Credit</div>
+      <div class="text-[11px] leading-relaxed" style="color:var(--ink-soft)">
+        <div><b style="color:var(--gold-deep)">地下城指南 · 世界建構器</b>（原型 Prototype）</div>
+        <div>DM 端主控台，對應玩家端「冒險者之書」。</div>
+        <div class="mt-1">遊戲資料取自 <b>D&amp;D SRD 5.1</b>，依 <b>CC-BY-4.0</b> 授權。</div>
+        <div>介面框架：Vue 3 · Tailwind CSS。</div>
+        <div class="mt-1">資料僅儲存在本機瀏覽器 localStorage。</div>
+      </div>
+    </div>
+  </div>
+
   <p class="text-center text-[10px] mt-4" style="color:var(--ink-soft)">
     原型・資料僅存在本機瀏覽器（localStorage）。未來階段：唯讀分享 → 即時同步（PartyKit / BaaS）。
   </p>
@@ -735,8 +778,8 @@ createApp({
   template: "#root",
   setup(){
     const cats = [
-      { id:"location", name:"地點",  icon:"w-loc" },
-      { id:"town",     name:"城鎮",  icon:"w-town" },
+      { id:"location", name:"區域",  icon:"w-loc" },
+      { id:"town",     name:"場所",  icon:"w-town" },
       { id:"faction",  name:"勢力",  icon:"w-faction" },
       { id:"npc",      name:"NPC",   icon:"w-npc" },
       { id:"monster",  name:"怪物",  icon:"w-monster" },
@@ -769,6 +812,17 @@ createApp({
     const activeCat = ref("location");
     const sel = ref(null);
     const q = ref("");
+    const tabs = [
+      { id:"world",    name:"🌍 世界" },
+      { id:"build",    name:"📚 建檔" },
+      { id:"enc",      name:"⚔️ 遭遇" },
+      { id:"econ",     name:"🛒 經濟" },
+      { id:"quest",    name:"📜 任務" },
+      { id:"srd",      name:"🧩 範本庫" },
+      { id:"settings", name:"⚙️ 設定" },
+    ];
+    const tab = ref("build");
+    const importFile = ref(null);
     // ---- encounter builder state ----
     const encPanelOpen = ref(false);
     const encPick = ref("");
@@ -795,9 +849,9 @@ createApp({
     const countOf = id => entries.filter(e=>e.cat===id && inWorld(e)).length;
     const entriesOf = id => entries.filter(e=>e.cat===id && inWorld(e));
     const entryById = id => entries.find(e=>e.id===id) || {name:"（已刪除）",cat:"location"};
-    // ---- containment tree helpers (地區⊃城鎮⊃地點⊃NPC) ----
+    // ---- containment tree helpers (區域⊃場所⊃NPC) ----
     const TREE_CATS = ["location","town","npc"];
-    const PARENT_ALLOW = { town:["location"], location:["town","location"], npc:["location","town"] };
+    const PARENT_ALLOW = { town:["location","town"], location:["town","location"], npc:["location","town"] };
     const rankOf = { town:0, location:1, npc:2 };
     function childrenOf(id){ return entries.filter(x=> x.worldId===activeWorld.value && x.parentId===id); }
     function descendantSet(id){ const set=new Set(); const stack=[id]; while(stack.length){ const cur=stack.pop(); childrenOf(cur).forEach(c=>{ if(!set.has(c.id)){ set.add(c.id); stack.push(c.id); } }); } return set; }
@@ -806,7 +860,7 @@ createApp({
     function sortNodes(a,b){ const ra=(rankOf[a.cat]!=null?rankOf[a.cat]:9), rb=(rankOf[b.cat]!=null?rankOf[b.cat]:9); if(ra!==rb) return ra-rb; return (a.name||"").localeCompare(b.name||""); }
     const treeFlat = computed(()=>{ const out=[]; const roots = entries.filter(e=> e.worldId===activeWorld.value && isTreeRoot(e)).slice().sort(sortNodes); const walk=(node,depth)=>{ const kids=childrenOf(node.id).slice().sort(sortNodes); out.push({e:node,depth,hasChildren:kids.length>0}); if(!treeCollapsed.value[node.id]) kids.forEach(k=>walk(k,depth+1)); }; roots.forEach(r=>walk(r,0)); return out; });
     function treeToggle(id){ treeCollapsed.value = Object.assign({}, treeCollapsed.value, { [id]: !treeCollapsed.value[id] }); }
-    function treeSelect(e){ activeCat.value=e.cat; sel.value=e; treePanelOpen.value=false; }
+    function treeSelect(e){ activeCat.value=e.cat; sel.value=e; tab.value="build"; }
 
     const filtered = computed(()=>{
       const s = q.value.trim().toLowerCase();
@@ -841,9 +895,41 @@ createApp({
       localStorage.setItem("dm_theme", theme.value);
     }
 
+    function exportData(){
+      const data = { v:1, exportedAt:new Date().toISOString(), worlds, entries, encounters };
+      const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "dm-worldbuilder-backup-"+new Date().toISOString().slice(0,10)+".json";
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+    function triggerImport(){ if(importFile.value) importFile.value.click(); }
+    function importData(ev){
+      const file = ev.target.files && ev.target.files[0]; if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const data = JSON.parse(reader.result);
+          if(!data || !Array.isArray(data.worlds) || !Array.isArray(data.entries)) throw new Error("格式不符");
+          let ok = true;
+          try{ ok = window.confirm("匯入將覆蓋目前所有本機資料（世界／條目／遭遇），確定？"); }catch(e){ ok = true; }
+          if(!ok) return;
+          worlds.splice(0, worlds.length, ...data.worlds);
+          entries.splice(0, entries.length, ...data.entries);
+          encounters.splice(0, encounters.length, ...(Array.isArray(data.encounters)?data.encounters:[]));
+          if(!worlds.find(w=>w.id===activeWorld.value)) activeWorld.value = worlds[0] ? worlds[0].id : "";
+          sel.value = null;
+          try{ window.alert("匯入完成！"); }catch(e){}
+        }catch(err){
+          try{ window.alert("匯入失敗："+err.message); }catch(e){}
+        }finally{ ev.target.value = ""; }
+      };
+      reader.readAsText(file);
+    }
+
     function addWorld(){
       const w = reactive({ id:uid(), name:"新世界", desc:"", levelCap:20, rarityBase:"Rare" });
-      worlds.push(w); activeWorld.value = w.id; sel.value = null; manageOpen.value = true;
+      worlds.push(w); activeWorld.value = w.id; sel.value = null; tab.value = "world";
     }
     function removeWorld(w){
       if(worlds.length <= 1) return; // always keep at least one world
@@ -957,7 +1043,7 @@ createApp({
       if(m.spellcasting) e.spellcasting = JSON.parse(JSON.stringify(m.spellcasting));
       return e;
     }
-    function srdAddMonster(m){ const e=buildSrdMonster(m); entries.push(e); activeCat.value="monster"; sel.value=e; srdPanelOpen.value=false; }
+    function srdAddMonster(m){ const e=buildSrdMonster(m); entries.push(e); activeCat.value="monster"; sel.value=e; tab.value="build"; }
     // 遇遇建構器：從官方 SRD 匯入怕物到世界（同名去重）再加入遇遇
     function encImportMon(name){
       let e = entries.find(x=>x.cat==="monster" && x.worldId===activeWorld.value && x.name===name);
@@ -969,7 +1055,7 @@ createApp({
       const e = reactive({ id:uid(), cat:t.cat, worldId:activeWorld.value, name:t.name, subtype:t.subtype||"", desc:t.desc||"", links:[] });
       ensureItem(e);
       Object.assign(e.item, JSON.parse(JSON.stringify(t.item||{})));
-      entries.push(e); activeCat.value=t.cat; sel.value=e; srdPanelOpen.value=false;
+      entries.push(e); activeCat.value=t.cat; sel.value=e; tab.value="build";
     }
     function srdAddNpc(n){
       const e = reactive({ id:uid(), cat:"npc", worldId:activeWorld.value, name:n.name, subtype:(n.stats.cr?("CR "+n.stats.cr+"/SRD"):"SRD"), desc:n.desc||"", links:[], parentId:"", hasCombat:true });
@@ -978,7 +1064,7 @@ createApp({
       e.actions = JSON.parse(JSON.stringify(n.actions||[]));
       if(n.spellcasting) e.spellcasting = JSON.parse(JSON.stringify(n.spellcasting));
       ensureFields(e); e.fields.race="人類"; e.fields.role=n.role||""; e.fields.attitude="中立";
-      entries.push(e); activeCat.value="npc"; sel.value=e; srdPanelOpen.value=false;
+      entries.push(e); activeCat.value="npc"; sel.value=e; tab.value="build";
     }
 
     // persist migration result immediately (watchers only fire on later changes)
@@ -995,8 +1081,9 @@ createApp({
     watch(encounters, ()=>{ try{ localStorage.setItem(LS_ENC, JSON.stringify(encounters)); }catch(e){} }, {deep:true});
     watch(sel, ()=>{ if(!sel.value) return; if(showStatBlock(sel.value)) ensureStats(sel.value); if(showItem(sel.value)) ensureItem(sel.value); if(showFields(sel.value)) ensureFields(sel.value); });
 
-    return { cats, activeCat, sel, q, theme, filtered, rarityOpts: RARITY,
+    return { cats, tabs, tab, importFile, activeCat, sel, q, theme, filtered, rarityOpts: RARITY,
       worlds, activeWorld, currentWorld, manageOpen,
+      exportData, triggerImport, importData,
       iconOf, catName, countOf, entriesOf, entryById,
       selectCat, addEntry, removeEntry, linkTo, unlink, toggleTheme,
       addWorld, removeWorld,
