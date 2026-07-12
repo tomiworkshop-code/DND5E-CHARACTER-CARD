@@ -60,13 +60,18 @@
     .catrail{ display:flex; flex-wrap:wrap; }
     .catrail .catbtn{ width:auto; }
   }
+  .tabbar{ background:linear-gradient(180deg,#7c5a3a,#5a3d22); z-index:40; }
+  html[data-theme="dark"] .tabbar{ background:linear-gradient(180deg,#3a2c1a,#241a10); }
+  .tab{ color:#e9d8b3; font-size:12px; background:transparent; border:0; cursor:pointer; padding:0; }
+  .tab-ic{ font-size:20px; line-height:1; display:inline-flex; align-items:center; justify-content:center; }
+  .tab.active{ color:#fff7e0; font-weight:700; }
 </style>
 </head>
 <body>
 <div id="app" v-cloak></div>
 
 <template id="root">
-<div class="max-w-5xl mx-auto p-3">
+<div class="max-w-5xl mx-auto p-3 pb-24">
   <!-- header -->
   <div class="flex items-center justify-between mb-3">
     <h1 class="text-xl font-bold title-deco flex items-center gap-2">
@@ -90,15 +95,6 @@
       </select>
       <button class="btn px-2 py-1.5 text-sm flex items-center gap-1" @click="addWorld">
         <svg class="ic"><use href="#w-plus"></use></svg><span class="hidden sm:inline">新世界</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- top tab nav -->
-  <div class="card p-1.5 mb-3">
-    <div class="flex flex-wrap gap-1">
-      <button v-for="t in tabs" :key="t.id" class="catbtn" :class="{active: tab===t.id}" @click="tab=t.id" style="width:auto">
-        <span>{{ t.name }}</span>
       </button>
     </div>
   </div>
@@ -606,6 +602,13 @@
   <p class="text-center text-[10px] mt-4" style="color:var(--ink-soft)">
     原型・資料僅存在本機瀏覽器（localStorage）。未來階段：唯讀分享 → 即時同步（PartyKit / BaaS）。
   </p>
+
+  <!-- bottom tab bar (fixed, 仿冒險者之書) -->
+  <nav class="tabbar fixed bottom-0 left-0 right-0 flex justify-around py-2 px-1 border-t" style="border-color:var(--gold-deep)">
+    <button v-for="t in tabs" :key="t.id" class="tab flex flex-col items-center gap-0.5 flex-1" :class="{active: tab===t.id}" @click="tab=t.id">
+      <span class="tab-ic">{{ t.icon }}</span><span>{{ t.label }}</span>
+    </button>
+  </nav>
 </div>
 </template>
 
@@ -813,13 +816,13 @@ createApp({
     const sel = ref(null);
     const q = ref("");
     const tabs = [
-      { id:"world",    name:"🌍 世界" },
-      { id:"build",    name:"📚 建檔" },
-      { id:"enc",      name:"⚔️ 遭遇" },
-      { id:"econ",     name:"🛒 經濟" },
-      { id:"quest",    name:"📜 任務" },
-      { id:"srd",      name:"🧩 範本庫" },
-      { id:"settings", name:"⚙️ 設定" },
+      { id:"world",    icon:"🌍", label:"世界" },
+      { id:"build",    icon:"📚", label:"建檔" },
+      { id:"enc",      icon:"⚔️", label:"遭遇" },
+      { id:"econ",     icon:"🛒", label:"經濟" },
+      { id:"quest",    icon:"📜", label:"任務" },
+      { id:"srd",      icon:"🧩", label:"範本" },
+      { id:"settings", icon:"⚙️", label:"設定" },
     ];
     const tab = ref("build");
     const importFile = ref(null);
