@@ -139,6 +139,20 @@
       <svg class="ic" style="color:var(--gold-deep)"><use :href="'#'+iconOf(row.e.cat)"></use></svg>
       <span class="text-sm cursor-pointer flex-1 truncate" @click="treeSelect(row.e)">{{ row.e.name || '（未命名）' }}<span class="text-[11px]" style="color:var(--ink-soft)"> · {{ catName(row.e.cat) }}</span></span>
     </div>
+
+    <!-- World Quests -->
+    <div class="mt-4 pt-3" style="border-top:1px dashed var(--line)">
+      <div class="text-sm font-bold flex items-center gap-2 mb-2" style="color:var(--gold-deep)">
+        <span>📜</span>本世界任務
+      </div>
+      <div v-if="!quests.filter(q=>q.worldId===activeWorld).length" class="text-[11px]" style="color:var(--ink-soft)">尚無任務，可至「任務」分頁建立。</div>
+      <div v-for="q in quests.filter(q=>q.worldId===activeWorld)" :key="q.id" class="flex items-center gap-2 py-1" style="border-bottom:1px dashed var(--line)">
+        <span class="text-sm flex-1 cursor-pointer hover:underline truncate" @click="gotoQuest(q)">
+          {{ q.type==='character' ? '⭐' : '📜' }} {{ q.name || '（未命名任務）' }}
+        </span>
+        <span class="text-[11px]" style="color:var(--ink-soft)">目標 {{ (q.objectives||[]).length }}</span>
+      </div>
+    </div>
   </div>
   <div v-show="tab==='enc'" class="card p-3 mb-3">
     <div class="flex items-center justify-between mb-2">
