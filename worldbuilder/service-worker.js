@@ -1,5 +1,5 @@
 /* 敘事者之書（DM）PWA Service Worker */
-const CACHE = 'narrator-dnd5e-v4-netfirst';
+const CACHE = 'narrator-dnd5e-v5-netfirst';
 const ASSETS = [
   './',
   './manifest.json',
