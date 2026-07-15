@@ -196,6 +196,13 @@
     <p class="text-xs" style="color:var(--ink-soft)">Adventurer's Tome · 5E</p>
   </header>
 
+  <!-- ===== 指令 Toast（DM 即時生效提示） ===== -->
+  <transition name="fade">
+    <div v-if="cmdToast.show" class="fixed left-1/2 top-16 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-bold no-print" style="transform:translateX(-50%);max-width:90vw;background:var(--gold-deep);color:#fff;border:1px solid rgba(255,255,255,.3)">
+      {{ cmdToast.text }}
+    </div>
+  </transition>
+
   <!-- ===== Step B：跨端連線橫幅（玩家端） ===== -->
   <div v-if="roomState.uid" class="mb-3 no-print">
     <div v-if="roomState.status !== 'joined'" class="card p-3 flex gap-2 items-center">
@@ -205,7 +212,7 @@
     <div v-else class="card p-3" style="border:1px solid var(--gold-deep)">
       <div class="flex justify-between items-center mb-2">
         <span class="text-sm font-bold" style="color:var(--gold-deep)">🎲 已連線：{{ roomState.id }}</span>
-        <span class="text-[10px]" style="color:var(--ink-soft)">即時同步中</span>
+        <span class="text-[10px]" style="color:var(--ink-soft)">🏆 XP {{ c.xp || 0 }} · 即時同步中</span>
       </div>
       <div class="overflow-y-auto rounded p-2 text-xs space-y-2" style="max-height:8rem;background:var(--bg);border:1px solid var(--border-color)">
         <div v-if="roomState.messages.length===0" class="italic text-center py-6" style="color:var(--ink-soft)">等待 DM 訊息…</div>
@@ -1400,6 +1407,7 @@ function defaultChar(){
     spellbook:[],
     inventory:[],
     coins:{ cp:0, sp:0, gp:0, pp:0 },
+    xp:0,
     conditions:{},
     exhaustion:0,
     /* 新增：跑團輔助與角色深度欄位 */
@@ -2441,7 +2449,27 @@ const app = createApp({
     const fbApp = ref(null);
     const joinCode = ref("");
     const roomState = reactive({ status:"idle", id:"", error:"", uid:"", messages:[] });
+    const cmdToast = reactive({ show:false, text:"", kind:"" });
+    let cmdToastTimer = null;
     let roomUnsubs = [];
+
+    /* 套用 DM 指令到角色卡（扣血/治療/金幣/經驗）—即時生效。 */
+    function applyCommand(cmd){
+      if(!cmd || !cmd.type) return;
+      const amt = Number(cmd.amount) || 0;
+      const ch = activeChar();
+      let label = "", kind = cmd.type;
+      if(cmd.type === "damage"){ damage(Math.abs(amt)); label = "⚠️ DM 對你造成 " + Math.abs(amt) + " 點傷害"; }
+      else if(cmd.type === "heal"){ heal(Math.abs(amt)); label = "💚 DM 治療你 " + Math.abs(amt) + " 點 HP"; }
+      else if(cmd.type === "gold"){ ch.coins.gp = Math.max(0, (Number(ch.coins.gp)||0) + amt); label = (amt>=0?"💰 獲得 ":"💸 失去 ") + Math.abs(amt) + " 金幣 (gp)"; }
+      else if(cmd.type === "xp"){ ch.xp = Math.max(0, (Number(ch.xp)||0) + amt); label = (amt>=0?"🏆 獲得 ":"➖ 扣除 ") + Math.abs(amt) + " 經驗值 (累計 " + ch.xp + ")"; }
+      else { return; }
+      persist();
+      pushRoomMsg({ _key: cmd._key || ("cmd"+Date.now()), text: label, ts: cmd.ts || Date.now(), isCommand:true });
+      cmdToast.text = label; cmdToast.kind = kind; cmdToast.show = true;
+      if(cmdToastTimer) clearTimeout(cmdToastTimer);
+      cmdToastTimer = setTimeout(()=>{ cmdToast.show = false; }, 4000);
+    }
 
     function initFirebase(){
       if(fbApp.value) return;
@@ -2473,6 +2501,7 @@ const app = createApp({
         roomUnsubs.forEach(u=>u()); roomUnsubs = [];
         roomUnsubs.push(window.DND5E_ROOM.onBroadcast(fbApp.value.db, rid, m => pushRoomMsg(m)));
         roomUnsubs.push(window.DND5E_ROOM.onInbox(fbApp.value.db, rid, roomState.uid, m => pushRoomMsg(Object.assign({ isPrivate:true }, m))));
+        roomUnsubs.push(window.DND5E_ROOM.onCommand(fbApp.value.db, rid, roomState.uid, m => applyCommand(m)));
         /* 首次連入且角色尚未綁世界 → 自動綁定 DM 的 worldId（§5.6） */
         if((ch.worldId === "" || ch.worldId == null) && meta.worldId){ ch.worldId = meta.worldId; persist(); }
       }catch(e){ roomState.status = "idle"; roomState.error = "加入失敗：" + e.message; }
@@ -2492,7 +2521,7 @@ const app = createApp({
     });
 
     return {
-      joinCode, roomState, joinRoom,
+      joinCode, roomState, joinRoom, cmdToast,
       c, tab, tabs, msg, fileInput, dataState, search,
       settings, showSettings, showCreditModal, sourceGroups, enabledCount, totalSourceCount,
       sourceCountsText, sourceLabelOf, toggleSource, selectAllSources, groupAllEnabled, toggleGroup,

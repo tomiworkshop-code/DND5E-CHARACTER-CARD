@@ -100,6 +100,21 @@
     return function(){ ref.off("child_added", handler); };
   }
 
+  /* DM 對單一玩家送出「指令」（commands/{pid}）。cmd 形如 {type:'damage'|'heal'|'gold'|'xp', amount, note}。 */
+  function sendCommand(db, roomId, playerId, cmd){
+    const payload = Object.assign({}, cmd, { ts: Date.now() });
+    return db.ref("rooms/" + normRoomId(roomId) + "/commands/" + playerId).push(payload);
+  }
+
+  /* 玩家訂閱自己的指令佇列（child_added）。cb 收到 {_key, type, amount, note, ts}。回傳退訂函式。 */
+  function onCommand(db, roomId, playerId, cb){
+    const ref = db.ref("rooms/" + normRoomId(roomId) + "/commands/" + playerId);
+    const handler = ref.on("child_added", function(snap){
+      cb(Object.assign({ _key: snap.key }, snap.val()));
+    });
+    return function(){ ref.off("child_added", handler); };
+  }
+
   /* 訂閱隊伍名單 players/*（DM 用，即時總覽）。回傳退訂函式。 */
   function onPlayers(db, roomId, cb){
     const ref = db.ref("rooms/" + normRoomId(roomId) + "/players");
@@ -112,6 +127,7 @@
     init, signInAnon,
     createRoom, roomMeta, joinRoom,
     sendBroadcast, onBroadcast,
-    sendInbox, onInbox, onPlayers
+    sendInbox, onInbox, onPlayers,
+    sendCommand, onCommand
   };
 })(typeof window !== "undefined" ? window : this);
