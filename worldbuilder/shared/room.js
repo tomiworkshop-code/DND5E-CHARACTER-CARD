@@ -122,12 +122,34 @@
     return function(){ ref.off("value", handler); };
   }
 
+  /* 世界存檔通道 rooms/{id}/saves/{characterId}（DM 權威中央存檔，§M3-2）。
+   * 節點本身即可當 mergeInstance 的 remote：機制欄位攤在頂層 + _sync:{version_m,version_n}。 */
+  /* DM 寫入/覆蓋某角色的世界存檔。 */
+  function setSave(db, roomId, characterId, save){
+    return db.ref("rooms/" + normRoomId(roomId) + "/saves/" + characterId).set(save);
+  }
+
+  /* 讀取某角色的世界存檔（不存在→ null）。 */
+  function getSave(db, roomId, characterId){
+    return db.ref("rooms/" + normRoomId(roomId) + "/saves/" + characterId).get().then(function(snap){
+      return snap && snap.exists && snap.exists() ? snap.val() : null;
+    });
+  }
+
+  /* 訂閱某角色的世界存檔變動（value）。cb 收到 save 物件或 null。回傳退訂函式。 */
+  function onSave(db, roomId, characterId, cb){
+    const ref = db.ref("rooms/" + normRoomId(roomId) + "/saves/" + characterId);
+    const handler = ref.on("value", function(snap){ cb(snap && snap.exists && snap.exists() ? snap.val() : null); });
+    return function(){ ref.off("value", handler); };
+  }
+
   global.DND5E_ROOM = {
     ROOM_ID_ALPHABET, genRoomId, normRoomId,
     init, signInAnon,
     createRoom, roomMeta, joinRoom,
     sendBroadcast, onBroadcast,
     sendInbox, onInbox, onPlayers,
-    sendCommand, onCommand
+    sendCommand, onCommand,
+    setSave, getSave, onSave
   };
 })(typeof window !== "undefined" ? window : this);

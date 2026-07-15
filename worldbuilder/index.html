@@ -160,6 +160,18 @@
             </div>
             <div v-if="whisperFlash" class="text-[11px] mt-1" style="color:#2e8b57">{{ whisperFlash }}</div>
           </div>
+
+          <!-- 📥 世界存檔（採納玩家機制提案為 DM 權威中央存檔） -->
+          <div class="mt-3 pt-3" style="border-top:1px dashed var(--line)">
+            <div class="text-[12px] mb-2" style="color:var(--gold-deep)">📥 世界存檔</div>
+            <div class="text-[11px] mb-2" style="color:var(--ink-soft)">
+              {{ roomState.players[cmdTarget].name || '未命名' }} · Lv.{{ roomState.players[cmdTarget].level || 1 }}
+              <span v-if="roomState.players[cmdTarget].characterId">· #{{ String(roomState.players[cmdTarget].characterId).slice(-4) }}</span>
+            </div>
+            <button @click="adoptWorldSave(cmdTarget)" :disabled="!(roomState.players[cmdTarget].proposal && roomState.players[cmdTarget].proposal.m)" class="btn px-3 py-1.5 text-sm w-full" :style="(roomState.players[cmdTarget].proposal && roomState.players[cmdTarget].proposal.m) ? 'background:#2e7d5b;color:#fff' : 'background:var(--line);color:var(--ink-soft);cursor:not-allowed'">📥 採納為世界存檔 / 更新存檔</button>
+            <p v-if="!(roomState.players[cmdTarget].proposal && roomState.players[cmdTarget].proposal.m)" class="text-[11px] mt-1" style="color:var(--ink-soft)">此玩家未提交機制資料（請對方更新 App 後重新入座）</p>
+            <div v-if="roomState.saveMsg" class="text-[11px] mt-1" style="color:#2e8b57">{{ roomState.saveMsg }}</div>
+          </div>
         </div>
       </div>
       <div class="p-3 rounded" style="background:var(--bg);border:1px solid var(--line)">
@@ -1040,7 +1052,8 @@ createApp({
 
     /* ===== Step B: 跨端連線（DM 端） ===== */
     let fbApp = null; /* 純變數，不可存進 ref：Vue Proxy 包裹 firebase db 會導致 e.insert is not a function */
-    const roomState = reactive({ status:"idle", id:"", qr:"", error:"", players:{}, dmUid:"" });
+    const roomState = reactive({ status:"idle", id:"", qr:"", error:"", players:{}, dmUid:"", saveMsg:"" });
+    let saveMsgTimer = null;
     const broadcastInput = ref("");
     const cmdTarget = ref("");      // 目前選取的玩家 pid
     const cmdAmount = ref(5);       // 指令數值
@@ -1071,6 +1084,23 @@ createApp({
         if(whisperFlashTimer) clearTimeout(whisperFlashTimer);
         whisperFlashTimer = setTimeout(()=>{ whisperFlash.value = ""; }, 2500);
       }catch(e){ roomState.error = "惄惄話發送失敗：" + e.message; }
+    }
+
+    /* 📥 採納玩家提交的機制提案為世界存檔（DM 權威中央存檔）。 */
+    async function adoptWorldSave(pid){
+      const p = roomState.players[pid];
+      if(!p || !p.characterId || !p.proposal || !p.proposal.m){ roomState.error = "此玩家未提交機制資料"; return; }
+      try{
+        const existing = await window.DND5E_ROOM.getSave(fbApp.db, roomState.id, p.characterId);
+        const existingVer = (existing && existing._sync && existing._sync.version_m) || 0;
+        const propVer = (p.proposal.version_m) || 0;
+        const newVer = Math.max(existingVer + 1, propVer, 1);           // 單調遞增且 >= 玩家本機版本
+        const save = Object.assign({}, p.proposal.m, { _sync:{ version_m:newVer, version_n:0 }, updatedAt: Date.now(), updatedBy:"dm" });
+        await window.DND5E_ROOM.setSave(fbApp.db, roomState.id, p.characterId, save);
+        roomState.saveMsg = "已更新 " + (p.name || "未命名") + " 的世界存檔（v" + newVer + "）";
+        if(saveMsgTimer) clearTimeout(saveMsgTimer);
+        saveMsgTimer = setTimeout(()=>{ roomState.saveMsg = ""; }, 3500);
+      }catch(e){ roomState.error = "寫入世界存檔失敗：" + e.message; }
     }
 
     function initFirebase(){
@@ -1410,6 +1440,7 @@ createApp({
       roomState, broadcastInput, openRoom, sendBroadcast,
       cmdTarget, cmdAmount, cmdNote, pickCmdTarget, sendCmd,
       whisperInput, whisperFlash, sendWhisper,
+      adoptWorldSave,
       worlds, activeWorld, currentWorld, manageOpen,
       exportData, triggerImport, importData,
       iconOf, catName, countOf, entriesOf, entryById,
