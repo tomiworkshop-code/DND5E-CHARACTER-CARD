@@ -1,8 +1,14 @@
 /* 敘事者之書（DM）PWA Service Worker */
-const CACHE = 'narrator-dnd5e-v1-netfirst';
+const CACHE = 'narrator-dnd5e-v2-netfirst';
 const ASSETS = [
   './',
   './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-192.png',
+  './icons/icon-maskable-512.png',
+  './icons/apple-touch-icon.png',
+  './icons/favicon-32.png',
   '../shared/firebase-config.js',
   '../shared/room.js',
   'https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js',
