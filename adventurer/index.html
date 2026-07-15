@@ -115,6 +115,8 @@
   .tab{ position:relative; color:#e9d8b3; font-size:12px; font-family:var(--font-head); letter-spacing:.04em; }
   .tab-ic{ display:inline-flex; align-items:center; justify-content:center; padding:5px; border-radius:12px; transition:transform .15s, background .15s, box-shadow .15s; }
   .tab-ic svg{ width:22px; height:22px; }
+  .tab-ic img.tab-img{ width:27px; height:27px; object-fit:contain; display:block; filter:drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
+  .tab:not(.active) .tab-ic img.tab-img{ opacity:.82; }
   .tab.active{ color:#fff7e0; }
   /* 階段4：選中分頁燙金頂條 + 金色發光印記 */
   .tab.active::before{ content:""; position:absolute; top:-8px; left:50%; transform:translateX(-50%); width:30px; height:3px; border-radius:2px; background:linear-gradient(90deg,transparent,var(--gold-lite),transparent); }
@@ -1529,12 +1531,12 @@ const app = createApp({
     });
 
     const tabs = [
-      { id:"char", svg:`<svg class="w-6 h-6"><use href="#icon-hood"></use></svg>`, label:"角色" },
-      { id:"background", svg:`<svg class="w-6 h-6"><use href="#icon-scroll"></use></svg>`, label:"背景" },
-      { id:"ability", svg:`<svg class="w-6 h-6"><use href="#icon-swords"></use></svg>`, label:"職業/能力" },
-      { id:"spell", svg:`<svg class="w-6 h-6"><use href="#icon-wand"></use></svg>`, label:"法術" },
-      { id:"item", svg:`<svg class="w-6 h-6"><use href="#icon-knapsack"></use></svg>`, label:"物品" },
-      { id:"settings", svg:`<svg class="w-6 h-6"><use href="#icon-cogs"></use></svg>`, label:"設定" }
+      { id:"char", svg:`<img src="./assets/ui/icons/hood.png" class="tab-img" alt="">`, label:"角色" },
+      { id:"background", svg:`<img src="./assets/ui/icons/scroll.png" class="tab-img" alt="">`, label:"背景" },
+      { id:"ability", svg:`<img src="./assets/ui/icons/swords.png" class="tab-img" alt="">`, label:"職業/能力" },
+      { id:"spell", svg:`<img src="./assets/ui/icons/wand.png" class="tab-img" alt="">`, label:"法術" },
+      { id:"item", svg:`<img src="./assets/ui/icons/knapsack.png" class="tab-img" alt="">`, label:"物品" },
+      { id:"settings", svg:`<img src="./assets/ui/icons/cogs.png" class="tab-img" alt="">`, label:"設定" }
     ];
     const abilityDefs = [
       { key:"str", zh:"力量" }, { key:"dex", zh:"敏捷" }, { key:"con", zh:"體質" },
