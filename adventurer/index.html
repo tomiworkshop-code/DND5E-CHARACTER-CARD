@@ -88,6 +88,20 @@
     border:7px solid transparent; border-image:url("./assets/ui/leather-btn.webp") 30 fill / 7px / 0 stretch;
     padding:.15rem .5rem; border-radius:8px; box-shadow:0 2px 6px -3px rgba(60,40,20,.5); }
   .title-deco svg{ filter:drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
+  /* M1 權威標籤（三層心智模型視覺標記，純顯示；離線淡化） */
+  .auth-badge{ display:inline-flex; align-items:center; gap:.15em; vertical-align:middle;
+    margin-left:.4em; padding:1px 8px; border-radius:999px;
+    font-family:var(--font-head); font-weight:700; font-size:10px; letter-spacing:.03em;
+    line-height:1.6; white-space:nowrap; color:#fff;
+    border:1px solid rgba(255,255,255,.4);
+    box-shadow:0 1px 2px rgba(40,24,10,.35), inset 0 1px 0 rgba(255,255,255,.3);
+    text-shadow:0 1px 1px rgba(0,0,0,.4); }
+  .auth-badge::before{ content:"["; opacity:.7; }
+  .auth-badge::after{ content:"]"; opacity:.7; }
+  .auth-badge.auth-self{ background:linear-gradient(180deg,#4f8a5b,#356b41); border-color:#8fce9c; }
+  .auth-badge.auth-dm{ background:linear-gradient(180deg,#a06a2c,#7c4e1c); border-color:#e6b871; }
+  .auth-badge.auth-sync{ background:linear-gradient(180deg,#3f78c0,#2b568f); border-color:#8fbdf0; }
+  .auth-badge.auth-offline{ background:linear-gradient(180deg,#8a8172,#63594a); border-color:#c9bfa8; opacity:.8; }
   .hr-ink{ height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); border:0; }
   input,select,textarea{
     background: linear-gradient(180deg, rgba(255,253,247,.96), rgba(246,236,214,.9));
@@ -393,6 +407,7 @@
   <!-- ===== 角色：基礎資料 ===== -->
   <section v-show="tab==='char'">
     <div class="card p-3 mb-3">
+      <div class="flex justify-end -mb-1"><span class="auth-badge auth-self" title="角色身份永遠屬於本機">本機身份</span></div>
       <div class="grid grid-cols-2 gap-2">
         <div class="col-span-2 flex items-center gap-3">
           <div class="shrink-0 rounded-full overflow-hidden flex items-center justify-center" style="width:56px;height:56px;background:var(--paper-2);border:1px solid var(--line)">
@@ -480,7 +495,7 @@
 
     <!-- 戰鬥面板 -->
     <div class="card p-3 mb-3">
-      <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-swords"></use></svg>戰鬥面板</h2>
+      <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-swords"></use></svg>戰鬥面板<span class="auth-badge" :class="sessionBadge.cls" title="牌桌即時戰鬥數值，進房後與 DM 同步">{{ sessionBadge.text }}</span></h2>
       <div class="grid grid-cols-3 gap-2 text-center">
         <div class="stat-box p-2"><div class="text-[11px]"><svg class="w-3 h-3 mr-0.5 inline-block align-text-top"><use href="#icon-shield"></use></svg>護甲值 AC</div><input v-model.number="c.ac" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
         <div class="stat-box p-2"><div class="text-[11px]"><svg class="w-3 h-3 mr-0.5 inline-block align-text-top"><use href="#icon-swords"></use></svg>先攻</div><input v-model.number="c.initiative" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
@@ -563,7 +578,7 @@
     <!-- <svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-bandage"></use></svg>狀態（跑團模式仍可勾選） -->
     <div class="card p-3 mb-3">
       <div class="flex justify-between items-center mb-2">
-        <h2 class="text-sm font-bold title-deco"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-bandage"></use></svg>狀態</h2>
+        <h2 class="text-sm font-bold title-deco"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-bandage"></use></svg>狀態<span class="auth-badge" :class="sessionBadge.cls" title="牌桌即時狀態，進房後與 DM 同步">{{ sessionBadge.text }}</span></h2>
         <span class="text-[11px]" style="color:var(--ink-soft)">{{ activeConditions.length ? activeConditions.join('、') : '無' }}</span>
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
@@ -696,7 +711,7 @@
   <section v-show="tab==='ability'">
     <div class="card p-3 mb-3">
       <div class="flex justify-between items-center mb-2">
-        <h2 class="text-sm font-bold title-deco"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-shield"></use></svg>職業 / 多職業</h2>
+        <h2 class="text-sm font-bold title-deco"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-shield"></use></svg>職業 / 多職業<span class="auth-badge" :class="worldBadge.cls" title="等級/XP 屬世界進度，進房後由 DM 存檔管理">{{ worldBadge.text }}</span></h2>
         <button v-show="!locked" class="btn-ghost btn px-2 py-1 text-xs" @click="addClass">＋ 新增</button>
       </div>
       <div v-if="c.classes.length===0" class="text-xs text-center py-3" style="color:var(--ink-soft)">尚未加入職業，點「新增」開始。</div>
@@ -881,7 +896,7 @@
   <!-- ===== 背包 ===== -->
   <section v-show="tab==='item'">
     <div class="card p-3 mb-3">
-      <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-coins"></use></svg>財產</h2>
+      <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-coins"></use></svg>財產<span class="auth-badge" :class="worldBadge.cls" title="金錢屬世界進度，進房後由 DM 存檔管理">{{ worldBadge.text }}</span></h2>
       <div class="grid grid-cols-4 gap-2 text-center">
         <div v-for="coin in coinDefs" :key="coin.key" class="stat-box p-2">
           <div class="text-[11px]">{{ coin.zh }}</div>
@@ -928,7 +943,7 @@
     </div>
     <div class="card p-3">
       <div class="flex justify-between items-center mb-2">
-        <h2 class="text-sm font-bold title-deco"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-knapsack"></use></svg>背包</h2>
+        <h2 class="text-sm font-bold title-deco"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-knapsack"></use></svg>背包<span class="auth-badge" :class="worldBadge.cls" title="裝備/物品屬世界進度，進房後由 DM 存檔管理">{{ worldBadge.text }}</span></h2>
         <button v-show="!locked" class="btn-ghost btn px-2 py-1 text-xs" @click="addItem">＋ 自訂物品</button>
       </div>
       <div v-if="c.inventory.length===0" class="text-xs text-center py-3" style="color:var(--ink-soft)">背包空空如也喵。</div>
@@ -1035,7 +1050,7 @@
   <!-- ===== 背景：背景故事 / 專長 ===== -->
   <section v-show="tab==='background'">
     <div class="card p-3 mb-3">
-      <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-scroll"></use></svg>角色背景</h2>
+      <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-scroll"></use></svg>角色背景<span class="auth-badge auth-self" title="角色故事與身份永遠屬於本機">本機身份</span></h2>
       <div class="space-y-2">
         <label class="text-xs block">外貌描述<textarea v-model="c.story.appearance" :disabled="locked" rows="2" class="w-full mt-1 px-2 py-1.5 text-sm"></textarea></label>
         <label class="text-xs block">性格特點<textarea v-model="c.story.personality" :disabled="locked" rows="2" class="w-full mt-1 px-2 py-1.5 text-sm"></textarea></label>
@@ -2507,6 +2522,12 @@ const app = createApp({
     let fbApp = null; /* 純變數，不可存進 ref：Vue Proxy 包裹 firebase db 會導致 e.insert is not a function */
     const joinCode = ref("");
     const roomState = reactive({ status:"idle", id:"", error:"", uid:"", messages:[] });
+    /* M1 權威標籤（加法式，純顯示）：以「是否已加入房間」切換標籤文字。 */
+    const isJoined = computed(() => roomState.status === "joined");
+    /* 世界進度層（mechanical）：連線→DM存檔；離線→離線 */
+    const worldBadge = computed(() => isJoined.value ? { cls:"auth-dm", text:"DM存檔" } : { cls:"auth-offline", text:"離線" });
+    /* 牌桌即時層（session）：連線→同步中；離線→離線 */
+    const sessionBadge = computed(() => isJoined.value ? { cls:"auth-sync", text:"同步中" } : { cls:"auth-offline", text:"離線" });
     const cmdToast = reactive({ show:false, text:"", kind:"" });
     let cmdToastTimer = null;
     let roomUnsubs = [];
@@ -2580,6 +2601,7 @@ const app = createApp({
 
     return {
       joinCode, roomState, joinRoom, cmdToast,
+      isJoined, worldBadge, sessionBadge,
       c, tab, tabs, msg, fileInput, dataState, search,
       settings, showSettings, showCreditModal, sourceGroups, enabledCount, totalSourceCount,
       sourceCountsText, sourceLabelOf, toggleSource, selectAllSources, groupAllEnabled, toggleGroup,
