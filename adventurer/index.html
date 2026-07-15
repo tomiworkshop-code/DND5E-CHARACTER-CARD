@@ -323,9 +323,12 @@
           <button v-if="logEntries.length" @click="clearCampaignLog()" class="btn px-2 py-0.5 text-[11px]" style="background:var(--bg-2, var(--bg));color:var(--ink-soft);border:1px solid var(--border-color)">清空</button>
         </div>
         <div v-if="logEntries.length" class="overflow-y-auto rounded p-2 text-xs space-y-1" style="max-height:12rem;background:var(--bg);border:1px solid var(--border-color)">
-          <div v-for="(e, i) in logEntries" :key="e.ts + '-' + i" class="flex gap-2 items-start p-1.5 rounded" style="background:var(--card);border:1px solid var(--border-color)">
-            <span class="text-[10px] shrink-0 num" style="color:var(--ink-soft)">{{ new Date(e.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) }}</span>
-            <span class="leading-snug">{{ e.text }}</span>
+          <div v-for="(e, i) in logEntries" :key="e.ts + '-' + i" class="flex gap-2 items-start p-1.5 rounded" :style="'background:var(--card);border:1px solid var(--border-color);border-left:4px solid ' + logMeta(e.type).color">
+            <span class="shrink-0" style="font-size:14px;line-height:1.2">{{ logMeta(e.type).icon }}</span>
+            <div class="min-w-0 flex-1">
+              <div class="leading-snug break-words">{{ e.text }}</div>
+              <div class="text-[10px] num mt-0.5" style="color:var(--ink-soft)">{{ new Date(e.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) }}</div>
+            </div>
           </div>
         </div>
         <div v-else class="italic text-center py-4 text-xs" style="color:var(--ink-soft)">尚無戰報紀錄</div>
@@ -2710,6 +2713,18 @@ const app = createApp({
     /* M4-1 戰報日誌 / 已知情報 computed（舊存檔無欄位時回 []，mount 期不報錯） */
     const logEntries = computed(() => { const a = activeChar(); if(!a) return []; const b = worldBucket(a); return b.campaignLog; });
     const flagList  = computed(() => { const a = activeChar(); if(!a) return []; const b = worldBucket(a); return b.flags; });
+    /* 事件卡視覺化：依類型回傳圖示與主色（純呈現，不動資料層） */
+    function logMeta(type){
+      switch(type){
+        case "damage": return { icon:"⚔️", color:"#c0392b" };
+        case "heal":   return { icon:"💚", color:"#2e8b57" };
+        case "xp":     return { icon:"🏆", color:"#b8860b" };
+        case "gold":   return { icon:"💰", color:"#8e7024" };
+        case "item":   return { icon:"🎒", color:"#7a5230" };
+        case "info":   return { icon:"🚩", color:"#7a5cc0" };
+        default:       return { icon:"📜", color:"var(--ink-soft)" };
+      }
+    }
     function clearCampaignLog(){
       const a = activeChar();
       if(!a) return;
@@ -2841,7 +2856,7 @@ const app = createApp({
     return {
       joinCode, joinCharId, showSeatNotice, roomState, joinRoom, cmdToast,
       reqItemName, reqItemQty, reqItemReason, askDM, sendItemRequest,
-      logEntries, flagList, clearCampaignLog,
+      logEntries, flagList, clearCampaignLog, logMeta,
       isJoined, worldBadge, sessionBadge,
       worldSave, showConflict, handleWorldSave, applyWorldSave,
       c, tab, tabs, msg, fileInput, dataState, search,
