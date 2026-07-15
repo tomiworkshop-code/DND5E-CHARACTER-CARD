@@ -54,11 +54,21 @@
     min-height: 100vh;
   }
   .card{
+    position:relative;
     background: linear-gradient(180deg, rgba(255,252,240,.9), rgba(233,218,182,.78));
     border:1px solid var(--line);
     border-radius:14px;
     box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 6px 14px -8px rgba(90,61,34,.5);
   }
+  /* 階段3：卡片四角燙金描邊 */
+  .card::before, .card::after{ content:""; position:absolute; width:13px; height:13px; border:2px solid var(--gold-metal); opacity:.5; pointer-events:none; border-radius:2px; }
+  .card::before{ top:5px; left:5px; border-right:0; border-bottom:0; }
+  .card::after{ bottom:5px; right:5px; border-left:0; border-top:0; }
+  /* 階段3：HP 血瓶造型條 */
+  .hp-bar-shell{ position:relative; height:22px; border-radius:999px; background:#e2d0a6; border:1.5px solid #b98f52; box-shadow:inset 0 2px 4px rgba(90,60,20,.35); overflow:hidden; }
+  html[data-theme="dark"] .hp-bar-shell{ background:#3a2f20; border-color:#6a5332; }
+  .hp-bar-fill{ height:100%; background:linear-gradient(180deg,#c0432f,#8a2418); box-shadow:inset 0 1px 0 rgba(255,255,255,.25); transition:width .3s ease; }
+  .hp-bar-txt{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.5); }
   .title-deco{ font-family:var(--font-head); font-weight:700; letter-spacing:.06em; color:var(--gold-deep); }
   .hr-ink{ height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); border:0; }
   input,select,textarea{
@@ -442,6 +452,10 @@
         <div class="stat-box p-2"><div class="text-[11px]"><svg class="w-3 h-3 mr-0.5 inline-block align-text-top"><use href="#icon-shield"></use></svg>護甲值 AC</div><input v-model.number="c.ac" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
         <div class="stat-box p-2"><div class="text-[11px]"><svg class="w-3 h-3 mr-0.5 inline-block align-text-top"><use href="#icon-swords"></use></svg>先攻</div><input v-model.number="c.initiative" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
         <div class="stat-box p-2"><div class="text-[11px]"><svg class="w-3 h-3 mr-0.5 inline-block align-text-top"><use href="#icon-boots"></use></svg>速度</div><input v-model="c.speed" :disabled="locked" type="text" class="w-full mt-1 text-center font-bold num py-1"></div>
+      </div>
+      <div class="hp-bar-shell mt-2">
+        <div class="hp-bar-fill" :style="{width: (100*Math.max(0,Math.min(Number(c.hp.current)||0, Number(c.hp.max)||0))/((Number(c.hp.max)||1)))+'%'}"></div>
+        <div class="hp-bar-txt num">🧪 {{ c.hp.current }} / {{ c.hp.max }}<span v-if="c.hp.temp>0">&nbsp;(+{{ c.hp.temp }})</span></div>
       </div>
       <div class="grid grid-cols-3 gap-2 text-center mt-2">
         <div class="stat-box p-2"><div class="text-[11px]"><svg class="w-3 h-3 mr-0.5 inline-block align-text-top"><use href="#icon-heart"></use></svg>目前 HP</div><input v-model.number="c.hp.current" type="number" class="w-full mt-1 text-center font-bold num py-1"></div>
