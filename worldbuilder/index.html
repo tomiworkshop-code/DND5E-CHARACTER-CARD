@@ -50,6 +50,13 @@
     background:linear-gradient(180deg, rgba(40,32,24,.9), rgba(30,24,18,.85));
     box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 6px 14px -8px rgba(0,0,0,.8);
   }
+  /* §7.8 DM 桌面三欄跑團控制台 */
+  .room-console{ display:flex; flex-direction:column; gap:1rem; }
+  .room-col{ display:flex; flex-direction:column; gap:1rem; min-width:0; }
+  @media(min-width:1024px){
+    .room-console{ display:grid; grid-template-columns:1fr 1.15fr 0.95fr; gap:1rem; align-items:start; }
+    .room-wide{ max-width:80rem; margin-left:auto; margin-right:auto; }
+  }
   input,select,textarea{
     background:rgba(255,253,247,.85); border:1px solid var(--line);
     border-radius:10px; color:var(--ink); outline:none; width:100%;
@@ -114,7 +121,7 @@
   </div>
 
   <!-- ===== 🎲 跨團控制台（DM 端） ===== -->
-  <div v-show="tab==='room'" class="card p-3 mb-3">
+  <div v-show="tab==='room'" class="card p-3 mb-3 room-wide">
     <div class="text-sm font-bold flex items-center gap-2 mb-3" style="color:var(--gold-deep)">🎲 跨團控制台</div>
     <div v-if="roomState.error" class="text-xs mb-3 p-2 rounded" style="background:#3a1a1a;color:#f0a0a0">{{ roomState.error }}</div>
 
@@ -123,7 +130,8 @@
       <button class="btn px-3 py-2 text-sm w-full" style="background:var(--gold-deep);color:#fff" :disabled="!roomState.dmUid || roomState.status==='opening'" @click="openRoom">{{ roomState.status==='opening' ? '開房中…' : '🎲 建立房間 (Create Room)' }}</button>
     </div>
 
-    <div v-else class="flex flex-col gap-4">
+    <div v-else class="room-console">
+      <div class="room-col">
       <div class="flex flex-col items-center gap-2 p-3 rounded" style="background:var(--bg);border:1px solid var(--line)">
         <div class="text-[11px]" style="color:var(--ink-soft)">請玩家掃描或輸入房號加入</div>
         <div class="text-3xl font-black tracking-widest" style="color:var(--gold-deep)">{{ roomState.id }}</div>
@@ -135,7 +143,10 @@
         <div class="flex flex-wrap gap-2">
           <button v-for="(p, pid) in roomState.players" :key="pid" @click="pickCmdTarget(pid)" class="px-2 py-1 rounded-full text-[12px] font-bold" :style="cmdTarget===pid ? 'background:#c0392b;color:#fff;outline:2px solid #fff' : 'background:var(--gold-deep);color:#fff'">{{ p.name || '未命名' }} <span style="opacity:.75">Lv.{{ p.level || 1 }}</span></button>
         </div>
+      </div>
+      </div><!-- /room-col left -->
 
+      <div class="room-col">
         <!-- ⚔️ 指令面板（選取玩家後展開） -->
         <div v-if="cmdTarget && roomState.players[cmdTarget]" class="mt-3 pt-3" style="border-top:1px dashed var(--line)">
           <div class="text-[12px] mb-2" style="color:var(--gold-deep)">⚔️ 對 <b>{{ roomState.players[cmdTarget].name || '未命名' }}</b> 下指令</div>
@@ -246,7 +257,6 @@
             <div v-if="roomState.saveMsg" class="text-[11px] mt-1" style="color:#2e8b57">{{ roomState.saveMsg }}</div>
           </div>
         </div>
-      </div>
       <div class="p-3 rounded" style="background:var(--bg);border:1px solid var(--line)">
         <div class="text-[12px] mb-2" style="color:var(--ink-soft)">📢 廣播推播（全體）</div>
         <div class="flex gap-2">
@@ -254,7 +264,9 @@
           <button class="btn px-3 py-1.5 text-sm whitespace-nowrap" style="background:var(--gold-deep);color:#fff" @click="sendBroadcast">推送</button>
         </div>
       </div>
+      </div><!-- /room-col middle -->
 
+      <div class="room-col">
       <!-- 🎭 劇情回調 -->
       <div v-if="roomState.status==='open'" class="p-3 rounded" style="background:var(--bg);border:1px solid var(--line)">
         <div class="text-[12px] mb-1" style="color:var(--gold-deep);font-weight:bold">🎭 劇情回調</div>
@@ -277,6 +289,7 @@
           </div>
         </div>
       </div>
+      </div><!-- /room-col right -->
     </div>
   </div>
 
