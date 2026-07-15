@@ -1,8 +1,14 @@
 /* 羊皮卷 PWA Service Worker */
-const CACHE = 'parchment-dnd5e-v8-netfirst';
+const CACHE = 'parchment-dnd5e-v9-netfirst';
 const ASSETS = [
   './',
   './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-192.png',
+  './icons/icon-maskable-512.png',
+  './icons/apple-touch-icon.png',
+  './icons/favicon-32.png',
   './shared/character-schema.js',
   './data/races.json',
   './data/spells.json',
