@@ -187,6 +187,16 @@
             </div>
           </div>
 
+          <!-- 🎒 給物品（往玩家背包新增物品，共用同步/寫日誌勾選與來源） -->
+          <div class="mt-3 pt-3" style="border-top:1px dashed var(--line)">
+            <div class="text-[12px] mb-2" style="color:var(--gold-deep)">🎒 給物品</div>
+            <div class="flex items-center gap-2 mb-2">
+              <input v-model="cmdItemName" type="text" placeholder="物品名稱，例：治療藥水" class="flex-1 px-2 py-1 text-sm" style="background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:6px">
+              <input v-model.number="cmdItemQty" type="number" class="w-16 px-2 py-1 text-sm text-center" style="background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:6px">
+              <button @click="sendItem" class="btn px-3 py-1.5 text-sm" style="background:#8e7024;color:#fff">🎒 給物品</button>
+            </div>
+          </div>
+
           <!-- 💬 惄惄話（私訊單一玩家） -->
           <div class="mt-3 pt-3" style="border-top:1px dashed var(--line)">
             <div class="text-[12px] mb-2" style="color:var(--gold-deep)">💬 惄惄話（只有這位玩家看得到）</div>
@@ -1100,6 +1110,8 @@ createApp({
     const cmdWriteLog = ref(true);  // 寫入戰報日誌
     const cmdFlagLabel = ref("");   // 旗標／情報白話
     const cmdFlagDone = ref(false); // 旗標是否已達成
+    const cmdItemName = ref("");    // 給物品：物品名稱
+    const cmdItemQty = ref(1);      // 給物品：數量
     const whisperInput = ref("");   // 私訊內容
     const whisperFlash = ref("");   // 送出後短暫提示
     let whisperFlashTimer = null;
@@ -1145,6 +1157,29 @@ createApp({
         if(saveMsgTimer) clearTimeout(saveMsgTimer);
         saveMsgTimer = setTimeout(()=>{ roomState.saveMsg = ""; }, 3500);
       }catch(e){ roomState.error = "情報發送失敗：" + e.message; }
+    }
+
+    async function sendItem(){
+      if(!cmdTarget.value || roomState.status !== "open"){ return; }
+      const name = (cmdItemName.value || "").trim();
+      if(!name){ return; }
+      try{
+        await window.DND5E_ROOM.sendCommand(fbApp.db, roomState.id, cmdTarget.value, {
+          type: "item",
+          itemName: name,
+          qty: Math.max(1, Number(cmdItemQty.value)||1),
+          source: cmdSource.value || "",
+          visibleToPlayer: cmdVisible.value,
+          writesToCampaignLog: cmdWriteLog.value,
+          createdBy: "dm",
+          createdAt: Date.now()
+        });
+        cmdItemName.value = "";
+        cmdItemQty.value = 1;
+        roomState.saveMsg = "已給予物品 ✓";
+        if(saveMsgTimer) clearTimeout(saveMsgTimer);
+        saveMsgTimer = setTimeout(()=>{ roomState.saveMsg = ""; }, 3500);
+      }catch(e){ roomState.error = "物品發送失敗：" + e.message; }
     }
 
     async function sendWhisper(){
@@ -1513,6 +1548,7 @@ createApp({
       roomState, broadcastInput, openRoom, sendBroadcast,
       cmdTarget, cmdAmount, cmdNote, pickCmdTarget, sendCmd,
       cmdSource, cmdDamageType, cmdVisible, cmdWriteLog, cmdFlagLabel, cmdFlagDone, sendFlag,
+      cmdItemName, cmdItemQty, sendItem,
       whisperInput, whisperFlash, sendWhisper,
       adoptWorldSave,
       worlds, activeWorld, currentWorld, manageOpen,
