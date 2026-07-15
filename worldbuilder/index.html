@@ -5,12 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#7c5a3a">
 <title>地下城指南 · 世界建構器（原型）</title>
-
-<!-- Firebase compat SDK -->
+<!-- Firebase compat SDK + QR + Room 模組（Step B） -->
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
-<!-- QR -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="../shared/firebase-config.js"></script>
 <script src="../shared/room.js"></script>
@@ -108,7 +106,40 @@
     </div>
   </div>
 
-  <!-- 🌍 世界 tab: world settings -->
+  <!-- ===== 🎲 跨團控制台（DM 端） ===== -->
+  <div v-show="tab==='room'" class="card p-3 mb-3">
+    <div class="text-sm font-bold flex items-center gap-2 mb-3" style="color:var(--gold-deep)">🎲 跨團控制台</div>
+    <div v-if="roomState.error" class="text-xs mb-3 p-2 rounded" style="background:#3a1a1a;color:#f0a0a0">{{ roomState.error }}</div>
+
+    <div v-if="roomState.status !== 'open'">
+      <p class="text-[12px] mb-3" style="color:var(--ink-soft)">建立即時房間，讓玩家用「冒險者之書」掃碼或輸入房號加入。進度將綁定當前世界：<b>{{ (currentWorld && currentWorld.name) || '（未命名世界）' }}</b></p>
+      <button class="btn px-3 py-2 text-sm w-full" style="background:var(--gold-deep);color:#fff" :disabled="!roomState.dmUid || roomState.status==='opening'" @click="openRoom">{{ roomState.status==='opening' ? '開房中…' : '🎲 建立房間 (Create Room)' }}</button>
+    </div>
+
+    <div v-else class="flex flex-col gap-4">
+      <div class="flex flex-col items-center gap-2 p-3 rounded" style="background:var(--bg);border:1px solid var(--line)">
+        <div class="text-[11px]" style="color:var(--ink-soft)">請玩家掃描或輸入房號加入</div>
+        <div class="text-3xl font-black tracking-widest" style="color:var(--gold-deep)">{{ roomState.id }}</div>
+        <img v-if="roomState.qr" :src="roomState.qr" class="rounded" style="width:180px;height:180px;background:#fff;padding:6px">
+      </div>
+      <div class="p-3 rounded" style="background:var(--bg);border:1px solid var(--line)">
+        <div class="text-[12px] mb-2" style="color:var(--ink-soft)">👥 玩家名單</div>
+        <div v-if="Object.keys(roomState.players).length===0" class="text-[12px] italic" style="color:var(--ink-soft)">尚未有玩家加入…</div>
+        <div class="flex flex-wrap gap-2">
+          <span v-for="(p, pid) in roomState.players" :key="pid" class="px-2 py-1 rounded-full text-[12px] font-bold" style="background:var(--gold-deep);color:#fff">{{ p.name || '未命名' }} <span style="opacity:.75">Lv.{{ p.level || 1 }}</span></span>
+        </div>
+      </div>
+      <div class="p-3 rounded" style="background:var(--bg);border:1px solid var(--line)">
+        <div class="text-[12px] mb-2" style="color:var(--ink-soft)">📢 廣播推播（全體）</div>
+        <div class="flex gap-2">
+          <input v-model="broadcastInput" @keyup.enter="sendBroadcast" placeholder="輸入訊息…" class="flex-1 px-2 py-1.5 text-sm" style="background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:6px">
+          <button class="btn px-3 py-1.5 text-sm whitespace-nowrap" style="background:var(--gold-deep);color:#fff" @click="sendBroadcast">推送</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- 🌍 世界 tab: world settings -->
   <div v-show="tab==='world'" class="card p-3 mb-3">
     <div class="text-sm font-bold flex items-center gap-2 mb-2" style="color:var(--gold-deep)">
       <svg class="ic"><use href="#w-globe"></use></svg>世界設定
@@ -778,7 +809,7 @@
 </svg>
 
 <script>
-const { createApp, ref, reactive, computed, watch } = Vue;
+const { createApp, ref, reactive, computed, watch, onMounted } = Vue;
 const LS = "dm_worldbuilder_v1";
 const LS_WORLDS = "dm_worldbuilder_worlds_v1";
 const LS_ACTIVE = "dm_worldbuilder_active_v1";
@@ -962,8 +993,8 @@ createApp({
     const sel = ref(null);
     const q = ref("");
     const tabs = [
-      { id:"room",    icon:"🎲", label:"跑團" },
       { id:"world",    icon:"🌍", label:"世界" },
+      { id:"room",     icon:"🎲", label:"跨團" },
       { id:"build",    icon:"📚", label:"建檔" },
       { id:"enc",      icon:"⚔️", label:"遭遇" },
       { id:"econ",     icon:"🛒", label:"經濟" },
@@ -973,57 +1004,46 @@ createApp({
     ];
     const tab = ref("build");
     const importFile = ref(null);
-    
-    // ---- Room / Session State ----
+
+    /* ===== Step B: 跨端連線（DM 端） ===== */
     const fbApp = ref(null);
-    const roomState = reactive({ status: 'idle', id: '', qr: '', error: '', players: {}, dmUid: '' });
+    const roomState = reactive({ status:"idle", id:"", qr:"", error:"", players:{}, dmUid:"" });
     const broadcastInput = ref("");
+    let roomPlayersUnsub = null;
 
-    const initFirebase = () => {
-      if(!window.DND5E_FIREBASE || !window.DND5E_ROOM) return;
+    function initFirebase(){
       if(fbApp.value) return;
-      try {
-        const cfg = window.DND5E_FIREBASE.firebaseConfig;
-        const fb = window.DND5E_ROOM.init(cfg);
+      if(!window.DND5E_FIREBASE || !window.DND5E_ROOM){ return; }
+      try{
+        const fb = window.DND5E_ROOM.init(window.DND5E_FIREBASE.firebaseConfig);
         fbApp.value = fb;
-        window.DND5E_ROOM.signInAnon(fb.auth).then(uid => {
-          roomState.dmUid = uid;
-        }).catch(e => { roomState.error = "Firebase登入失敗: " + e.message; });
-      } catch(e) { roomState.error = "Firebase初始化失敗: " + e.message; }
-    };
+        window.DND5E_ROOM.signInAnon(fb.auth)
+          .then(uid => { roomState.dmUid = uid; })
+          .catch(e => { roomState.error = "連線登入失敗：" + e.message; });
+      }catch(e){ roomState.error = "連線初始化失敗：" + e.message; }
+    }
 
-    const openRoom = async () => {
-      if(!fbApp.value) initFirebase();
-      if(!roomState.dmUid || roomState.status === 'opening') return;
-      roomState.status = 'opening'; roomState.error = '';
-      try {
-        const rid = await window.DND5E_ROOM.createRoom(fbApp.value.db, {
-          dmId: roomState.dmUid,
-          worldId: activeWorldId.value
-        });
-        roomState.id = rid;
-        roomState.status = 'open';
-        // Generate QR
-        const url = location.origin + location.pathname.replace('/worldbuilder/', '/') + "?room=" + rid;
-        QRCode.toDataURL(url, { width: 200, margin: 1 }, (err, dataUrl) => {
-          if(!err) roomState.qr = dataUrl;
-        });
-        // Listen to players
-        window.DND5E_ROOM.onPlayers(fbApp.value.db, rid, (ps) => {
-          roomState.players = ps || {};
-        });
-      } catch(e) {
-        roomState.status = 'idle';
-        roomState.error = "開房失敗: " + e.message;
-      }
-    };
+    async function openRoom(){
+      if(!fbApp.value){ initFirebase(); }
+      if(!roomState.dmUid){ roomState.error = "連線尚未就緒，稍後再試"; return; }
+      if(roomState.status === "opening") return;
+      roomState.status = "opening"; roomState.error = "";
+      try{
+        const rid = await window.DND5E_ROOM.createRoom(fbApp.value.db, { dmId: roomState.dmUid, worldId: activeWorld.value });
+        roomState.id = rid; roomState.status = "open";
+        const url = location.origin + location.pathname.replace(/worldbuilder\/?$/, "") + "?room=" + rid;
+        try{ QRCode.toDataURL(url, { width:200, margin:1 }, (err, dataUrl)=>{ if(!err) roomState.qr = dataUrl; }); }catch(e){}
+        if(roomPlayersUnsub){ roomPlayersUnsub(); }
+        roomPlayersUnsub = window.DND5E_ROOM.onPlayers(fbApp.value.db, rid, (ps)=>{ roomState.players = ps || {}; });
+      }catch(e){ roomState.status = "idle"; roomState.error = "開房失敗：" + e.message; }
+    }
 
-    const sendBroadcast = async () => {
+    async function sendBroadcast(){
       const t = broadcastInput.value.trim();
-      if(!t || roomState.status !== 'open') return;
+      if(!t || roomState.status !== "open"){ return; }
       await window.DND5E_ROOM.sendBroadcast(fbApp.value.db, roomState.id, "dm", t);
       broadcastInput.value = "";
-    };
+    }
 
     onMounted(() => { initFirebase(); });
 
@@ -1213,8 +1233,7 @@ createApp({
       const pcs = Math.max(1, enc.numPCs||1);
       if(pcs<=2) idx = Math.min(6, idx+1); else if(pcs>=6) idx = Math.max(0, idx-1);
       const mult = count>0 ? MULT_LADDER[idx] : 0;
-      return {
-      roomState, openRoom, sendBroadcast, broadcastInput, count, baseXP, mult, adjXP: Math.round(baseXP*mult) };
+      return { count, baseXP, mult, adjXP: Math.round(baseXP*mult) };
     });
     const encThresholds = computed(()=>{
       const lv = Math.min(20, Math.max(1, enc.level||1));
@@ -1321,6 +1340,7 @@ createApp({
     watch(sel, ()=>{ if(!sel.value) return; if(showStatBlock(sel.value)) ensureStats(sel.value); if(showItem(sel.value)) ensureItem(sel.value); if(showFields(sel.value)) ensureFields(sel.value); });
 
     return { cats, tabs, tab, importFile, activeCat, sel, q, theme, filtered, rarityOpts: RARITY,
+      roomState, broadcastInput, openRoom, sendBroadcast,
       worlds, activeWorld, currentWorld, manageOpen,
       exportData, triggerImport, importData,
       iconOf, catName, countOf, entriesOf, entryById,
