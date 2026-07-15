@@ -82,22 +82,35 @@
   html[data-theme="dark"] .hp-bar-shell{ background:#3a2f20; border-color:#6a5332; }
   .hp-bar-fill{ height:100%; background:linear-gradient(180deg,#c0432f,#8a2418); box-shadow:inset 0 1px 0 rgba(255,255,255,.25); transition:width .3s ease; }
   .hp-bar-txt{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.5); }
-  .title-deco{ font-family:var(--font-head); font-weight:700; letter-spacing:.06em; color:var(--gold-deep); }
+  /* 統一標題：皮革章節名牌（沿用燙金皮革牌素材，横向拉伸） */
+  .title-deco{ font-family:var(--font-head); font-weight:700; letter-spacing:.06em;
+    display:block; color:#f1d597; text-shadow:0 1px 2px rgba(0,0,0,.55);
+    border:7px solid transparent; border-image:url("./assets/ui/leather-btn.webp") 30 fill / 7px / 0 stretch;
+    padding:.15rem .5rem; border-radius:8px; box-shadow:0 2px 6px -3px rgba(60,40,20,.5); }
+  .title-deco svg{ filter:drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
   .hr-ink{ height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); border:0; }
   input,select,textarea{
-    background: rgba(255,253,247,.85);
-    border:1px solid var(--line);
-    border-radius:10px;
+    background: linear-gradient(180deg, rgba(255,253,247,.96), rgba(246,236,214,.9));
+    border:1.5px solid var(--line);
+    border-radius:9px;
     color: var(--ink);
     outline:none;
+    box-shadow: inset 0 2px 4px rgba(120,85,45,.14);
   }
-  input:focus,select:focus,textarea:focus{ border-color:var(--accent); box-shadow:0 0 0 2px rgba(138,90,43,.2); }
-  /* 主按鈕：燙金皮革牌（九宫格 border-image） */
-  .btn{ border-radius:10px; border:12px solid transparent; border-image:url("./assets/ui/leather-btn.webp") 30 fill / 12px / 0 stretch; background:transparent; color:#fdf6e3; font-weight:600; text-shadow:0 1px 2px rgba(0,0,0,.5); box-shadow:0 2px 6px -3px rgba(60,40,20,.5); }
-  .btn:active{ transform: translateY(1px); filter:brightness(.93); }
-  /* 次要/危險按鈕：不套皮革牌 */
-  .btn-ghost{ border-image:none; background:transparent; color:var(--gold-deep); border:1px dashed var(--line); text-shadow:none; box-shadow:none; }
-  .btn-danger{ border-image:none; border:1px solid #5e271d; background:linear-gradient(180deg,#9c4a3a,#7e3a2c); color:#fdf0ea; }
+  input:focus,select:focus,textarea:focus{ border-color:var(--accent); box-shadow: inset 0 2px 4px rgba(120,85,45,.14), 0 0 0 2px rgba(138,90,43,.22); }
+  /* 主按鈕：乾淨皮革鈕（金邊+頂部反光+按下凹陷，一看就能按） */
+  .btn{ border-radius:9px; border:1.5px solid var(--gold-metal);
+    background:linear-gradient(180deg,#9c6c3c 0%,#7d5731 55%,#684622 100%);
+    color:#fdf6e3; font-weight:700; letter-spacing:.02em;
+    text-shadow:0 1px 1px rgba(0,0,0,.45);
+    box-shadow: inset 0 1px 0 rgba(255,231,170,.5), inset 0 -2px 4px rgba(40,24,10,.4), 0 2px 5px -2px rgba(60,40,20,.55); }
+  .btn:hover{ filter:brightness(1.05); }
+  .btn:active{ transform: translateY(1px); box-shadow: inset 0 2px 6px rgba(30,16,6,.55); filter:brightness(.95); }
+  .btn:disabled{ filter:grayscale(.4) brightness(.9); opacity:.6; cursor:not-allowed; }
+  /* 次要/危險按鈕 */
+  .btn-ghost{ background:linear-gradient(180deg,rgba(255,252,240,.7),rgba(233,218,182,.5)); color:var(--gold-deep); border:1.5px solid var(--line); text-shadow:none; box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
+  .btn-ghost:hover{ filter:brightness(1.03); }
+  .btn-danger{ border:1.5px solid #5e271d; background:linear-gradient(180deg,#a8503d,#7e3a2c); color:#fdf0ea; box-shadow: inset 0 1px 0 rgba(255,200,180,.3), 0 2px 5px -2px rgba(60,40,20,.55); }
   .stat-box{ background:rgba(255,252,240,.7); border:1px solid var(--line); border-radius:12px; }
   /* 階段2：屬性蠟封徽章（保留輸入） */
   .ability-cell{ position:relative; background:linear-gradient(180deg,#fdf6e3,#efe1c0); border:1.5px solid var(--gold-metal); border-radius:14px; box-shadow:0 3px 8px rgba(90,61,34,.22), inset 0 1px 0 rgba(255,255,255,.55); }
