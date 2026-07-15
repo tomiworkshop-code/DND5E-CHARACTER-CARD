@@ -275,11 +275,25 @@
   <section v-show="tab==='table'">
   <!-- ===== Step B：跨端連線橫幅（玩家端） ===== -->
   <div v-if="roomState.uid" class="mb-3 no-print">
-    <div v-if="roomState.status !== 'joined'" class="card p-3 flex gap-2 items-center">
-      <input v-model="joinCode" @keyup.enter="joinRoom()" placeholder="輸入房號 (5碼)" maxlength="5" class="flex-1 px-2 py-1.5 rounded border text-sm uppercase" style="background:var(--bg);border-color:var(--border-color);color:var(--ink)">
-      <button @click="joinRoom()" :disabled="roomState.status==='joining'" class="btn px-3 py-1.5 text-sm whitespace-nowrap" style="background:var(--gold-deep);color:#fff">{{ roomState.status==='joining' ? '連線中…' : '🎲 連線跨團' }}</button>
+    <div v-if="roomState.status !== 'joined'" class="card p-3 flex flex-col gap-2">
+      <!-- M3-1 選角入座：多角色時才顯示下拉；單角色維持原樣 -->
+      <select v-if="chars.length > 1" v-model="joinCharId" class="px-2 py-1.5 rounded border text-sm" style="background:var(--bg);border-color:var(--border-color);color:var(--ink)">
+        <option v-for="ch in chars" :key="ch.id" :value="ch.id">🧙 {{ ch.name || '未命名角色' }}</option>
+      </select>
+      <div class="flex gap-2 items-center">
+        <input v-model="joinCode" @keyup.enter="joinRoom()" placeholder="輸入房號 (5碼)" maxlength="5" class="flex-1 px-2 py-1.5 rounded border text-sm uppercase" style="background:var(--bg);border-color:var(--border-color);color:var(--ink)">
+        <button @click="joinRoom()" :disabled="roomState.status==='joining'" class="btn px-3 py-1.5 text-sm whitespace-nowrap" style="background:var(--gold-deep);color:#fff">{{ roomState.status==='joining' ? '連線中…' : '🎲 連線跨團' }}</button>
+      </div>
     </div>
     <div v-else class="card p-3" style="border:1px solid var(--gold-deep)">
+      <!-- M3-1 入座權威提示卡（§7.4）：可關閉 -->
+      <div v-if="showSeatNotice" class="card p-3 mb-3" style="background:var(--bg)">
+        <div class="text-sm font-bold mb-1" style="color:var(--gold-deep)">已入座：{{ roomState.id }}</div>
+        <p class="text-xs leading-relaxed" style="color:var(--ink)">此世界的等級、裝備、金錢與任務進度由 DM 存檔管理 <span class="auth-badge auth-dm">DM存檔</span>；你的角色身份（姓名／種族／背景／故事）仍完全屬於你 <span class="auth-badge auth-self">本機身份</span>。</p>
+        <div class="text-right mt-2">
+          <button @click="showSeatNotice=false" class="btn px-3 py-1 text-xs" style="background:var(--gold-deep);color:#fff">知道了</button>
+        </div>
+      </div>
       <div class="flex justify-between items-center mb-2">
         <span class="text-sm font-bold" style="color:var(--gold-deep)">🎲 已連線：{{ roomState.id }}</span>
         <span class="text-[10px]" style="color:var(--ink-soft)">🏆 XP {{ c.xp || 0 }} · 即時同步中</span>
@@ -2525,6 +2539,8 @@ const app = createApp({
     /* ===== Step B: 跨端連線（玩家端） ===== */
     let fbApp = null; /* 純變數，不可存進 ref：Vue Proxy 包裹 firebase db 會導致 e.insert is not a function */
     const joinCode = ref("");
+    const joinCharId = ref(activeId.value); /* M3-1：選角入座（多角色時）；預設為當前角色 */
+    const showSeatNotice = ref(false);     /* M3-1：入座權威提示卡開關 */
     const roomState = reactive({ status:"idle", id:"", error:"", uid:"", messages:[] });
     /* M1 權威標籤（加法式，純顯示）：以「是否已加入房間」切換標籤文字。 */
     const isJoined = computed(() => roomState.status === "joined");
@@ -2576,11 +2592,14 @@ const app = createApp({
       try{
         const meta = await window.DND5E_ROOM.roomMeta(fbApp.db, rid);
         if(!meta){ throw new Error("找不到該房間"); }
-        const ch = activeChar();
+        /* M3-1 選角入座：優先用下拉選中的角色，找不到再 fallback 當前角色 */
+        const ch = (chars.find(x => x.id === joinCharId.value)) || activeChar();
         const lvl = (ch.classes||[]).reduce((s,cl)=>s+(cl.level||1),0) || 1;
-        const snap = { name: ch.name || "未命名", level: lvl, hp: ch.hp, ac: ch.ac, characterId: ch.characterId };
+        /* M3-1 豐富握手：className（職業名以 / 串接）、worldId（加法式，不移除既有欄位） */
+        const className = (ch.classes||[]).map(cl=>{ const def = CLASSES.find(k=>k.name_en===cl.name_en); return def ? def.name_zh : (cl.name_en||""); }).filter(Boolean).join("/");
+        const snap = { name: ch.name || "未命名", level: lvl, hp: ch.hp, ac: ch.ac, characterId: ch.characterId, className: className, worldId: (ch.worldId || meta.worldId || "") };
         await window.DND5E_ROOM.joinRoom(fbApp.db, rid, roomState.uid, snap);
-        roomState.id = rid; roomState.status = "joined";
+        roomState.id = rid; roomState.status = "joined"; showSeatNotice.value = true;
         roomUnsubs.forEach(u=>u()); roomUnsubs = [];
         roomUnsubs.push(window.DND5E_ROOM.onBroadcast(fbApp.db, rid, m => pushRoomMsg(m)));
         roomUnsubs.push(window.DND5E_ROOM.onInbox(fbApp.db, rid, roomState.uid, m => pushRoomMsg(Object.assign({ isPrivate:true }, m))));
@@ -2604,7 +2623,7 @@ const app = createApp({
     });
 
     return {
-      joinCode, roomState, joinRoom, cmdToast,
+      joinCode, joinCharId, showSeatNotice, roomState, joinRoom, cmdToast,
       isJoined, worldBadge, sessionBadge,
       c, tab, tabs, msg, fileInput, dataState, search,
       settings, showSettings, showCreditModal, sourceGroups, enabledCount, totalSourceCount,
