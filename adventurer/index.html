@@ -1564,7 +1564,9 @@ function defaultChar(){
     familiar: null,
     /* M4-1 玩家版結構化事件消費（加法式、向後相容）：戰報日誌 + 已知情報旗標 */
     campaignLog: [],
-    flags: []
+    flags: [],
+    /* 階段一：進度屬於世界——依世界分桶儲存 campaignLog/flags（保留上兩欄為遷移來源/相容） */
+    worldProgress: {}
   };
 }
 
@@ -1712,6 +1714,8 @@ const app = createApp({
       /* M4-1 向後相容：舊存檔無 campaignLog/flags（或型態損壞）時回填為陣列 */
       if(!Array.isArray(out.campaignLog)) out.campaignLog = [];
       if(!Array.isArray(out.flags)) out.flags = [];
+      /* 階段一 向後相容：舊存檔無 worldProgress（或型態損壞）時回填為物件 */
+      if(!out.worldProgress || typeof out.worldProgress !== "object" || Array.isArray(out.worldProgress)) out.worldProgress = {};
       return out;
     }
 
@@ -2616,12 +2620,26 @@ const app = createApp({
     /* 套用 DM 指令到角色卡（扣血/治療/金幣/經驗）—即時生效。 */
     /* M4-1 傷害類型中文對照（白話呈現，缺字則直接用原值） */
     const DMG_TYPE_ZH = { piercing:"穿刺", slashing:"揮砍", bludgeoning:"鈍擊", fire:"火焰", cold:"冰寒", lightning:"閃電", acid:"強酸", poison:"毒素", necrotic:"死靈", radiant:"光耀", psychic:"心靈", thunder:"雷鳴", force:"力場" };
-    /* M4-1 將一筆日誌寫進角色 campaignLog（上限 200），並鏡像到工作副本 c（同 id 時） */
+    /* 階段一：世界分桶——進度屬於世界。未綁世界時徒至單人桶 __solo__ */
+    function worldKey(ch){ return (ch && ch.worldId != null && ch.worldId !== "") ? String(ch.worldId) : "__solo__"; }
+    function worldBucket(ch){
+      if(!ch) return { campaignLog:[], flags:[] };
+      if(!ch.worldProgress || typeof ch.worldProgress !== "object" || Array.isArray(ch.worldProgress)) ch.worldProgress = {};
+      const k = worldKey(ch);
+      if(!ch.worldProgress[k] || typeof ch.worldProgress[k] !== "object") ch.worldProgress[k] = { campaignLog:[], flags:[] };
+      const b = ch.worldProgress[k];
+      if(!Array.isArray(b.campaignLog)) b.campaignLog = [];
+      if(!Array.isArray(b.flags)) b.flags = [];
+      /* 一次性遷移：舊根層資料且此桶為空 → 移入桶並清空根層 */
+      if(Array.isArray(ch.campaignLog) && ch.campaignLog.length && !b.campaignLog.length){ b.campaignLog = ch.campaignLog.slice(); ch.campaignLog = []; }
+      if(Array.isArray(ch.flags) && ch.flags.length && !b.flags.length){ b.flags = ch.flags.slice(); ch.flags = []; }
+      return b;
+    }
+    /* M4-1 將一筆日誌寫進當前世界桶的 campaignLog（上限 200） */
     function writeCampaignLog(ch, entry){
-      if(!Array.isArray(ch.campaignLog)) ch.campaignLog = [];
-      ch.campaignLog.unshift(entry);
-      if(ch.campaignLog.length > 200) ch.campaignLog.pop();
-      if(c.id === ch.id){ c.campaignLog = ch.campaignLog.slice(); }
+      const b = worldBucket(ch);
+      b.campaignLog.unshift(entry);
+      if(b.campaignLog.length > 200) b.campaignLog.pop();
     }
     function applyCommand(cmd){
       if(!cmd || !cmd.type) return;
@@ -2674,11 +2692,10 @@ const app = createApp({
       if(cmd.flag){
         const f = cmd.flag;
         const norm = { id: (f.id || ("f"+Date.now())), label: (f.label || String(f)), done: (f.done !== false), ts: Date.now() };
-        if(!Array.isArray(ch.flags)) ch.flags = [];
-        const exist = ch.flags.find(x => x && x.label === norm.label);
+        const b = worldBucket(ch);
+        const exist = b.flags.find(x => x && x.label === norm.label);
         if(exist){ exist.done = norm.done; }
-        else { ch.flags.push(norm); }
-        if(c.id === ch.id){ c.flags = ch.flags.slice(); }
+        else { b.flags.push(norm); }
       }
       persist();
       pushRoomMsg({ _key: cmd._key || ("cmd"+Date.now()), text: label, ts: cmd.ts || Date.now(), isCommand:true });
@@ -2691,14 +2708,14 @@ const app = createApp({
     }
 
     /* M4-1 戰報日誌 / 已知情報 computed（舊存檔無欄位時回 []，mount 期不報錯） */
-    const logEntries = computed(() => { const a = activeChar(); return (a && Array.isArray(a.campaignLog)) ? a.campaignLog : []; });
-    const flagList  = computed(() => { const a = activeChar(); return (a && Array.isArray(a.flags)) ? a.flags : []; });
+    const logEntries = computed(() => { const a = activeChar(); if(!a) return []; const b = worldBucket(a); return b.campaignLog; });
+    const flagList  = computed(() => { const a = activeChar(); if(!a) return []; const b = worldBucket(a); return b.flags; });
     function clearCampaignLog(){
       const a = activeChar();
       if(!a) return;
       if(!confirm("確定清空戰報日誌？此操作無法復原。")) return;
-      a.campaignLog = [];
-      if(c.id === a.id){ c.campaignLog = []; }
+      const b = worldBucket(a);
+      b.campaignLog = [];
       persist();
     }
 
