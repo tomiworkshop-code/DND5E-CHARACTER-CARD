@@ -2607,6 +2607,8 @@ const app = createApp({
         if(!meta){ throw new Error("找不到該房間"); }
         /* M3-1 選角入座：優先用下拉選中的角色，找不到再 fallback 當前角色 */
         const ch = (chars.find(x => x.id === joinCharId.value)) || activeChar();
+        /* 修正：characterId 當作 Firebase 路徑，舊卡可能缺→回填，防 set undefined 錯誤 */
+        if(!ch.characterId){ ch.characterId = uid(); persist(); }
         const lvl = (ch.classes||[]).reduce((s,cl)=>s+(cl.level||1),0) || 1;
         /* M3-1 豐富握手：className（職業名以 / 串接）、worldId（加法式，不移除既有欄位） */
         const className = (ch.classes||[]).map(cl=>{ const def = CLASSES.find(k=>k.name_en===cl.name_en); return def ? def.name_zh : (cl.name_en||""); }).filter(Boolean).join("/");

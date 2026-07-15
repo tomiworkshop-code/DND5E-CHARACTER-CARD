@@ -62,9 +62,26 @@
     });
   }
 
+  /* 遞迴清除 undefined：Firebase RTDB set/push 對任何 undefined 值都會整包拒絕。
+   * 物件→刪掉值為 undefined 的鍵；陣列→把 undefined 元素轉 null（保留索引）。 */
+  function pruneUndef(v){
+    if(Array.isArray(v)){ return v.map(function(x){ return x === undefined ? null : pruneUndef(x); }); }
+    if(v && typeof v === "object"){
+      const o = {};
+      for(const k in v){
+        if(Object.prototype.hasOwnProperty.call(v, k)){
+          const val = pruneUndef(v[k]);
+          if(val !== undefined){ o[k] = val; }
+        }
+      }
+      return o;
+    }
+    return v;
+  }
+
   /* 玩家加入：寫自己的 players/{pid} 快照（Tier1）。 */
   function joinRoom(db, roomId, playerId, snapshot){
-    const data = Object.assign({ joinedAt: Date.now() }, snapshot || {});
+    const data = pruneUndef(Object.assign({ joinedAt: Date.now() }, snapshot || {}));
     return db.ref("rooms/" + normRoomId(roomId) + "/players/" + playerId).set(data).then(function(){ return true; });
   }
 
@@ -102,7 +119,7 @@
 
   /* DM 對單一玩家送出「指令」（commands/{pid}）。cmd 形如 {type:'damage'|'heal'|'gold'|'xp', amount, note}。 */
   function sendCommand(db, roomId, playerId, cmd){
-    const payload = Object.assign({}, cmd, { ts: Date.now() });
+    const payload = pruneUndef(Object.assign({}, cmd, { ts: Date.now() }));
     return db.ref("rooms/" + normRoomId(roomId) + "/commands/" + playerId).push(payload);
   }
 
@@ -126,7 +143,7 @@
    * 節點本身即可當 mergeInstance 的 remote：機制欄位攤在頂層 + _sync:{version_m,version_n}。 */
   /* DM 寫入/覆蓋某角色的世界存檔。 */
   function setSave(db, roomId, characterId, save){
-    return db.ref("rooms/" + normRoomId(roomId) + "/saves/" + characterId).set(save);
+    return db.ref("rooms/" + normRoomId(roomId) + "/saves/" + characterId).set(pruneUndef(save));
   }
 
   /* 讀取某角色的世界存檔（不存在→ null）。 */

@@ -1,5 +1,5 @@
 /* 羊皮卷 PWA Service Worker */
-const CACHE = 'parchment-dnd5e-v17-netfirst';
+const CACHE = 'parchment-dnd5e-v18-netfirst';
 const ASSETS = [
   './',
   './manifest.json',
