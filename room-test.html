@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D&D Room 連線測試 (Step B / B1)</title>
+<style>
+  :root{ --bg:#14141a; --card:#1e1e28; --ink:#e8e6f0; --soft:#a09eb5; --accent:#8b7adf; --line:#33313f; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:#14141a; color:#e8e6f0; }
+  header{ padding:14px 16px; border-bottom:1px solid #33313f; }
+  header h1{ font-size:16px; margin:0; }
+  header p{ margin:4px 0 0; font-size:12px; color:#a09eb5; }
+  #status{ font-size:12px; padding:6px 16px; background:#1e1e28; color:#a09eb5; border-bottom:1px solid #33313f; }
+  .wrap{ display:flex; flex-wrap:wrap; gap:12px; padding:12px; }
+  .pane{ flex:1 1 320px; background:#1e1e28; border:1px solid #33313f; border-radius:12px; padding:14px; }
+  .pane h2{ font-size:14px; margin:0 0 10px; }
+  .dm h2{ color:#f0b86e; } .pl h2{ color:#7ec8f0; }
+  input,button{ font-size:14px; border-radius:8px; border:1px solid #33313f; }
+  input{ width:100%; padding:9px 10px; background:#14141a; color:#e8e6f0; margin-bottom:8px; }
+  button{ padding:9px 12px; background:#5b4b8a; color:#fff; border:none; cursor:pointer; }
+  button:disabled{ opacity:.45; cursor:not-allowed; }
+  button.sec{ background:#33313f; }
+  .row{ display:flex; gap:8px; } .row input{ margin-bottom:0; } .row button{ white-space:nowrap; }
+  .code{ font-size:28px; letter-spacing:4px; font-weight:700; color:#f0b86e; text-align:center; margin:8px 0; }
+  #qr{ display:flex; justify-content:center; margin:10px 0; }
+  #qr canvas,#qr img{ background:#fff; padding:8px; border-radius:8px; }
+  .log{ margin-top:10px; max-height:260px; overflow:auto; font-size:13px; }
+  .msg{ padding:7px 10px; margin:5px 0; border-radius:8px; background:#14141a; border:1px solid #33313f; }
+  .msg .meta{ font-size:10px; color:#a09eb5; }
+  .hint{ font-size:11px; color:#a09eb5; margin:6px 0 0; }
+  .warn{ background:#3a2a12; border:1px solid #7a5a24; color:#f0c98e; padding:8px 12px; border-radius:8px; font-size:12px; margin:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎲 D&D Room 連線測試 · B1</h1>
+  <p>DM 開房 → 產生房號/QR → 玩家加入 → DM 推訊息 → 玩家即時收到</p>
+</header>
+<div id="status">初始化中…</div>
+<div id="cfgwarn" class="warn" style="display:none"></div>
+
+<div class="wrap">
+  <!-- DM 面板 -->
+  <section class="pane dm">
+    <h2>🛠️ DM（主機）</h2>
+    <button id="btnOpen">開房 (Create Room)</button>
+    <div id="dmRoom" style="display:none">
+      <div class="code" id="roomCode">-----</div>
+      <div id="qr"></div>
+      <p class="hint">玩家掃 QR 或手動輸入上面房號加入</p>
+      <div class="row">
+        <input id="bcInput" placeholder="輸入要廣播給全體的訊息…">
+        <button id="btnSend">推送</button>
+      </div>
+      <div class="hint">👥 已加入玩家：<span id="roster">（無）</span></div>
+      <div class="log" id="dmLog"></div>
+    </div>
+  </section>
+
+  <!-- 玩家面板 -->
+  <section class="pane pl">
+    <h2>🎮 玩家（客戶端）</h2>
+    <div id="plJoin">
+      <div class="row">
+        <input id="joinCode" placeholder="輸入房號 (5 碼)" maxlength="8" style="text-transform:uppercase">
+        <button id="btnJoin">加入</button>
+      </div>
+      <input id="plName" placeholder="你的角色名（測試用）" value="阿花">
+    </div>
+    <div id="plRoom" style="display:none">
+      <p class="hint">✅ 已加入房間 <b id="plRoomCode"></b>，等待 DM 訊息…</p>
+      <div class="log" id="plLog"></div>
+    </div>
+  </section>
+</div>
+
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<!-- QR 產生器 -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<!-- 專案模組 -->
+<script src="shared/firebase-config.js"></script>
+<script src="shared/room.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var statusEl = $("status");
+  function setStatus(t){ statusEl.textContent = t; }
+  function logTo(el, m, cls){ var d=document.createElement("div"); d.className="msg"; d.innerHTML='<div>'+escapeHtml(m.text)+'</div><div class="meta">'+(m.from||"")+' · '+new Date(m.ts||Date.now()).toLocaleTimeString()+'</div>'; el.prepend(d); }
+  function escapeHtml(s){ return String(s==null?"":s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];}); }
+
+  var cfg = (window.DND5E_FIREBASE||{}).firebaseConfig;
+  if(!cfg || /…|\.\.\./.test(cfg.apiKey||"")){
+    var w=$("cfgwarn"); w.style.display="block";
+    w.textContent="⚠️ firebase-config.js 的 apiKey 看起來被截斷了（含「…」）。請把完整 apiKey 補上，否則無法連線。";
+  }
+
+  var fb;
+  try{ fb = window.DND5E_ROOM.init(cfg); }
+  catch(e){ setStatus("❌ 初始化失敗："+e.message); return; }
+  var R = window.DND5E_ROOM, db = fb.db;
+  var myUid = null;
+
+  R.signInAnon(fb.auth).then(function(uid){
+    myUid = uid; setStatus("✅ 匿名登入成功 · uid="+uid.slice(0,8)+"…");
+    checkAutoJoin();
+  }).catch(function(e){ setStatus("❌ 匿名登入失敗："+e.message+"（是否已在 Firebase 啟用 Anonymous？）"); });
+
+  // ---- DM ----
+  var curRoom = null;
+  $("btnOpen").onclick = function(){
+    $("btnOpen").disabled = true; setStatus("開房中…");
+    R.createRoom(db, { dmId: myUid, worldId: "TEST" }).then(function(roomId){
+      curRoom = roomId; $("dmRoom").style.display="block"; $("roomCode").textContent = roomId;
+      setStatus("✅ 房間已開："+roomId);
+      // QR = 本頁網址 ?room=
+      var url = location.origin + location.pathname + "?room=" + roomId;
+      try{ QRCode.toCanvas(url, { width:180, margin:1 }, function(err,canvas){ if(!err){ $("qr").innerHTML=""; $("qr").appendChild(canvas); } }); }catch(e){}
+      R.onPlayers(db, roomId, function(players){
+        var names = Object.keys(players||{}).map(function(k){ return (players[k].name||k.slice(0,6)); });
+        $("roster").textContent = names.length ? names.join("、") : "（無）";
+      });
+    }).catch(function(e){ setStatus("❌ 開房失敗："+e.message); $("btnOpen").disabled=false; });
+  };
+  $("btnSend").onclick = function(){
+    var t = $("bcInput").value.trim(); if(!t || !curRoom) return;
+    R.sendBroadcast(db, curRoom, "dm", t).then(function(){ $("bcInput").value=""; });
+  };
+  $("bcInput").addEventListener("keydown", function(e){ if(e.key==="Enter") $("btnSend").click(); });
+
+  // ---- Player ----
+  function doJoin(code){
+    code = R.normRoomId(code); if(!code) return;
+    setStatus("加入房間 "+code+" …");
+    R.roomMeta(db, code).then(function(meta){
+      if(!meta){ setStatus("❌ 找不到房間 "+code); return; }
+      R.joinRoom(db, code, myUid, { name: $("plName").value.trim() || "玩家", ts: Date.now() }).then(function(){
+        $("plJoin").style.display="none"; $("plRoom").style.display="block"; $("plRoomCode").textContent=code;
+        setStatus("✅ 已加入 "+code);
+        R.onBroadcast(db, code, function(m){ logTo($("plLog"), m); });
+        R.onInbox(db, code, myUid, function(m){ m.text="🔒(私訊) "+m.text; logTo($("plLog"), m); });
+      });
+    }).catch(function(e){ setStatus("❌ 加入失敗："+e.message); });
+  }
+  $("btnJoin").onclick = function(){ doJoin($("joinCode").value); };
+  $("joinCode").addEventListener("keydown", function(e){ if(e.key==="Enter") $("btnJoin").click(); });
+
+  function checkAutoJoin(){
+    var m = /[?&]room=([^&]+)/.exec(location.search);
+    if(m){ $("joinCode").value = decodeURIComponent(m[1]).toUpperCase(); }
+  }
+})();
+</script>
+</body>
+</html>

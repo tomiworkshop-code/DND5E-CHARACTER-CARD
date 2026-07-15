@@ -1152,6 +1152,7 @@
     </div>
   </div>
 </div>
+<script src="shared/character-schema.js"></script>
 <script>
 /* ===== 內嵌職業資料（離線可用，不靠外部 fetch） ===== */
 const CLASSES = [
@@ -1342,51 +1343,10 @@ const SOURCE_GROUP_DEFS = [
 
 function uid(){ return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
-function defaultFamiliar(){
-  return {
-    name:"", type:"", speed:"", ac:10,
-    hp:{ current:1, max:1 },
-    abilities:{ str:10, dex:10, con:10, int:10, wis:10, cha:10 },
-    attacks:"", notes:""
-  };
-}
-
-function defaultChar(){
-  const skills = {};
-  SKILLS.forEach(s => { skills[s.zh] = { proficient:false, override:null }; });
-  return {
-    id: uid(),
-    name:"", race:"", subrace:"", alignment:"", background:"", speed:"30 呎",
-    languages:[], proficiencies:"", notes:"",
-    profArmor:[], profWeapon:[], profTool:[], profSaves:{},
-    ac:10, initiative:0,
-    hp:{ current:10, max:10, temp:0 },
-    abilities:{ str:10, dex:10, con:10, int:10, wis:10, cha:10 },
-    abilityBonus:{ str:0, dex:0, con:0, int:0, wis:0, cha:0 },
-    classes:[],
-    saves:{ str:false, dex:false, con:false, int:false, wis:false, cha:false },
-    skills,
-    spellSlots: Array.from({length:9}, (_,i)=>({ level:i+1, max:0, used:0 })),
-    spellsText:"",
-    spellbook:[],
-    inventory:[],
-    coins:{ cp:0, sp:0, gp:0, pp:0 },
-    conditions:{},
-    exhaustion:0,
-    /* 新增：跑團輔助與角色深度欄位 */
-    deathSaves:{ success:0, fail:0 },
-    inspiration:false,
-    concentration:{ on:false, spell:"" },
-    hitDiceUsed:0,
-    acHelper:{ base:10, dexCap:"", shield:0, misc:0 },
-    resources:[],
-    attacks:[],
-    feats:[],
-    story:{ appearance:"", personality:"", ideals:"", bonds:"", flaws:"", allies:"", backstory:"" },
-    avatar:"",
-    familiar: null
-  };
-}
+/* defaultChar / defaultFamiliar / mergeChar 已抽出至 shared/character-schema.js（window.DND5E_CHAR），此處為薄別名，其餘程式碼不需改動 */
+const defaultFamiliar = window.DND5E_CHAR.defaultFamiliar;
+const defaultChar     = window.DND5E_CHAR.defaultChar;
+const mergeChar       = window.DND5E_CHAR.mergeChar;
 
 const { createApp, reactive, computed, watch, ref, onMounted } = Vue;
 
@@ -1512,26 +1472,7 @@ const app = createApp({
         localStorage.setItem(LS_MODE, mode.value);
       }catch(e){}
     }
-    function mergeChar(base, saved){
-      const out = JSON.parse(JSON.stringify(base));
-      for(const k in saved){
-        if(k==="skills"){
-          for(const sk in saved.skills){ if(out.skills[sk]) out.skills[sk] = Object.assign(out.skills[sk], saved.skills[sk]); }
-        } else if(k==="familiar"){
-          if(saved.familiar && typeof saved.familiar === "object"){
-            const f = defaultFamiliar();
-            for(const fk in saved.familiar){
-              if(fk==="hp" || fk==="abilities"){ f[fk] = Object.assign(f[fk]||{}, saved.familiar[fk]); }
-              else { f[fk] = saved.familiar[fk]; }
-            }
-            out.familiar = f;
-          } else { out.familiar = null; }
-        } else if(typeof saved[k] === "object" && saved[k] !== null && !Array.isArray(saved[k])){
-          out[k] = Object.assign(out[k]||{}, saved[k]);
-        } else { out[k] = saved[k]; }
-      }
-      return out;
-    }
+    /* mergeChar 已抽出至 shared/character-schema.js（window.DND5E_CHAR），別名於頂層宣告 */
 
     /* ===== 全域設定：載入 / 儲存 / 調和 ===== */
     function loadSettings(){
