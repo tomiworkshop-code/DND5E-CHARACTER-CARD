@@ -11,6 +11,7 @@
  *   rooms/{roomId}/commands/{pid}/[]    : {type, ..., ts}       DM 寫、該玩家讀
  *   rooms/{roomId}/fx/[]                : {type, target, ts}    DM 寫、依 target 讀
  *   rooms/{roomId}/players/{pid}        : {Tier1 快照}           玩家本人寫
+ *   rooms/{roomId}/requests/{pid}/[]    : {kind, ..., ts}        玩家 push、DM 讀/刪（請求通道）
  */
 (function(global){
   /* 房號字母表：去除易混淆字元 I L O 0 1，5 碼 ≈ 28.6M 組合，口述/手打友善。 */
@@ -160,6 +161,25 @@
     return function(){ ref.off("value", handler); };
   }
 
+  /* 請求通道 rooms/{id}/requests/{pid}（玩家→DM，加法式）：玩家 push 請求，DM 讀/刪。
+   * req 形如 {kind:'ask'|'add', itemName?, name?, qty?, reason?}。 */
+  /* 玩家送出一筆請求（自動附 ts）。 */
+  function sendRequest(db, roomId, playerId, req){
+    return db.ref("rooms/" + normRoomId(roomId) + "/requests/" + playerId).push(pruneUndef(Object.assign({}, req, { ts: Date.now() })));
+  }
+
+  /* 訂閱全房請求 requests/*（DM 用，即時總覽）。cb 收到 {pid:{key:req}} 物件。回傳退訂函式。 */
+  function onRequests(db, roomId, cb){
+    const ref = db.ref("rooms/" + normRoomId(roomId) + "/requests");
+    const handler = ref.on("value", function(snap){ cb(snap.val() || {}); });
+    return function(){ ref.off("value", handler); };
+  }
+
+  /* DM 處理完一筆請求後刪除（requests/{pid}/{reqKey}）。 */
+  function resolveRequest(db, roomId, playerId, reqKey){
+    return db.ref("rooms/" + normRoomId(roomId) + "/requests/" + playerId + "/" + reqKey).remove();
+  }
+
   global.DND5E_ROOM = {
     ROOM_ID_ALPHABET, genRoomId, normRoomId,
     init, signInAnon,
@@ -167,6 +187,7 @@
     sendBroadcast, onBroadcast,
     sendInbox, onInbox, onPlayers,
     sendCommand, onCommand,
-    setSave, getSave, onSave
+    setSave, getSave, onSave,
+    sendRequest, onRequests, resolveRequest
   };
 })(typeof window !== "undefined" ? window : this);

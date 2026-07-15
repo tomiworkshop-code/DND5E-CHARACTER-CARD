@@ -1000,11 +1000,25 @@
         <button v-show="!locked" class="btn-ghost btn px-2 py-1 text-xs" @click="addItem">＋ 自訂物品</button>
       </div>
       <div v-if="c.inventory.length===0" class="text-xs text-center py-3" style="color:var(--ink-soft)">背包空空如也喵。</div>
+      <div v-if="isJoined" class="stat-box p-2 mb-2">
+        <div class="text-[11px] font-bold mb-1" style="color:var(--accent)">📨 請求 DM 新增物品</div>
+        <div class="flex gap-2 items-center">
+          <input v-model="reqItemName" type="text" class="flex-1 px-2 py-2 text-sm" placeholder="物品名稱">
+          <input v-model.number="reqItemQty" type="number" class="w-12 text-center num py-2 text-sm" placeholder="數">
+        </div>
+        <input v-model="reqItemReason" type="text" class="w-full px-2 py-1 mt-1 text-[11px]" placeholder="理由（選填）">
+        <button class="btn btn-ghost w-full py-1 mt-1 text-xs" @click="sendItemRequest()">📨 請求 DM 新增</button>
+      </div>
       <div v-for="(it,i) in c.inventory" :key="i" class="stat-box p-2 mb-2">
         <div class="flex gap-2 items-center">
-          <input v-model.number="it.qty" type="number" class="w-12 text-center num py-2 text-sm" placeholder="數">
-          <input v-model="it.name" :disabled="locked" type="text" class="flex-1 px-2 py-2 text-sm" placeholder="物品名稱">
-          <button v-show="!locked" class="btn-danger btn px-3 py-2 text-sm" @click="removeItem(i)"><svg class="w-3.5 h-3.5 inline-block align-text-bottom"><use href="#icon-x"></use></svg></button>
+          <input v-model.number="it.qty" :disabled="locked || it.fromDM" type="number" class="w-12 text-center num py-2 text-sm" placeholder="數">
+          <input v-model="it.name" :disabled="locked || it.fromDM" type="text" class="flex-1 px-2 py-2 text-sm" placeholder="物品名稱">
+          <span v-if="it.fromDM" class="auth-badge auth-dm">DM存檔</span>
+          <button v-show="!locked && !it.fromDM" class="btn-danger btn px-3 py-2 text-sm" @click="removeItem(i)"><svg class="w-3.5 h-3.5 inline-block align-text-bottom"><use href="#icon-x"></use></svg></button>
+        </div>
+        <input v-model="it.note" type="text" class="w-full px-2 py-1 mt-1 text-[11px]" placeholder="私人備註（只有你看得到）">
+        <div v-if="it.fromDM && isJoined" class="mt-1">
+          <button class="btn-ghost btn px-2 py-1 text-[11px]" @click="askDM(it)">❓ 向 DM 詢問</button>
         </div>
         <div v-if="itemById(it.itemId)" class="text-[11px] mt-1 leading-relaxed" style="color:var(--ink-soft)">
           {{ itemTypeText(itemById(it.itemId).type) }} ｜ {{ rarityText(itemById(it.itemId).rarity) }} ｜ {{ itemValueWeight(itemById(it.itemId)) }} ｜ {{ sourceText(itemById(it.itemId)) }}<span v-if="disabledSourceNote(itemById(it.itemId))" style="color:var(--accent)"> {{ disabledSourceNote(itemById(it.itemId)) }}</span>
@@ -2578,6 +2592,10 @@ const app = createApp({
     /* ===== 註冊 Service Worker ===== */
     /* ===== Step B: 跨端連線（玩家端） ===== */
     let fbApp = null; /* 純變數，不可存進 ref：Vue Proxy 包裹 firebase db 會導致 e.insert is not a function */
+    /* DT-1 物品請求通道（玩家→DM）：請求新增物品的表單欄位 */
+    const reqItemName = ref("");
+    const reqItemQty = ref(1);
+    const reqItemReason = ref("");
     const joinCode = ref("");
     const joinCharId = ref(activeId.value); /* M3-1：選角入座（多角色時）；預設為當前角色 */
     const showSeatNotice = ref(false);     /* M3-1：入座權威提示卡開關 */
@@ -2698,6 +2716,32 @@ const app = createApp({
 
     function pushRoomMsg(m){ roomState.messages.unshift(m); if(roomState.messages.length > 50) roomState.messages.pop(); }
 
+    /* DT-1 小工具：彈一則 toast（沿用 cmdToast 機制） */
+    function roomToast(text){
+      cmdToast.text = text; cmdToast.kind = "req"; cmdToast.show = true;
+      if(cmdToastTimer) clearTimeout(cmdToastTimer);
+      cmdToastTimer = setTimeout(()=>{ cmdToast.show = false; }, 4000);
+    }
+    /* DT-1 向 DM 詢問某物品（僅連線時作用；離線/未連線安全 return，mount 期不呼叫） */
+    function askDM(it){
+      if(!isJoined.value) return;
+      try{
+        window.DND5E_ROOM.sendRequest(fbApp.db, roomState.id, roomState.uid, { kind:"ask", itemName: it.name });
+        roomToast("已向 DM 詢問：" + it.name);
+      }catch(e){ roomState.error = "詢問失敗：" + e.message; }
+    }
+    /* DT-1 請求 DM 新增物品（僅連線時作用；空名擋下；離線安全 return） */
+    function sendItemRequest(){
+      if(!isJoined.value) return;
+      const name = (reqItemName.value || "").trim();
+      if(!name) return;
+      try{
+        window.DND5E_ROOM.sendRequest(fbApp.db, roomState.id, roomState.uid, { kind:"add", name: name, qty: Math.max(1, Number(reqItemQty.value) || 1), reason: (reqItemReason.value || "").trim() });
+        reqItemName.value = ""; reqItemQty.value = 1; reqItemReason.value = "";
+        roomToast("已送出請求，等待 DM 核准");
+      }catch(e){ roomState.error = "請求失敗：" + e.message; }
+    }
+
     async function joinRoom(code){
       const rid = window.DND5E_ROOM.normRoomId(code || joinCode.value);
       if(!rid){ return; }
@@ -2779,6 +2823,7 @@ const app = createApp({
 
     return {
       joinCode, joinCharId, showSeatNotice, roomState, joinRoom, cmdToast,
+      reqItemName, reqItemQty, reqItemReason, askDM, sendItemRequest,
       logEntries, flagList, clearCampaignLog,
       isJoined, worldBadge, sessionBadge,
       worldSave, showConflict, handleWorldSave, applyWorldSave,
