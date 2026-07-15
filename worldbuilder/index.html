@@ -17,8 +17,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-<script src="../shared/firebase-config.js"></script>
-<script src="../shared/room.js"></script>
+<script src="./shared/firebase-config.js"></script>
+<script src="./shared/room.js"></script>
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
@@ -778,7 +778,7 @@
     <div class="py-2">
       <div class="text-sm mb-2">關於 · Credit</div>
       <div class="flex flex-col items-center mb-3 text-center">
-        <img src="../tomi-avatar.jpg" alt="Tomi" class="w-20 h-20 rounded-full shadow-sm mb-2" style="border: 2px solid var(--gold-deep); padding: 2px; background: white;" onerror="this.style.display='none'">
+        <img src="./tomi-avatar.jpg" alt="Tomi" class="w-20 h-20 rounded-full shadow-sm mb-2" style="border: 2px solid var(--gold-deep); padding: 2px; background: white;" onerror="this.style.display='none'">
         <div class="text-lg font-bold" style="color:var(--gold-deep)">Tomi's Workshop</div>
         <div class="text-[11px] mt-1 leading-relaxed px-2" style="color:var(--ink-soft)">
           Building small, useful AI-powered tools — for work and play.<br>Always free.
@@ -1068,7 +1068,7 @@ createApp({
       try{
         const rid = await window.DND5E_ROOM.createRoom(fbApp.db, { dmId: roomState.dmUid, worldId: activeWorld.value });
         roomState.id = rid; roomState.status = "open";
-        const url = location.origin + location.pathname.replace(/worldbuilder\/?$/, "") + "?room=" + rid;
+        const url = location.origin + location.pathname.replace(/worldbuilder\/?$/, "adventurer/") + "?room=" + rid;
         try{ QRCode.toDataURL(url, { width:200, margin:1 }, (err, dataUrl)=>{ if(!err) roomState.qr = dataUrl; }); }catch(e){}
         if(roomPlayersUnsub){ roomPlayersUnsub(); }
         roomPlayersUnsub = window.DND5E_ROOM.onPlayers(fbApp.db, rid, (ps)=>{ roomState.players = ps || {}; });
