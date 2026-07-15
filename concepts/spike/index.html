@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#7c5a3a">
+<title>冒險者之書 · UI 風格 Spike</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Ma+Shan+Zheng&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f3e9d2;
+    --paper-2:#ece0c2;
+    --leather:#6b4a2b;
+    --leather-2:#7c5a3a;
+    --leather-dark:#4d3418;
+    --gold:#b8860b;
+    --gold-lite:#d8b24a;
+    --ink:#3b2a1a;
+    --ink-soft:#6b5034;
+    --red:#a33327;
+    --green:#3f7d4f;
+    --shadow:rgba(60,40,20,.28);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:"Noto Serif TC",serif;
+    color:var(--ink);
+    background:
+      radial-gradient(120% 80% at 50% -10%, #fff7e6 0%, rgba(255,247,230,0) 55%),
+      radial-gradient(140% 120% at 50% 120%, rgba(77,52,24,.28) 0%, rgba(77,52,24,0) 55%),
+      repeating-linear-gradient(115deg, rgba(120,90,50,.035) 0 2px, transparent 2px 5px),
+      var(--paper);
+    display:flex;justify-content:center;
+    padding:0;min-height:100%;
+  }
+  .phone{
+    width:100%;max-width:440px;min-height:100vh;position:relative;
+    display:flex;flex-direction:column;
+    background:
+      radial-gradient(100% 60% at 50% 0%, rgba(255,250,235,.7), rgba(255,250,235,0) 60%),
+      var(--paper);
+    box-shadow:0 0 60px rgba(60,40,20,.18);
+    overflow:hidden;
+  }
+  /* ===== Header ===== */
+  header{
+    position:relative;
+    padding:18px 18px 20px;
+    background:
+      linear-gradient(180deg, var(--leather-2) 0%, var(--leather) 60%, var(--leather-dark) 100%);
+    color:#f7edd6;
+    border-bottom:3px solid var(--gold);
+    box-shadow:0 4px 14px var(--shadow);
+  }
+  header::after{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
+    background:linear-gradient(90deg,transparent,var(--gold-lite),transparent);
+    opacity:.8;
+  }
+  .htop{display:flex;align-items:center;gap:14px}
+  .avatar{
+    width:64px;height:64px;border-radius:16px;flex:none;
+    background:#efe2c4;border:3px solid var(--gold);
+    box-shadow:0 3px 8px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.25);
+    object-fit:cover;
+  }
+  .hname{font-family:"Cinzel","Ma Shan Zheng",serif;font-weight:700;font-size:26px;
+    color:#f8e6b0;letter-spacing:.5px;text-shadow:0 2px 3px rgba(0,0,0,.45);line-height:1.1}
+  .hsub{font-size:12.5px;color:#e6d4a8;margin-top:4px;letter-spacing:.5px}
+  .lvpill{display:inline-block;margin-top:6px;font-family:"Cinzel",serif;font-weight:600;
+    font-size:11px;padding:2px 10px;border-radius:999px;color:#3a2a12;
+    background:linear-gradient(180deg,var(--gold-lite),var(--gold));
+    box-shadow:0 1px 2px rgba(0,0,0,.35)}
+  /* ===== Vitals ===== */
+  .vitals{display:flex;gap:10px;padding:16px 16px 4px}
+  .vcard{
+    flex:1;background:linear-gradient(180deg,#fbf3dd,#efe1c0);
+    border:1.5px solid #cbaa72;border-radius:14px;padding:10px 8px;text-align:center;
+    box-shadow:0 3px 8px var(--shadow), inset 0 1px 0 rgba(255,255,255,.6);position:relative}
+  .vcard .lbl{font-size:10.5px;color:var(--ink-soft);letter-spacing:1px;font-family:"Cinzel",serif;font-weight:600}
+  .vcard .big{font-family:"Cinzel",serif;font-weight:700;font-size:24px;color:var(--ink);margin-top:2px}
+  .vcard .icn{font-size:18px;line-height:1}
+  /* HP bar */
+  .hpwrap{padding:6px 16px 2px}
+  .hpbar-shell{height:22px;border-radius:999px;background:#e2d0a6;border:1.5px solid #b98f52;
+    box-shadow:inset 0 2px 4px rgba(90,60,20,.35);overflow:hidden;position:relative}
+  .hpbar-fill{height:100%;width:72%;
+    background:linear-gradient(180deg,#c0432f,#8a2418);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+  .hptxt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:"Cinzel",serif;font-weight:700;font-size:12px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+  .hplbl{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-soft);margin:8px 2px 0}
+  /* ===== Ability hex badges ===== */
+  .sect-title{font-family:"Cinzel","Ma Shan Zheng",serif;font-weight:700;font-size:15px;color:var(--leather);
+    display:flex;align-items:center;gap:8px;margin:20px 18px 10px}
+  .sect-title::before,.sect-title::after{content:"";flex:1;height:2px;
+    background:linear-gradient(90deg,transparent,#c9a95f)}
+  .sect-title::after{background:linear-gradient(90deg,#c9a95f,transparent)}
+  .sect-title span{font-size:15px}
+  .abilities{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 16px}
+  .hexb{position:relative;aspect-ratio:1/1.06;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+    background:linear-gradient(180deg,#7c5a3a,#5a3d22);
+    color:#f6e7bf;box-shadow:0 4px 10px var(--shadow)}
+  .hexb::before{content:"";position:absolute;inset:4px;
+    clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+    background:linear-gradient(180deg,#fbf3dd,#ecdcb6);z-index:0}
+  .hexb .k,.hexb .v,.hexb .m{position:relative;z-index:1;color:var(--ink)}
+  .hexb .k{font-family:"Cinzel",serif;font-weight:600;font-size:11px;letter-spacing:1px;color:var(--leather)}
+  .hexb .v{font-family:"Cinzel",serif;font-weight:700;font-size:26px;line-height:1}
+  .hexb .m{font-size:12px;font-weight:700;color:var(--gold);margin-top:1px}
+  /* ===== Page card ===== */
+  .page{margin:10px 16px 0;position:relative;
+    background:linear-gradient(180deg,#fdf6e3,#f2e6c8);
+    border:1.5px solid #cbaa72;border-radius:14px;padding:14px 16px;
+    box-shadow:0 4px 12px var(--shadow), inset 0 1px 0 rgba(255,255,255,.6)}
+  .corner{position:absolute;width:18px;height:18px;border:2px solid var(--gold);opacity:.7}
+  .corner.tl{top:6px;left:6px;border-right:0;border-bottom:0}
+  .corner.tr{top:6px;right:6px;border-left:0;border-bottom:0}
+  .corner.bl{bottom:6px;left:6px;border-right:0;border-top:0}
+  .corner.br{bottom:6px;right:6px;border-left:0;border-top:0}
+  .prow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px dashed #cdb488}
+  .prow:last-child{border-bottom:0}
+  .prow .n{font-size:14px}
+  .prow .badge{font-family:"Cinzel",serif;font-weight:700;font-size:13px;color:#fff;
+    background:linear-gradient(180deg,var(--gold-lite),var(--gold));padding:2px 10px;border-radius:999px;
+    box-shadow:0 1px 2px rgba(0,0,0,.3)}
+  .tag{font-size:11px;color:var(--ink-soft);background:#e9dab5;border:1px solid #cbaa72;
+    padding:1px 8px;border-radius:999px;margin-left:6px}
+  /* ===== Bottom tabs ===== */
+  .tabs{position:sticky;bottom:0;margin-top:22px;display:flex;
+    background:linear-gradient(180deg,var(--leather-2),var(--leather-dark));
+    border-top:3px solid var(--gold);box-shadow:0 -4px 14px var(--shadow);padding:8px 6px calc(8px + env(safe-area-inset-bottom))}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:#d9c396;
+    font-size:10px;font-family:"Cinzel",serif;letter-spacing:.5px;padding:4px 0;cursor:pointer}
+  .tab svg{width:26px;height:26px;stroke:#e7d3a2;fill:none;stroke-width:1.6}
+  .tab.active{color:#f8e6b0}
+  .tab.active svg{stroke:#f8e6b0}
+  .tab.active{position:relative}
+  .tab.active::after{content:"";position:absolute;top:-8px;width:34px;height:3px;border-radius:2px;
+    background:linear-gradient(90deg,transparent,var(--gold-lite),transparent)}
+  .note{font-size:11px;color:var(--ink-soft);text-align:center;padding:14px 24px 4px;line-height:1.6}
+  .ribbon{font-family:"Cinzel",serif;font-size:10px;letter-spacing:1px;color:#8a6a3a;
+    text-align:center;padding:8px;opacity:.8}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <header>
+    <div class="htop">
+      <img class="avatar" src="../../adventurer/icons/icon-192.png" alt="avatar">
+      <div>
+        <div class="hname">索恩·鐵心</div>
+        <div class="hsub">山丘矮人 · 戰士（守護者）</div>
+        <span class="lvpill">LEVEL 5 · 6,500 XP</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Vitals -->
+  <div class="vitals">
+    <div class="vcard"><div class="icn">🛡️</div><div class="lbl">護甲 AC</div><div class="big">18</div></div>
+    <div class="vcard"><div class="icn">⚡</div><div class="lbl">先攻</div><div class="big">+1</div></div>
+    <div class="vcard"><div class="icn">👢</div><div class="lbl">速度</div><div class="big">25</div></div>
+    <div class="vcard"><div class="icn">🎯</div><div class="lbl">熟練</div><div class="big">+3</div></div>
+  </div>
+
+  <!-- HP -->
+  <div class="hpwrap">
+    <div class="hpbar-shell">
+      <div class="hpbar-fill"></div>
+      <div class="hptxt">🧪 生命值 34 / 47</div>
+    </div>
+    <div class="hplbl"><span>臨時 HP +0</span><span>命中骰 5d10</span></div>
+  </div>
+
+  <!-- Abilities -->
+  <div class="sect-title"><span>屬性 Abilities</span></div>
+  <div class="abilities">
+    <div class="hexb"><div class="k">STR</div><div class="v">18</div><div class="m">+4</div></div>
+    <div class="hexb"><div class="k">DEX</div><div class="v">12</div><div class="m">+1</div></div>
+    <div class="hexb"><div class="k">CON</div><div class="v">16</div><div class="m">+3</div></div>
+    <div class="hexb"><div class="k">INT</div><div class="v">10</div><div class="m">+0</div></div>
+    <div class="hexb"><div class="k">WIS</div><div class="v">13</div><div class="m">+1</div></div>
+    <div class="hexb"><div class="k">CHA</div><div class="v">8</div><div class="m">−1</div></div>
+  </div>
+
+  <!-- Features page -->
+  <div class="sect-title"><span>特長與背包 Features</span></div>
+  <div class="page">
+    <span class="corner tl"></span><span class="corner tr"></span>
+    <span class="corner bl"></span><span class="corner br"></span>
+    <div class="prow"><div class="n">⚔️ 巨斧 Greataxe <span class="tag">重型</span></div><div class="badge">1d12+4</div></div>
+    <div class="prow"><div class="n">🔥 二次攻擊 Extra Attack</div><div class="badge">Lv.5</div></div>
+    <div class="prow"><div class="n">💥 血怒 Action Surge</div><div class="badge">1/休</div></div>
+    <div class="prow"><div class="n">💰 金幣 Gold</div><div class="badge">128 gp</div></div>
+  </div>
+
+  <div class="note">✨ 這是風格 Spike 預覽 —— 數值為範例。<br>喜歡的話卡娜拉會把這套色票／字體／卡片逐區套進正式版。</div>
+  <div class="ribbon">D&amp;D 5E SRD 5.1 · 冒險者之書</div>
+
+  <!-- Tabs -->
+  <nav class="tabs">
+    <div class="tab active">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polygon points="12,7 14,12 12,17 10,12" fill="#f8e6b0" stroke="none"/></svg>
+      羅盤
+    </div>
+    <div class="tab">
+      <svg viewBox="0 0 24 24"><polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5"/><polygon points="12,3 12,12 20,7.5"/><polygon points="12,12 12,21 4,16.5"/></svg>
+      骰子
+    </div>
+    <div class="tab">
+      <svg viewBox="0 0 24 24"><path d="M12 6c-2-1.5-5-1.5-7-0.5v13c2-1 5-1 7 0.5 2-1.5 5-1.5 7-0.5v-13c-2-1-5-1-7 0.5z"/><path d="M12 6v13"/></svg>
+      書卷
+    </div>
+    <div class="tab">
+      <svg viewBox="0 0 24 24"><path d="M5 4l9 9M4 5l3 0M5 4l0 3"/><path d="M19 4l-9 9M20 5l-3 0M19 4l0 3"/><path d="M9 15l-4 4M15 15l4 4"/></svg>
+      戰鬥
+    </div>
+  </nav>
+
+</div>
+</body>
+</html>
