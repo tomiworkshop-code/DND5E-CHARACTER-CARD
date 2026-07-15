@@ -1,5 +1,5 @@
 /* 羊皮卷 PWA Service Worker */
-const CACHE = 'parchment-dnd5e-v15-netfirst';
+const CACHE = 'parchment-dnd5e-v16-netfirst';
 const ASSETS = [
   './',
   './manifest.json',
@@ -17,6 +17,8 @@ const ASSETS = [
   './assets/ui/icons/wand.png',
   './assets/ui/icons/knapsack.png',
   './assets/ui/icons/cogs.png',
+  './assets/ui/icons/world.png',
+  './assets/ui/icons/table.png',
   './shared/character-schema.js',
   './data/races.json',
   './data/spells.json',

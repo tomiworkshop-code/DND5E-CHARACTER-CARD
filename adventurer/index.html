@@ -271,6 +271,8 @@
     </div>
   </transition>
 
+  <!-- ===== 牌桌：跨端連線 / DM 訊息 ===== -->
+  <section v-show="tab==='table'">
   <!-- ===== Step B：跨端連線橫幅（玩家端） ===== -->
   <div v-if="roomState.uid" class="mb-3 no-print">
     <div v-if="roomState.status !== 'joined'" class="card p-3 flex gap-2 items-center">
@@ -293,6 +295,8 @@
     </div>
     <div v-if="roomState.error" class="text-xs mt-1" style="color:#d66">{{ roomState.error }}</div>
   </div>
+    <div v-if="!roomState.uid" class="card p-3 text-sm text-center no-print" style="color:var(--ink-soft)">🎲 牌桌連線初始化中…（需要網路連線）</div>
+  </section>
 
   <!-- ===== 關於 / 鳴謝 彈窗（列印隱藏） ===== -->
   <div v-if="showCreditModal" class="credit-overlay no-print" @click.self="showCreditModal=false">
@@ -337,7 +341,8 @@
       <span class="text-[11px]" style="color:var(--ink-soft)">目前模式</span>
       <div class="flex items-center gap-1 shrink-0">
         <button class="btn-ghost btn px-2 py-1.5 text-sm" @click="doPrint" title="列印 / 匯出 PDF"><svg class="w-4 h-4 mr-1"><use href="#icon-print"></use></svg>列印</button>
-        <button class="btn-ghost btn px-2 py-1.5 text-sm" :class="{'btn': tab==='manage'}" @click="tab = (tab==='manage' ? 'char' : 'manage')" title="角色管理 / 匯入匯出"><svg class="w-4 h-4"><use href="#icon-manage"></use></svg></button>
+        <button class="btn-ghost btn px-2 py-1.5 text-sm" :class="{'btn': tab==='char'}" @click="tab='char'" title="角色管理 / 匯入匯出"><svg class="w-4 h-4"><use href="#icon-manage"></use></svg></button>
+        <button class="btn-ghost btn px-2 py-1.5 text-sm" :class="{'btn': showSettings && tab==='char'}" @click="tab='char'; showSettings=!showSettings" title="內容來源 / 設定"><svg class="w-4 h-4"><use href="#icon-cogs"></use></svg></button>
         <button class="btn px-3 py-1.5 text-sm flex items-center justify-center" :class="{'btn-danger': mode==='play'}" @click="toggleMode">
           <span v-if="mode==='play'"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-d20"></use></svg>跑團模式</span>
           <span v-else><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-cogs"></use></svg>設定模式</span>
@@ -355,8 +360,8 @@
     <p v-if="mode==='play'" class="text-[11px] mt-2 text-center" style="color:var(--accent)"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-lock"></use></svg>跑團模式：設定欄位唯讀，僅可調整戰鬥／消耗類數值喵～</p>
   </div>
 
-  <!-- ===== 系統設定（來源 / 日夜間模式 / 關於） ===== -->
-  <section v-show="tab==='settings'">
+  <!-- ===== 系統設定（來源 / 日夜間模式 / 關於）：齒輪切換，隱於「角色」分頁 ===== -->
+  <section v-show="tab==='char' && showSettings">
     <div class="card p-3 mb-3" v-if="false">
       <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-moon"></use></svg>日夜間模式</h2>
       <div class="flex items-center justify-between">
@@ -475,7 +480,7 @@
   </section>
 
   <!-- ===== 角色（續）：戰鬥數值 ===== -->
-  <section v-show="tab==='char'">
+  <section v-show="tab==='combat'">
     <!-- 六大屬性 -->
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-d20"></use></svg>六大屬性</h2>
@@ -607,7 +612,7 @@
   </section>
 
   <!-- ===== 背景：語言 / 筆記 ===== -->
-  <section v-show="tab==='background'">
+  <section v-show="tab==='char'">
     <!-- 語言與熟練（功能5：手動版） -->
     <div class="card p-3 mt-3">
       <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-speech"></use></svg>語言與熟練</h2>
@@ -708,7 +713,7 @@
   </section>
 
   <!-- ===== 職業 ===== -->
-  <section v-show="tab==='ability'">
+  <section v-show="tab==='char'">
     <div class="card p-3 mb-3">
       <div class="flex justify-between items-center mb-2">
         <h2 class="text-sm font-bold title-deco"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-shield"></use></svg>職業 / 多職業<span class="auth-badge" :class="worldBadge.cls" title="等級/XP 屬世界進度，進房後由 DM 存檔管理">{{ worldBadge.text }}</span></h2>
@@ -780,7 +785,7 @@
   </section>
 
   <!-- ===== 技能 ===== -->
-  <section v-show="tab==='ability'">
+  <section v-show="tab==='char'">
     <div class="card p-3">
       <div class="flex justify-between items-center mb-1">
         <h2 class="text-sm font-bold title-deco"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-book"></use></svg>技能</h2>
@@ -894,7 +899,7 @@
   </section>
 
   <!-- ===== 背包 ===== -->
-  <section v-show="tab==='item'">
+  <section v-show="tab==='world'">
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-coins"></use></svg>財產<span class="auth-badge" :class="worldBadge.cls" title="金錢屬世界進度，進房後由 DM 存檔管理">{{ worldBadge.text }}</span></h2>
       <div class="grid grid-cols-4 gap-2 text-center">
@@ -963,7 +968,7 @@
   </section>
 
   <!-- ===== 角色（續）：休息 / 資源 / 骰子 / 攻擊 ===== -->
-  <section v-show="tab==='char'">
+  <section v-show="tab==='combat'">
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-coffee"></use></svg>休息</h2>
       <div class="flex gap-2">
@@ -1048,7 +1053,7 @@
   </section>
 
   <!-- ===== 背景：背景故事 / 專長 ===== -->
-  <section v-show="tab==='background'">
+  <section v-show="tab==='char'">
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-scroll"></use></svg>角色背景<span class="auth-badge auth-self" title="角色故事與身份永遠屬於本機">本機身份</span></h2>
       <div class="space-y-2">
@@ -1130,7 +1135,7 @@
   </section>
 
   <!-- ===== 管理 ===== -->
-  <section v-show="tab==='manage'">
+  <section v-show="tab==='char'">
     <div class="card p-3">
       <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-manage"></use></svg>角色管理</h2>
       <p class="text-xs mb-3" style="color:var(--ink-soft)">資料自動存於本機（localStorage），離線可用。</p>
@@ -1562,11 +1567,10 @@ const app = createApp({
 
     const tabs = [
       { id:"char", svg:`<img src="./assets/ui/icons/hood.png" class="tab-img" alt="">`, label:"角色" },
-      { id:"background", svg:`<img src="./assets/ui/icons/scroll.png" class="tab-img" alt="">`, label:"背景" },
-      { id:"ability", svg:`<img src="./assets/ui/icons/swords.png" class="tab-img" alt="">`, label:"職業/能力" },
+      { id:"world", svg:`<img src="./assets/ui/icons/world.png" class="tab-img" alt="">`, label:"世界" },
+      { id:"combat", svg:`<img src="./assets/ui/icons/swords.png" class="tab-img" alt="">`, label:"戰鬥" },
       { id:"spell", svg:`<img src="./assets/ui/icons/wand.png" class="tab-img" alt="">`, label:"法術" },
-      { id:"item", svg:`<img src="./assets/ui/icons/knapsack.png" class="tab-img" alt="">`, label:"物品" },
-      { id:"settings", svg:`<img src="./assets/ui/icons/cogs.png" class="tab-img" alt="">`, label:"設定" }
+      { id:"table", svg:`<img src="./assets/ui/icons/table.png" class="tab-img" alt="">`, label:"牌桌" }
     ];
     const abilityDefs = [
       { key:"str", zh:"力量" }, { key:"dex", zh:"敏捷" }, { key:"con", zh:"體質" },
