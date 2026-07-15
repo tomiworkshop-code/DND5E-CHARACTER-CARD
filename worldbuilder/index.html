@@ -187,6 +187,33 @@
             </div>
           </div>
 
+          <!-- 📨 玩家請求（玩家送來的新增物品／詢問，DM 核准或駁回） -->
+          <div v-if="Object.keys(targetRequests).length" class="mt-3 pt-3" style="border-top:1px dashed var(--line)">
+            <div class="text-[12px] mb-2" style="color:var(--gold-deep)">📨 玩家請求</div>
+            <div v-for="(req, key) in targetRequests" :key="key" class="mb-2 px-2 py-2" style="background:var(--card);border:1px solid var(--line);border-radius:6px">
+              <template v-if="req.kind==='add'">
+                <div class="text-[12px]" style="color:var(--ink)">📨 請求新增：<b>{{ req.name }}</b> ×{{ req.qty || 1 }}</div>
+                <div v-if="req.reason" class="text-[11px] mt-1" style="color:var(--ink-soft)">{{ req.reason }}</div>
+                <div class="flex items-center gap-2 mt-2">
+                  <button @click="approveRequest(key, req)" class="btn px-3 py-1 text-[12px]" style="background:#2e8b57;color:#fff">✅ 核准</button>
+                  <button @click="rejectRequest(key)" class="btn px-3 py-1 text-[12px]" style="background:#c0392b;color:#fff">✖ 駁回</button>
+                </div>
+              </template>
+              <template v-else-if="req.kind==='ask'">
+                <div class="text-[12px]" style="color:var(--ink)">❓ 詢問物品：<b>{{ req.itemName }}</b></div>
+                <div class="flex items-center gap-2 mt-2">
+                  <button @click="rejectRequest(key)" class="btn px-3 py-1 text-[12px]" style="background:#6a4fb0;color:#fff">✔ 已讀</button>
+                </div>
+              </template>
+              <template v-else>
+                <div class="text-[11px]" style="color:var(--ink-soft)">{{ JSON.stringify(req) }}</div>
+                <div class="flex items-center gap-2 mt-2">
+                  <button @click="rejectRequest(key)" class="btn px-3 py-1 text-[12px]" style="background:#6a4fb0;color:#fff">✔ 已讀</button>
+                </div>
+              </template>
+            </div>
+          </div>
+
           <!-- 🎒 給物品（往玩家背包新增物品，共用同步/寫日誌勾選與來源） -->
           <div class="mt-3 pt-3" style="border-top:1px dashed var(--line)">
             <div class="text-[12px] mb-2" style="color:var(--gold-deep)">🎒 給物品</div>
@@ -1098,7 +1125,7 @@ createApp({
 
     /* ===== Step B: 跨端連線（DM 端） ===== */
     let fbApp = null; /* 純變數，不可存進 ref：Vue Proxy 包裹 firebase db 會導致 e.insert is not a function */
-    const roomState = reactive({ status:"idle", id:"", qr:"", error:"", players:{}, dmUid:"", saveMsg:"" });
+    const roomState = reactive({ status:"idle", id:"", qr:"", error:"", players:{}, dmUid:"", saveMsg:"", requests:{} });
     let saveMsgTimer = null;
     const broadcastInput = ref("");
     const cmdTarget = ref("");      // 目前選取的玩家 pid
@@ -1116,6 +1143,7 @@ createApp({
     const whisperFlash = ref("");   // 送出後短暫提示
     let whisperFlashTimer = null;
     let roomPlayersUnsub = null;
+    let roomRequestsUnsub = null;
 
     function pickCmdTarget(pid){ cmdTarget.value = (cmdTarget.value === pid) ? "" : pid; }
 
@@ -1211,6 +1239,41 @@ createApp({
       }catch(e){ roomState.error = "寫入世界存檔失敗：" + e.message; }
     }
 
+    /* 📨 玩家請求：當前選取玩家的請求集合（形狀 { pushKey: {kind,...} }）。 */
+    const targetRequests = computed(()=> (cmdTarget.value && roomState.requests && roomState.requests[cmdTarget.value]) ? roomState.requests[cmdTarget.value] : {});
+
+    /* ✅ 核准請求：發物品給玩家背包後移除該筆請求。 */
+    async function approveRequest(key, req){
+      if(!cmdTarget.value || roomState.status !== "open"){ return; }
+      try{
+        await window.DND5E_ROOM.sendCommand(fbApp.db, roomState.id, cmdTarget.value, {
+          type: "item",
+          itemName: (req.name || "").trim() || "未命名物品",
+          qty: Math.max(1, Number(req.qty)||1),
+          source: "玩家請求核准",
+          visibleToPlayer: true,
+          writesToCampaignLog: true,
+          createdBy: "dm",
+          createdAt: Date.now()
+        });
+        await window.DND5E_ROOM.resolveRequest(fbApp.db, roomState.id, cmdTarget.value, key);
+        roomState.saveMsg = "已核准請求 ✓";
+        if(saveMsgTimer) clearTimeout(saveMsgTimer);
+        saveMsgTimer = setTimeout(()=>{ roomState.saveMsg = ""; }, 3500);
+      }catch(e){ roomState.error = "核准請求失敗：" + e.message; }
+    }
+
+    /* ✖ 駁回／已讀：僅移除該筆請求，不發物品。 */
+    async function rejectRequest(key){
+      if(!cmdTarget.value || roomState.status !== "open"){ return; }
+      try{
+        await window.DND5E_ROOM.resolveRequest(fbApp.db, roomState.id, cmdTarget.value, key);
+        roomState.saveMsg = "已處理請求 ✓";
+        if(saveMsgTimer) clearTimeout(saveMsgTimer);
+        saveMsgTimer = setTimeout(()=>{ roomState.saveMsg = ""; }, 3500);
+      }catch(e){ roomState.error = "處理請求失敗：" + e.message; }
+    }
+
     function initFirebase(){
       if(fbApp) return;
       if(!window.DND5E_FIREBASE || !window.DND5E_ROOM){ return; }
@@ -1235,6 +1298,8 @@ createApp({
         try{ QRCode.toDataURL(url, { width:200, margin:1 }, (err, dataUrl)=>{ if(!err) roomState.qr = dataUrl; }); }catch(e){}
         if(roomPlayersUnsub){ roomPlayersUnsub(); }
         roomPlayersUnsub = window.DND5E_ROOM.onPlayers(fbApp.db, rid, (ps)=>{ roomState.players = ps || {}; });
+        if(roomRequestsUnsub){ roomRequestsUnsub(); }
+        roomRequestsUnsub = window.DND5E_ROOM.onRequests(fbApp.db, rid, (r)=>{ roomState.requests = r || {}; });
       }catch(e){ roomState.status = "idle"; roomState.error = "開房失敗：" + e.message; }
     }
 
@@ -1547,6 +1612,7 @@ createApp({
     return { cats, tabs, tab, importFile, activeCat, sel, q, theme, filtered, rarityOpts: RARITY,
       roomState, broadcastInput, openRoom, sendBroadcast,
       cmdTarget, cmdAmount, cmdNote, pickCmdTarget, sendCmd,
+      targetRequests, approveRequest, rejectRequest,
       cmdSource, cmdDamageType, cmdVisible, cmdWriteLog, cmdFlagLabel, cmdFlagDone, sendFlag,
       cmdItemName, cmdItemQty, sendItem,
       whisperInput, whisperFlash, sendWhisper,
