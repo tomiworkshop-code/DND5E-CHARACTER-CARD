@@ -143,13 +143,49 @@
             <span class="text-[12px]" style="color:var(--ink-soft)">數值</span>
             <input v-model.number="cmdAmount" type="number" class="w-20 px-2 py-1 text-sm text-center" style="background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:6px">
           </div>
+          <div class="mb-2">
+            <input v-model="cmdSource" type="text" placeholder="來源／原因（例：骷髏弓手的短弓）" class="w-full px-2 py-1 text-sm" style="background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:6px">
+          </div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-[12px]" style="color:var(--ink-soft)">傷害類型</span>
+            <select v-model="cmdDamageType" class="flex-1 px-2 py-1 text-sm" style="background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:6px">
+              <option value="">（無／不指定）</option>
+              <option value="piercing">穿刺 piercing</option>
+              <option value="slashing">揮砍 slashing</option>
+              <option value="bludgeoning">鈍擊 bludgeoning</option>
+              <option value="fire">火焰 fire</option>
+              <option value="cold">冰寒 cold</option>
+              <option value="lightning">閃電 lightning</option>
+              <option value="acid">強酸 acid</option>
+              <option value="poison">毒素 poison</option>
+              <option value="necrotic">死靈 necrotic</option>
+              <option value="radiant">光耀 radiant</option>
+              <option value="psychic">心靈 psychic</option>
+              <option value="thunder">雷鳴 thunder</option>
+              <option value="force">力場 force</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-4 mb-2 text-[12px]" style="color:var(--ink-soft)">
+            <label class="flex items-center gap-1"><input v-model="cmdVisible" type="checkbox"> 同步到玩家端</label>
+            <label class="flex items-center gap-1"><input v-model="cmdWriteLog" type="checkbox"> 寫入戰報日誌</label>
+          </div>
           <div class="grid grid-cols-2 gap-2">
             <button @click="sendCmd('damage')" class="btn px-2 py-1.5 text-sm" style="background:#c0392b;color:#fff">⚠️ 扣血</button>
             <button @click="sendCmd('heal')" class="btn px-2 py-1.5 text-sm" style="background:#2e8b57;color:#fff">💚 治療</button>
             <button @click="sendCmd('xp')" class="btn px-2 py-1.5 text-sm" style="background:#b8860b;color:#fff">🏆 給經驗</button>
             <button @click="sendCmd('gold')" class="btn px-2 py-1.5 text-sm" style="background:#8e7024;color:#fff">💰 給金幣</button>
           </div>
-          <p class="text-[11px] mt-2" style="color:var(--ink-soft)">提示：數值可輸負數（例如給金幣 -10 = 扣除）。扣血/治療一律取絕對值。</p>
+          <p class="text-[11px] mt-2" style="color:var(--ink-soft)">提示：數值可輸負數（例如給金幣 -10 = 扣除）。扣血/治療一律取絕對值。傷害類型僅扣血時帶。</p>
+
+          <!-- 🚩 旗標／情報送出（純情報／任務進度，不動 HP／金／XP） -->
+          <div class="mt-3 pt-3" style="border-top:1px dashed var(--line)">
+            <div class="text-[12px] mb-2" style="color:var(--gold-deep)">🚩 旗標／情報</div>
+            <input v-model="cmdFlagLabel" type="text" placeholder="已知情報（白話）例：取得古老銀鑰" class="w-full px-2 py-1 text-sm mb-2" style="background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:6px">
+            <div class="flex items-center gap-3 mb-2">
+              <label class="flex items-center gap-1 text-[12px]" style="color:var(--ink-soft)"><input v-model="cmdFlagDone" type="checkbox"> 已達成</label>
+              <button @click="sendFlag" class="btn px-3 py-1.5 text-sm" style="background:#7a5cc0;color:#fff">🚩 送出情報</button>
+            </div>
+          </div>
 
           <!-- 💬 惄惄話（私訊單一玩家） -->
           <div class="mt-3 pt-3" style="border-top:1px dashed var(--line)">
@@ -1058,6 +1094,12 @@ createApp({
     const cmdTarget = ref("");      // 目前選取的玩家 pid
     const cmdAmount = ref(5);       // 指令數值
     const cmdNote = ref("");        // 指令既註記
+    const cmdSource = ref("");      // 事件來源／原因
+    const cmdDamageType = ref(""); // 傷害類型（僅扣血時帶）
+    const cmdVisible = ref(true);   // 同步到玩家端
+    const cmdWriteLog = ref(true);  // 寫入戰報日誌
+    const cmdFlagLabel = ref("");   // 旗標／情報白話
+    const cmdFlagDone = ref(false); // 旗標是否已達成
     const whisperInput = ref("");   // 私訊內容
     const whisperFlash = ref("");   // 送出後短暫提示
     let whisperFlashTimer = null;
@@ -1069,9 +1111,40 @@ createApp({
       if(!cmdTarget.value || roomState.status !== "open"){ return; }
       const amt = Number(cmdAmount.value) || 0;
       try{
-        await window.DND5E_ROOM.sendCommand(fbApp.db, roomState.id, cmdTarget.value, { type: type, amount: amt, note: cmdNote.value || "" });
+        await window.DND5E_ROOM.sendCommand(fbApp.db, roomState.id, cmdTarget.value, {
+          type: type,
+          amount: amt,
+          note: cmdNote.value || "",
+          source: cmdSource.value || "",
+          damageType: (type === 'damage' ? (cmdDamageType.value || "") : ""),
+          visibleToPlayer: cmdVisible.value,
+          writesToCampaignLog: cmdWriteLog.value,
+          createdBy: "dm",
+          createdAt: Date.now()
+        });
         cmdNote.value = "";
       }catch(e){ roomState.error = "指令發送失敗：" + e.message; }
+    }
+
+    async function sendFlag(){
+      if(!cmdTarget.value || roomState.status !== "open"){ return; }
+      const label = (cmdFlagLabel.value || "").trim();
+      if(!label){ return; }
+      try{
+        await window.DND5E_ROOM.sendCommand(fbApp.db, roomState.id, cmdTarget.value, {
+          type: "info",
+          flag: { label: label, done: cmdFlagDone.value },
+          visibleToPlayer: cmdVisible.value,
+          writesToCampaignLog: cmdWriteLog.value,
+          createdBy: "dm",
+          createdAt: Date.now()
+        });
+        cmdFlagLabel.value = "";
+        cmdFlagDone.value = false;
+        roomState.saveMsg = "已送出情報 ✓";
+        if(saveMsgTimer) clearTimeout(saveMsgTimer);
+        saveMsgTimer = setTimeout(()=>{ roomState.saveMsg = ""; }, 3500);
+      }catch(e){ roomState.error = "情報發送失敗：" + e.message; }
     }
 
     async function sendWhisper(){
@@ -1439,6 +1512,7 @@ createApp({
     return { cats, tabs, tab, importFile, activeCat, sel, q, theme, filtered, rarityOpts: RARITY,
       roomState, broadcastInput, openRoom, sendBroadcast,
       cmdTarget, cmdAmount, cmdNote, pickCmdTarget, sendCmd,
+      cmdSource, cmdDamageType, cmdVisible, cmdWriteLog, cmdFlagLabel, cmdFlagDone, sendFlag,
       whisperInput, whisperFlash, sendWhisper,
       adoptWorldSave,
       worlds, activeWorld, currentWorld, manageOpen,

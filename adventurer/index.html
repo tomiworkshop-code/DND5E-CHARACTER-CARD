@@ -2632,6 +2632,7 @@ const app = createApp({
       }
       else if(cmd.type === "gold"){ ch.coins.gp = Math.max(0, (Number(ch.coins.gp)||0) + amt); if(c.id===ch.id){ c.coins.gp = ch.coins.gp; } label = (amt>=0?"💰 獲得 ":"💸 失去 ") + Math.abs(amt) + " 金幣 (gp)"; if(src) label += "（來源：" + src + "）"; }
       else if(cmd.type === "xp"){ ch.xp = Math.max(0, (Number(ch.xp)||0) + amt); if(c.id===ch.id){ c.xp = ch.xp; } label = (amt>=0?"🏆 獲得 ":"➖ 扣除 ") + Math.abs(amt) + " 經驗值 (累計 " + ch.xp + ")"; }
+      else if(cmd.type === "info"){ label = "🚩 情報更新"; kind = "info"; }
       else { return; }
       if(cmd.note){ label += "｜" + String(cmd.note); }
       /* 寫戰報日誌：預設寫（相容舊指令）；writesToCampaignLog===false 才不寫 */
