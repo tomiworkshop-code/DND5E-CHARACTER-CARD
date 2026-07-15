@@ -17,6 +17,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 <script src="shared/firebase-config.js"></script>
 <script src="shared/room.js"></script>
+<script src="shared/character-schema.js"></script>
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
@@ -292,6 +293,15 @@
         <p class="text-xs leading-relaxed" style="color:var(--ink)">此世界的等級、裝備、金錢與任務進度由 DM 存檔管理 <span class="auth-badge auth-dm">DM存檔</span>；你的角色身份（姓名／種族／背景／故事）仍完全屬於你 <span class="auth-badge auth-self">本機身份</span>。</p>
         <div class="text-right mt-2">
           <button @click="showSeatNotice=false" class="btn px-3 py-1 text-xs" style="background:var(--gold-deep);color:#fff">知道了</button>
+        </div>
+      </div>
+      <!-- M3-2a 世界存檔同步衝突卡（進度DM權威、身份玩家權威） -->
+      <div v-if="showConflict" class="card p-3 mb-3" style="background:var(--bg);border:1px solid var(--gold-deep)">
+        <div class="text-sm font-bold mb-1" style="color:var(--gold-deep)">🔄 世界存檔同步</div>
+        <p class="text-xs leading-relaxed" style="color:var(--ink)">此世界已有你的角色進度存檔。載入後，等級、裝備、金錢、狀態將以 DM 的世界存檔為準 <span class="auth-badge auth-dm">DM存檔</span>；你的角色故事與身份會完整保留 <span class="auth-badge auth-self">本機身份</span>。</p>
+        <div class="flex gap-2 justify-end mt-2">
+          <button @click="showConflict=false" class="btn px-3 py-1 text-xs" style="background:var(--bg-2, var(--bg));color:var(--ink);border:1px solid var(--border-color)">稍後</button>
+          <button @click="applyWorldSave()" class="btn px-3 py-1 text-xs" style="background:var(--gold-deep);color:#fff">載入世界存檔</button>
         </div>
       </div>
       <div class="flex justify-between items-center mb-2">
@@ -2551,6 +2561,9 @@ const app = createApp({
     const cmdToast = reactive({ show:false, text:"", kind:"" });
     let cmdToastTimer = null;
     let roomUnsubs = [];
+    /* M3-2a 世界存檔衝突/載入（加法式狀態）：worldSave = 收到的 DM 中央存檔；showConflict = 衝突卡開關。 */
+    const worldSave = ref(null);
+    const showConflict = ref(false);
 
     /* 套用 DM 指令到角色卡（扣血/治療/金幣/經驗）—即時生效。 */
     function applyCommand(cmd){
@@ -2597,13 +2610,17 @@ const app = createApp({
         const lvl = (ch.classes||[]).reduce((s,cl)=>s+(cl.level||1),0) || 1;
         /* M3-1 豐富握手：className（職業名以 / 串接）、worldId（加法式，不移除既有欄位） */
         const className = (ch.classes||[]).map(cl=>{ const def = CLASSES.find(k=>k.name_en===cl.name_en); return def ? def.name_zh : (cl.name_en||""); }).filter(Boolean).join("/");
-        const snap = { name: ch.name || "未命名", level: lvl, hp: ch.hp, ac: ch.ac, characterId: ch.characterId, className: className, worldId: (ch.worldId || meta.worldId || "") };
+        const snap = { name: ch.name || "未命名", level: lvl, hp: ch.hp, ac: ch.ac, characterId: ch.characterId, className: className, worldId: (ch.worldId || meta.worldId || ""),
+          /* M3-2a 機制提案（加法式）：供 M3-2b 的 DM 端採納成世界存檔用。schema 未載入時（離線/jsdom） m 為 null。 */
+          proposal: { m: (window.DND5E_CHAR ? window.DND5E_CHAR.extractZone(ch, "mechanical") : null), version_m: (ch._sync && ch._sync.version_m) || 0 } };
         await window.DND5E_ROOM.joinRoom(fbApp.db, rid, roomState.uid, snap);
         roomState.id = rid; roomState.status = "joined"; showSeatNotice.value = true;
         roomUnsubs.forEach(u=>u()); roomUnsubs = [];
         roomUnsubs.push(window.DND5E_ROOM.onBroadcast(fbApp.db, rid, m => pushRoomMsg(m)));
         roomUnsubs.push(window.DND5E_ROOM.onInbox(fbApp.db, rid, roomState.uid, m => pushRoomMsg(Object.assign({ isPrivate:true }, m))));
         roomUnsubs.push(window.DND5E_ROOM.onCommand(fbApp.db, rid, roomState.uid, m => applyCommand(m)));
+        /* M3-2a 訂閱世界存檔（DM 權威中央存檔），有變動即偵測衝突。 */
+        roomUnsubs.push(window.DND5E_ROOM.onSave(fbApp.db, rid, ch.characterId, save => handleWorldSave(save)));
         /* 首次連入且角色尚未綁世界 → 自動綁定 DM 的 worldId（§5.6） */
         if((ch.worldId === "" || ch.worldId == null) && meta.worldId){ ch.worldId = meta.worldId; persist(); }
       }catch(e){ roomState.status = "idle"; roomState.error = "加入失敗：" + e.message; }
@@ -2612,6 +2629,41 @@ const app = createApp({
     function checkAutoJoin(){
       const m = /[?&]room=([^&]+)/.exec(location.search);
       if(m){ joinCode.value = decodeURIComponent(m[1]).toUpperCase(); joinRoom(joinCode.value); }
+    }
+
+    /* M3-2a 收到世界存檔（DM 權威中央存檔）：偵測是否與本機機制欄位不同且 DM 版本≥本機→跳衝突卡。
+     * 全程 guard window.DND5E_CHAR（jsdom/離線未載入 schema 時直接 return，不報錯）。 */
+    function handleWorldSave(save){
+      worldSave.value = save;
+      if(!save){ return; }
+      const CH = window.DND5E_CHAR;
+      if(!CH){ return; }
+      const ch = activeChar();
+      if(!ch){ return; }
+      CH.ensureSync(ch);
+      const localM = JSON.stringify(CH.extractZone(ch, "mechanical"));
+      const remoteM = JSON.stringify(CH.extractZone(save, "mechanical"));
+      const remoteVer = (save._sync && save._sync.version_m) || 0;
+      const localVer = (ch._sync && ch._sync.version_m) || 0;
+      if(localM !== remoteM && remoteVer >= localVer){ showConflict.value = true; }
+    }
+
+    /* M3-2a 載入世界存檔：以 mergeInstance 合併（機制區以 DM 為準、敘事區保留本機），寫回存檔並重載。 */
+    function applyWorldSave(){
+      const CH = window.DND5E_CHAR;
+      if(!CH || !worldSave.value){ showConflict.value = false; return; }
+      const idx = chars.findIndex(x => x.id === activeId.value);
+      if(idx < 0){ showConflict.value = false; return; }
+      chars[idx] = CH.mergeInstance(chars[idx], worldSave.value);
+      persist();
+      loadActiveIntoC();
+      showConflict.value = false;
+      if(typeof cmdToast !== "undefined"){
+        cmdToast.text = "\ud83d\udd04 已載入世界存檔：進度以 DM 為準，角色身份保留";
+        cmdToast.kind = "sync"; cmdToast.show = true;
+        if(cmdToastTimer) clearTimeout(cmdToastTimer);
+        cmdToastTimer = setTimeout(()=>{ cmdToast.show = false; }, 4000);
+      }
     }
 
     onMounted(() => {
@@ -2625,6 +2677,7 @@ const app = createApp({
     return {
       joinCode, joinCharId, showSeatNotice, roomState, joinRoom, cmdToast,
       isJoined, worldBadge, sessionBadge,
+      worldSave, showConflict, handleWorldSave, applyWorldSave,
       c, tab, tabs, msg, fileInput, dataState, search,
       settings, showSettings, showCreditModal, sourceGroups, enabledCount, totalSourceCount,
       sourceCountsText, sourceLabelOf, toggleSource, selectAllSources, groupAllEnabled, toggleGroup,

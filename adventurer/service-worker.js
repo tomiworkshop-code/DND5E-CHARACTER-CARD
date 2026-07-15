@@ -1,5 +1,5 @@
 /* 羊皮卷 PWA Service Worker */
-const CACHE = 'parchment-dnd5e-v16-netfirst';
+const CACHE = 'parchment-dnd5e-v17-netfirst';
 const ASSETS = [
   './',
   './manifest.json',
@@ -19,6 +19,8 @@ const ASSETS = [
   './assets/ui/icons/cogs.png',
   './assets/ui/icons/world.png',
   './assets/ui/icons/table.png',
+  './shared/firebase-config.js',
+  './shared/room.js',
   './shared/character-schema.js',
   './data/races.json',
   './data/spells.json',
