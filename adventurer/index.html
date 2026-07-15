@@ -328,7 +328,7 @@
 
   <!-- ===== 系統設定（來源 / 日夜間模式 / 關於） ===== -->
   <section v-show="tab==='settings'">
-    <div class="card p-3 mb-3">
+    <div class="card p-3 mb-3" v-if="false">
       <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-moon"></use></svg>日夜間模式</h2>
       <div class="flex items-center justify-between">
         <span class="text-sm flex items-center">目前：<span v-if="theme==='dark'" class="flex items-center">深色 <svg class="w-4 h-4 inline-block align-text-bottom"><use href="#icon-moon"></use></svg></span><span v-else class="flex items-center">淺色 <svg class="w-4 h-4 inline-block align-text-bottom"><use href="#icon-sun"></use></svg></span></span>
@@ -2230,9 +2230,9 @@ const app = createApp({
     function clearRollLog(){ rollLog.value = []; }
 
     /* ===== 主題切換 ===== */
-    const theme = ref((()=>{ try{ return localStorage.getItem('dnd_theme')||'light'; }catch(e){ return 'light'; } })());
-    function applyTheme(){ try{ document.documentElement.setAttribute('data-theme', theme.value); }catch(e){} }
-    function toggleTheme(){ theme.value = theme.value==='dark'?'light':'dark'; try{ localStorage.setItem('dnd_theme', theme.value); }catch(e){} applyTheme(); }
+    const theme = ref('light'); // 深色模式已停用，強制亮色（暗色 CSS 保留備用，可逆）
+    function applyTheme(){ try{ document.documentElement.setAttribute('data-theme','light'); localStorage.setItem('dnd_theme','light'); }catch(e){} }
+    function toggleTheme(){ /* 深色模式已停用 */ }
     applyTheme();
 
     /* ===== 頭像 ===== */
