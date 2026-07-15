@@ -8,6 +8,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>冒險者之書（5E）</title>
 <link rel="manifest" href="./manifest.json">
+
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="shared/firebase-config.js"></script>
+<script src="shared/room.js"></script>
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
@@ -1453,7 +1460,8 @@ const app = createApp({
       if(!active || !list.some(ch => ch.id === active)) active = list[0].id;
       let m = "setup";
       try{ const sm = localStorage.getItem(LS_MODE); if(sm === "play" || sm === "setup") m = sm; }catch(e){}
-      return { chars:list, activeId:active, mode:m };
+      return {
+      joinCode, roomState, joinRoom, chars:list, activeId:active, mode:m };
     }
     function activeChar(){ return chars.find(x => x.id === activeId.value) || chars[0]; }
     function loadActiveIntoC(){
