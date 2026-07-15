@@ -11,9 +11,6 @@
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
 <!-- Firebase compat SDK + Room 模組（Step B） -->
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
@@ -27,7 +24,7 @@
     --ink:#3b2a1a; --ink-soft:#6b5034; --gold:#7c5a3a; --gold-deep:#5a3d22;
     --paper:#f3e9d2; --paper-2:#e9dab6; --line:#caa96f; --accent:#8a5a2b;
     --gold-metal:#b8860b; --gold-lite:#d8b24a;
-    --font-head:"Cinzel","Ma Shan Zheng","Noto Serif TC",serif;
+    --font-head:"Noto Serif TC","Songti TC","STKaiti",serif;
   }
   html[data-theme="dark"]{
     --ink:#f0e6d2; --ink-soft:#d4c2a8; --gold:#e8c37d; --gold-deep:#f5d08a;
@@ -77,6 +74,11 @@
   .btn-ghost{ background:transparent; color:var(--gold-deep); border:1px dashed var(--line); }
   .btn-danger{ background:linear-gradient(180deg,#9c4a3a,#7e3a2c); border-color:#5e271d; color:#fdf0ea; }
   .stat-box{ background:rgba(255,252,240,.7); border:1px solid var(--line); border-radius:12px; }
+  /* 階段2：屬性蠟封徽章（保留輸入） */
+  .ability-cell{ position:relative; background:linear-gradient(180deg,#fdf6e3,#efe1c0); border:1.5px solid var(--gold-metal); border-radius:14px; box-shadow:0 3px 8px rgba(90,61,34,.22), inset 0 1px 0 rgba(255,255,255,.55); }
+  html[data-theme="dark"] .ability-cell{ background:linear-gradient(180deg,rgba(60,48,34,.95),rgba(44,35,24,.92)); border-color:var(--gold-deep); }
+  .ability-cell .abil-name{ display:inline-block; font-family:var(--font-head); font-weight:700; letter-spacing:.08em; color:#fff7e0; padding:1px 12px; border-radius:999px; background:linear-gradient(180deg,#8a6636,#5a3d22); box-shadow:0 1px 2px rgba(0,0,0,.32); }
+  .ability-cell .abil-mod{ display:inline-flex; align-items:center; justify-content:center; min-width:42px; margin:3px auto 0; padding:1px 10px; border-radius:999px; color:#3a2a12 !important; background:radial-gradient(circle at 35% 30%, #f2d98c, var(--gold-metal)); box-shadow:0 1px 3px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.55); }
   .src-group-head{ background:rgba(243,233,210,.95); }
   html[data-theme="dark"] .src-group-head{ background:rgba(26,21,16,.95); }
   .cond-chip{ border-radius:10px; transition:all .12s; user-select:none; }
@@ -420,15 +422,15 @@
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-d20"></use></svg>六大屬性</h2>
       <div class="grid grid-cols-3 gap-2">
-        <div v-for="a in abilityDefs" :key="a.key" class="stat-box p-2 text-center">
-          <div class="text-[12px] font-bold">{{ a.zh }}</div>
+        <div v-for="a in abilityDefs" :key="a.key" class="stat-box ability-cell p-2 text-center">
+          <div class="text-[12px] font-bold abil-name">{{ a.zh }}</div>
           <input v-model.number="c.abilities[a.key]" :disabled="locked" type="number" class="w-full my-1 text-center font-bold num py-1" title="基礎分數">
           <div class="flex items-center justify-center gap-1 text-[10px]" style="color:var(--ink-soft)">
             <span>加值</span>
             <input v-model.number="c.abilityBonus[a.key]" :disabled="locked" type="number" class="w-10 text-center num py-0.5 text-[11px]" title="種族/其他加值">
           </div>
           <div class="text-[10px] mt-1" style="color:var(--ink-soft)">總分 <span class="num font-bold" style="color:var(--ink)">{{ abilityTotal(a.key) }}</span></div>
-          <div class="text-sm font-bold num" :class="modClass(abilityModFor(a.key))">{{ fmt(abilityModFor(a.key)) }}</div>
+          <div class="text-sm font-bold num abil-mod">{{ fmt(abilityModFor(a.key)) }}</div>
         </div>
       </div>
     </div>
