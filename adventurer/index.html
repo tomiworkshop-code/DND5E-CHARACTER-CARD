@@ -316,6 +316,17 @@
           <div class="text-[10px] mt-1 text-right" style="color:var(--ink-soft)">{{ new Date(m.ts).toLocaleTimeString() }}</div>
         </div>
       </div>
+      <!-- 階段二 世界進度切換器 -->
+      <div class="card p-3 mt-3">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-sm font-bold" style="color:var(--gold-deep)">🌍 世界進度</span>
+          <button @click="renameWorld(currentWorldKey)" class="btn px-2 py-0.5 text-[11px]" style="background:var(--bg-2, var(--bg));color:var(--ink-soft);border:1px solid var(--border-color)">✏️ 命名</button>
+        </div>
+        <select :value="currentWorldKey" @change="switchWorld($event.target.value)" class="w-full px-2 py-1.5 rounded border text-sm" style="background:var(--bg);border-color:var(--border-color);color:var(--ink)">
+          <option v-for="w in knownWorlds" :key="w.key" :value="w.key">{{ w.name }}（戰報 {{ w.logCount }}・情報 {{ w.flagCount }}）</option>
+        </select>
+        <p class="text-[11px] mt-1" style="color:var(--ink-soft)">切換世界會顯示該世界的戰報與情報；角色身份不變。</p>
+      </div>
       <!-- M4-1 戰報日誌（Session 過程紀錄） -->
       <div class="card p-3 mt-3">
         <div class="flex justify-between items-center mb-2">
@@ -1569,7 +1580,10 @@ function defaultChar(){
     campaignLog: [],
     flags: [],
     /* 階段一：進度屬於世界——依世界分桶儲存 campaignLog/flags（保留上兩欄為遷移來源/相容） */
-    worldProgress: {}
+    worldProgress: {},
+    /* 階段二：玩家端世界切換器——目前世界 key（含 __solo__）與本機世界命名 */
+    activeWorldId: "",
+    worldNames: {}
   };
 }
 
@@ -1719,6 +1733,9 @@ const app = createApp({
       if(!Array.isArray(out.flags)) out.flags = [];
       /* 階段一 向後相容：舊存檔無 worldProgress（或型態損壞）時回填為物件 */
       if(!out.worldProgress || typeof out.worldProgress !== "object" || Array.isArray(out.worldProgress)) out.worldProgress = {};
+      /* 階段二 向後相容：舊存檔無 activeWorldId / worldNames 時回填 */
+      if(typeof out.activeWorldId !== "string") out.activeWorldId = "";
+      if(!out.worldNames || typeof out.worldNames !== "object" || Array.isArray(out.worldNames)) out.worldNames = {};
       return out;
     }
 
@@ -2624,7 +2641,11 @@ const app = createApp({
     /* M4-1 傷害類型中文對照（白話呈現，缺字則直接用原值） */
     const DMG_TYPE_ZH = { piercing:"穿刺", slashing:"揮砍", bludgeoning:"鈍擊", fire:"火焰", cold:"冰寒", lightning:"閃電", acid:"強酸", poison:"毒素", necrotic:"死靈", radiant:"光耀", psychic:"心靈", thunder:"雷鳴", force:"力場" };
     /* 階段一：世界分桶——進度屬於世界。未綁世界時徒至單人桶 __solo__ */
-    function worldKey(ch){ return (ch && ch.worldId != null && ch.worldId !== "") ? String(ch.worldId) : "__solo__"; }
+    function worldKey(ch){
+      if(ch && ch.activeWorldId != null && ch.activeWorldId !== "") return String(ch.activeWorldId);
+      if(ch && ch.worldId != null && ch.worldId !== "") return String(ch.worldId);
+      return "__solo__";
+    }
     function worldBucket(ch){
       if(!ch) return { campaignLog:[], flags:[] };
       if(!ch.worldProgress || typeof ch.worldProgress !== "object" || Array.isArray(ch.worldProgress)) ch.worldProgress = {};
@@ -2713,6 +2734,37 @@ const app = createApp({
     /* M4-1 戰報日誌 / 已知情報 computed（舊存檔無欄位時回 []，mount 期不報錯） */
     const logEntries = computed(() => { const a = activeChar(); if(!a) return []; const b = worldBucket(a); return b.campaignLog; });
     const flagList  = computed(() => { const a = activeChar(); if(!a) return []; const b = worldBucket(a); return b.flags; });
+    /* 階段二 世界切換器：世界名稱（本機可命名）、已知世界清單、切換/命名 */
+    function worldLabel(ch, key){
+      if(ch && ch.worldNames && ch.worldNames[key]) return ch.worldNames[key];
+      if(key === "__solo__") return "單人冒險";
+      return "世界 #" + String(key).slice(-4);
+    }
+    const currentWorldKey = computed(()=> worldKey(activeChar()));
+    const knownWorlds = computed(()=>{
+      const a = activeChar(); if(!a) return [];
+      const keys = new Set();
+      if(a.worldProgress && typeof a.worldProgress === "object") Object.keys(a.worldProgress).forEach(k=> keys.add(k));
+      keys.add(worldKey(a));
+      const cur = worldKey(a);
+      return Array.from(keys).map(k=>{
+        const b = (a.worldProgress && a.worldProgress[k]) || { campaignLog:[], flags:[] };
+        return { key:k, name: worldLabel(a,k),
+          logCount: Array.isArray(b.campaignLog)?b.campaignLog.length:0,
+          flagCount: Array.isArray(b.flags)?b.flags.length:0,
+          active: k===cur };
+      });
+    });
+    function switchWorld(key){ const a = activeChar(); if(!a || !key) return; a.activeWorldId = key; persist(); }
+    function renameWorld(key){
+      const a = activeChar(); if(!a || !key) return;
+      const cur = (a.worldNames && a.worldNames[key]) || "";
+      const name = window.prompt ? window.prompt("為這個世界命名（本機顯示用）：", cur) : cur;
+      if(name == null) return;
+      if(!a.worldNames || typeof a.worldNames !== "object") a.worldNames = {};
+      a.worldNames[key] = String(name).trim();
+      persist();
+    }
     /* 事件卡視覺化：依類型回傳圖示與主色（純呈現，不動資料層） */
     function logMeta(type){
       switch(type){
@@ -2802,6 +2854,8 @@ const app = createApp({
         roomUnsubs.push(window.DND5E_ROOM.onSave(fbApp.db, rid, ch.characterId, save => handleWorldSave(save)));
         /* 首次連入且角色尚未綁世界 → 自動綁定 DM 的 worldId（§5.6） */
         if((ch.worldId === "" || ch.worldId == null) && meta.worldId){ ch.worldId = meta.worldId; persist(); }
+        /* 階段二：入座就切到該世界視角（找不到 meta.worldId 則不動） */
+        if(meta.worldId){ ch.activeWorldId = String(meta.worldId); persist(); }
       }catch(e){ roomState.status = "idle"; roomState.error = "加入失敗：" + e.message; }
     }
 
@@ -2857,6 +2911,7 @@ const app = createApp({
       joinCode, joinCharId, showSeatNotice, roomState, joinRoom, cmdToast,
       reqItemName, reqItemQty, reqItemReason, askDM, sendItemRequest,
       logEntries, flagList, clearCampaignLog, logMeta,
+      currentWorldKey, knownWorlds, switchWorld, renameWorld,
       isJoined, worldBadge, sessionBadge,
       worldSave, showConflict, handleWorldSave, applyWorldSave,
       c, tab, tabs, msg, fileInput, dataState, search,
