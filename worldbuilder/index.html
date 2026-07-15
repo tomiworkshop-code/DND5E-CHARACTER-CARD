@@ -1022,7 +1022,7 @@ createApp({
     const importFile = ref(null);
 
     /* ===== Step B: 跨端連線（DM 端） ===== */
-    const fbApp = ref(null);
+    let fbApp = null; /* 純變數，不可存進 ref：Vue Proxy 包裹 firebase db 會導致 e.insert is not a function */
     const roomState = reactive({ status:"idle", id:"", qr:"", error:"", players:{}, dmUid:"" });
     const broadcastInput = ref("");
     const cmdTarget = ref("");      // 目前選取的玩家 pid
@@ -1036,17 +1036,17 @@ createApp({
       if(!cmdTarget.value || roomState.status !== "open"){ return; }
       const amt = Number(cmdAmount.value) || 0;
       try{
-        await window.DND5E_ROOM.sendCommand(fbApp.value.db, roomState.id, cmdTarget.value, { type: type, amount: amt, note: cmdNote.value || "" });
+        await window.DND5E_ROOM.sendCommand(fbApp.db, roomState.id, cmdTarget.value, { type: type, amount: amt, note: cmdNote.value || "" });
         cmdNote.value = "";
       }catch(e){ roomState.error = "指令發送失敗：" + e.message; }
     }
 
     function initFirebase(){
-      if(fbApp.value) return;
+      if(fbApp) return;
       if(!window.DND5E_FIREBASE || !window.DND5E_ROOM){ return; }
       try{
         const fb = window.DND5E_ROOM.init(window.DND5E_FIREBASE.firebaseConfig);
-        fbApp.value = fb;
+        fbApp = fb;
         window.DND5E_ROOM.signInAnon(fb.auth)
           .then(uid => { roomState.dmUid = uid; })
           .catch(e => { roomState.error = "連線登入失敗：" + e.message; });
@@ -1054,24 +1054,24 @@ createApp({
     }
 
     async function openRoom(){
-      if(!fbApp.value){ initFirebase(); }
+      if(!fbApp){ initFirebase(); }
       if(!roomState.dmUid){ roomState.error = "連線尚未就緒，稍後再試"; return; }
       if(roomState.status === "opening") return;
       roomState.status = "opening"; roomState.error = "";
       try{
-        const rid = await window.DND5E_ROOM.createRoom(fbApp.value.db, { dmId: roomState.dmUid, worldId: activeWorld.value });
+        const rid = await window.DND5E_ROOM.createRoom(fbApp.db, { dmId: roomState.dmUid, worldId: activeWorld.value });
         roomState.id = rid; roomState.status = "open";
         const url = location.origin + location.pathname.replace(/worldbuilder\/?$/, "") + "?room=" + rid;
         try{ QRCode.toDataURL(url, { width:200, margin:1 }, (err, dataUrl)=>{ if(!err) roomState.qr = dataUrl; }); }catch(e){}
         if(roomPlayersUnsub){ roomPlayersUnsub(); }
-        roomPlayersUnsub = window.DND5E_ROOM.onPlayers(fbApp.value.db, rid, (ps)=>{ roomState.players = ps || {}; });
+        roomPlayersUnsub = window.DND5E_ROOM.onPlayers(fbApp.db, rid, (ps)=>{ roomState.players = ps || {}; });
       }catch(e){ roomState.status = "idle"; roomState.error = "開房失敗：" + e.message; }
     }
 
     async function sendBroadcast(){
       const t = broadcastInput.value.trim();
       if(!t || roomState.status !== "open"){ return; }
-      await window.DND5E_ROOM.sendBroadcast(fbApp.value.db, roomState.id, "dm", t);
+      await window.DND5E_ROOM.sendBroadcast(fbApp.db, roomState.id, "dm", t);
       broadcastInput.value = "";
     }
 
