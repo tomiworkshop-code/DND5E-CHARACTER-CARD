@@ -254,6 +254,29 @@
           <button class="btn px-3 py-1.5 text-sm whitespace-nowrap" style="background:var(--gold-deep);color:#fff" @click="sendBroadcast">推送</button>
         </div>
       </div>
+
+      <!-- 🎭 劇情回調 -->
+      <div v-if="roomState.status==='open'" class="p-3 rounded" style="background:var(--bg);border:1px solid var(--line)">
+        <div class="text-[12px] mb-1" style="color:var(--gold-deep);font-weight:bold">🎭 劇情回調</div>
+        <div class="text-[11px] mb-2" style="color:var(--ink-soft)">玩家已建立的旗標，可生成回調場景丟回給對應玩家。</div>
+        <div v-if="!callbackFlags.length" class="text-[11px] italic" style="color:var(--ink-soft)">尚無可回調的旗標（送出情報後會出現在這）</div>
+        <div v-for="f in callbackFlags" :key="f.id" class="p-2 mb-2 rounded" style="background:var(--card);border:1px solid var(--line)">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[12px] flex-1" style="color:var(--ink)">🚩 {{ f.label }}</span>
+            <span class="text-[11px]" style="color:var(--ink-soft)">給 {{ f.playerName }}</span>
+            <span class="text-[11px]" :style="f.done ? 'color:#2e8b57' : 'color:var(--ink-soft)'">{{ f.done ? '✓ 已達成' : '○ 進行中' }}</span>
+            <button class="btn px-2 py-1 text-[11px]" style="background:#7a5cc0;color:#fff" @click="startCallback(f)">🎬 生成回調</button>
+          </div>
+          <div v-if="callbackEditingId===f.id" class="mt-2">
+            <textarea v-model="callbackText" rows="3" class="w-full px-2 py-1.5 text-sm" style="background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:6px"></textarea>
+            <div class="flex gap-2 mt-2 flex-wrap">
+              <button class="btn px-2 py-1 text-[12px]" style="background:#2e7d5b;color:#fff" @click="insertCallback(f)">🎬 插入場景</button>
+              <button class="btn px-2 py-1 text-[12px]" style="background:var(--gold-deep);color:#fff" @click="cancelCallback()">⏰ 稍後</button>
+              <button class="btn px-2 py-1 text-[12px]" style="background:#c0392b;color:#fff" @click="dismissCallback(f)">🗑 忽略</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -933,6 +956,7 @@ const LS_WORLDS = "dm_worldbuilder_worlds_v1";
 const LS_ACTIVE = "dm_worldbuilder_active_v1";
 const LS_ENC = "dm_worldbuilder_encounters_v1";
 const LS_QUESTS = "dm_worldbuilder_quests_v1";
+const LS_DMFLAGS = "dnd_narrator_dmflags";
 // 5E 官方稀有度分級（最高原則：一切以 5E 為基底）
 const RARITY = [
   {v:"Common",    t:"普通"},
@@ -1145,6 +1169,57 @@ createApp({
     let roomPlayersUnsub = null;
     let roomRequestsUnsub = null;
 
+    /* ===== §7.7 旗標台帳 + 劇情回調 ===== */
+    const dmFlags = reactive([]); // 本機旗標台帳（持久化）
+    try{ const a = JSON.parse(localStorage.getItem(LS_DMFLAGS)); if(Array.isArray(a)) dmFlags.push(...a); }catch(e){}
+    function persistDmFlags(){ try{ localStorage.setItem(LS_DMFLAGS, JSON.stringify(dmFlags)); }catch(e){} }
+    function recordDmFlag(label, done, playerId){
+      const lbl = (label||"").trim();
+      if(!lbl || !playerId) return;
+      const pname = (roomState.players[playerId] && roomState.players[playerId].name) || "未命名";
+      const rid = roomState.id;
+      const found = dmFlags.find(f=> f.label===lbl && f.playerId===playerId && f.roomId===rid);
+      if(found){ found.done = !!done; found.playerName = pname; }
+      else { dmFlags.push({ id: uid(), label: lbl, done: !!done, playerId: playerId, playerName: pname, roomId: rid, ts: Date.now() }); }
+      persistDmFlags();
+    }
+    const callbackEditingId = ref("");
+    const callbackText = ref("");
+    const callbackFlags = computed(()=> dmFlags.filter(f=> f.roomId===roomState.id).slice().sort((a,b)=> (b.ts||0)-(a.ts||0)));
+    function startCallback(f){
+      if(!f) return;
+      callbackEditingId.value = f.id;
+      callbackText.value = "因為你曾「" + f.label + "」，……（在此描述回調場景）";
+    }
+    function cancelCallback(){ callbackEditingId.value = ""; callbackText.value = ""; }
+    async function insertCallback(f){
+      if(roomState.status !== "open" || !f || !f.playerId) return;
+      const txt = (callbackText.value||"").trim();
+      if(!txt) return;
+      try{
+        await window.DND5E_ROOM.sendCommand(fbApp.db, roomState.id, f.playerId, {
+          type: "info",
+          note: txt,
+          source: "劇情回調",
+          visibleToPlayer: true,
+          writesToCampaignLog: true,
+          createdBy: "dm",
+          createdAt: Date.now()
+        });
+        cancelCallback();
+        roomState.saveMsg = "已插入回調場景 ✓";
+        if(saveMsgTimer) clearTimeout(saveMsgTimer);
+        saveMsgTimer = setTimeout(()=>{ roomState.saveMsg = ""; }, 3500);
+      }catch(e){ roomState.error = "回調場景發送失敗：" + e.message; }
+    }
+    function dismissCallback(f){
+      if(!f) return;
+      const i = dmFlags.findIndex(x=> x.id===f.id);
+      if(i>=0) dmFlags.splice(i,1);
+      persistDmFlags();
+      if(callbackEditingId.value === f.id) cancelCallback();
+    }
+
     function pickCmdTarget(pid){ cmdTarget.value = (cmdTarget.value === pid) ? "" : pid; }
 
     async function sendCmd(type){
@@ -1179,6 +1254,7 @@ createApp({
           createdBy: "dm",
           createdAt: Date.now()
         });
+        recordDmFlag(label, cmdFlagDone.value, cmdTarget.value);
         cmdFlagLabel.value = "";
         cmdFlagDone.value = false;
         roomState.saveMsg = "已送出情報 ✓";
@@ -1614,6 +1690,7 @@ createApp({
       cmdTarget, cmdAmount, cmdNote, pickCmdTarget, sendCmd,
       targetRequests, approveRequest, rejectRequest,
       cmdSource, cmdDamageType, cmdVisible, cmdWriteLog, cmdFlagLabel, cmdFlagDone, sendFlag,
+      dmFlags, callbackFlags, callbackEditingId, callbackText, startCallback, cancelCallback, insertCallback, dismissCallback,
       cmdItemName, cmdItemQty, sendItem,
       whisperInput, whisperFlash, sendWhisper,
       adoptWorldSave,
