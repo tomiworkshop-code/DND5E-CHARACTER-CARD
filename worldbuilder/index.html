@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#7c5a3a">
-<title>地下城指南 · 世界建構器（原型）</title>
+<title>敍事者之書（DM）</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiB2aWV3Qm94PSIwIDAgNTEyIDUxMiI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHJ4PSI5NiIgZmlsbD0iIzdjNWEzYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTQlIiBmb250LXNpemU9IjI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9ImNlbnRyYWwiPvCfk5Y8L3RleHQ+PC9zdmc+">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="敍事者之書">
 <!-- Firebase compat SDK + QR + Room 模組（Step B） -->
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
@@ -83,8 +88,8 @@
   <div class="flex items-center justify-between mb-3">
     <h1 class="text-xl font-bold title-deco flex items-center gap-2">
       <svg class="ic" style="width:22px;height:22px"><use href="#w-book"></use></svg>
-      地下城指南 · 世界建構器
-      <span class="text-[10px] px-2 py-0.5 rounded-full" style="background:rgba(138,90,43,.15);color:var(--accent)">原型 Prototype</span>
+      敘事者之書
+      <span class="text-[10px] px-2 py-0.5 rounded-full" style="background:rgba(138,90,43,.15);color:var(--accent)">DM</span>
     </h1>
     <button class="btn-ghost btn px-2 py-1.5 text-sm flex items-center gap-1" @click="toggleTheme">
       <svg class="ic"><use :href="theme==='dark' ? '#w-sun' : '#w-moon'"></use></svg>
@@ -781,7 +786,7 @@
         </a>
       </div>
       <div class="text-[11px] leading-relaxed border-t pt-3" style="color:var(--ink-soft); border-color:var(--gold-deep)">
-        <div><b style="color:var(--gold-deep)">地下城指南 · 世界建構器</b>（原型 Prototype）</div>
+        <div><b style="color:var(--gold-deep)">敘事者之書</b>（DM 端）</div>
         <div>DM 端主控台，對應玩家端「冒險者之書」。</div>
         <div class="mt-1">功能許願 / 意見回饋，加我 Line：<span style="font-weight:600;color:var(--gold-deep)">tomilam</span></div>
         <div class="mt-2">本工具為非官方愛好者作品。遊戲規則資料取自 <b>System Reference Document 5.1（SRD 5.1）</b>，&copy; Wizards of the Coast LLC，依 <b>CC-BY-4.0</b> 授權。<br><i style="font-size:0.9em">This work includes material from the System Reference Document 5.1 by Wizards of the Coast LLC, licensed under CC BY 4.0.</i></div>
@@ -1075,7 +1080,12 @@ createApp({
       broadcastInput.value = "";
     }
 
-    onMounted(() => { initFirebase(); });
+    onMounted(() => {
+      initFirebase();
+      if("serviceWorker" in navigator){
+        navigator.serviceWorker.register("./service-worker.js").catch(function(){});
+      }
+    });
 
     // ---- encounter builder state ----
     const encPanelOpen = ref(false);
