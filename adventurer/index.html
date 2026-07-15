@@ -316,6 +316,20 @@
           <div class="text-[10px] mt-1 text-right" style="color:var(--ink-soft)">{{ new Date(m.ts).toLocaleTimeString() }}</div>
         </div>
       </div>
+      <!-- M4-1 戰報日誌（Session 過程紀錄） -->
+      <div class="card p-3 mt-3">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-sm font-bold" style="color:var(--gold-deep)">📜 戰報日誌</span>
+          <button v-if="logEntries.length" @click="clearCampaignLog()" class="btn px-2 py-0.5 text-[11px]" style="background:var(--bg-2, var(--bg));color:var(--ink-soft);border:1px solid var(--border-color)">清空</button>
+        </div>
+        <div v-if="logEntries.length" class="overflow-y-auto rounded p-2 text-xs space-y-1" style="max-height:12rem;background:var(--bg);border:1px solid var(--border-color)">
+          <div v-for="(e, i) in logEntries" :key="e.ts + '-' + i" class="flex gap-2 items-start p-1.5 rounded" style="background:var(--card);border:1px solid var(--border-color)">
+            <span class="text-[10px] shrink-0 num" style="color:var(--ink-soft)">{{ new Date(e.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) }}</span>
+            <span class="leading-snug">{{ e.text }}</span>
+          </div>
+        </div>
+        <div v-else class="italic text-center py-4 text-xs" style="color:var(--ink-soft)">尚無戰報紀錄</div>
+      </div>
     </div>
     <div v-if="roomState.error" class="text-xs mt-1" style="color:#d66">{{ roomState.error }}</div>
   </div>
@@ -924,6 +938,16 @@
 
   <!-- ===== 背包 ===== -->
   <section v-show="tab==='world'">
+    <!-- M4-1 已知情報（旗標，白話呈現，不顯工程 ID） -->
+    <div class="card p-3 mb-3">
+      <h2 class="text-sm font-bold title-deco mb-2">🚩 已知情報</h2>
+      <div v-if="flagList.length" class="space-y-1">
+        <div v-for="(f, i) in flagList" :key="(f.id || f.label) + '-' + i" class="text-sm" :style="f.done ? 'color:var(--gold-deep)' : 'color:var(--ink-soft)'">
+          {{ f.done ? '✓ ' + f.label : '○ ' + f.label }}
+        </div>
+      </div>
+      <div v-else class="italic text-center py-3 text-xs" style="color:var(--ink-soft)">尚無已知情報</div>
+    </div>
     <div class="card p-3 mb-3">
       <h2 class="text-sm font-bold title-deco mb-2"><svg class="w-4 h-4 mr-1 inline-block align-text-bottom"><use href="#icon-coins"></use></svg>財產<span class="auth-badge" :class="worldBadge.cls" title="金錢屬世界進度，進房後由 DM 存檔管理">{{ worldBadge.text }}</span></h2>
       <div class="grid grid-cols-4 gap-2 text-center">
@@ -1523,7 +1547,10 @@ function defaultChar(){
     feats:[],
     story:{ appearance:"", personality:"", ideals:"", bonds:"", flaws:"", allies:"", backstory:"" },
     avatar:"",
-    familiar: null
+    familiar: null,
+    /* M4-1 玩家版結構化事件消費（加法式、向後相容）：戰報日誌 + 已知情報旗標 */
+    campaignLog: [],
+    flags: []
   };
 }
 
@@ -1668,6 +1695,9 @@ const app = createApp({
           out[k] = Object.assign(out[k]||{}, saved[k]);
         } else { out[k] = saved[k]; }
       }
+      /* M4-1 向後相容：舊存檔無 campaignLog/flags（或型態損壞）時回填為陣列 */
+      if(!Array.isArray(out.campaignLog)) out.campaignLog = [];
+      if(!Array.isArray(out.flags)) out.flags = [];
       return out;
     }
 
@@ -2566,21 +2596,78 @@ const app = createApp({
     const showConflict = ref(false);
 
     /* 套用 DM 指令到角色卡（扣血/治療/金幣/經驗）—即時生效。 */
+    /* M4-1 傷害類型中文對照（白話呈現，缺字則直接用原值） */
+    const DMG_TYPE_ZH = { piercing:"穿刺", slashing:"揮砍", bludgeoning:"鈍擊", fire:"火焰", cold:"冰寒", lightning:"閃電", acid:"強酸", poison:"毒素", necrotic:"死靈", radiant:"光耀", psychic:"心靈", thunder:"雷鳴", force:"力場" };
+    /* M4-1 將一筆日誌寫進角色 campaignLog（上限 200），並鏡像到工作副本 c（同 id 時） */
+    function writeCampaignLog(ch, entry){
+      if(!Array.isArray(ch.campaignLog)) ch.campaignLog = [];
+      ch.campaignLog.unshift(entry);
+      if(ch.campaignLog.length > 200) ch.campaignLog.pop();
+      if(c.id === ch.id){ c.campaignLog = ch.campaignLog.slice(); }
+    }
     function applyCommand(cmd){
       if(!cmd || !cmd.type) return;
       const amt = Number(cmd.amount) || 0;
       const ch = activeChar();
+      if(!ch) return;
+      const src = cmd.source ? String(cmd.source) : "";
+      const dmgType = cmd.damageType ? String(cmd.damageType) : "";
       let label = "", kind = cmd.type;
-      if(cmd.type === "damage"){ damage(Math.abs(amt)); label = "⚠️ DM 對你造成 " + Math.abs(amt) + " 點傷害"; }
-      else if(cmd.type === "heal"){ heal(Math.abs(amt)); label = "💚 DM 治療你 " + Math.abs(amt) + " 點 HP"; }
-      else if(cmd.type === "gold"){ ch.coins.gp = Math.max(0, (Number(ch.coins.gp)||0) + amt); label = (amt>=0?"💰 獲得 ":"💸 失去 ") + Math.abs(amt) + " 金幣 (gp)"; }
-      else if(cmd.type === "xp"){ ch.xp = Math.max(0, (Number(ch.xp)||0) + amt); label = (amt>=0?"🏆 獲得 ":"➖ 扣除 ") + Math.abs(amt) + " 經驗值 (累計 " + ch.xp + ")"; }
+      if(cmd.type === "damage"){
+        const before = Number(c.hp.current||0);
+        damage(Math.abs(amt));
+        const after = Number(c.hp.current||0);
+        const tName = dmgType ? ((DMG_TYPE_ZH[dmgType] || dmgType) + "傷害") : "傷害";
+        label = "⚠️ 受到 " + Math.abs(amt) + " 點" + tName;
+        if(src) label += "（來源：" + src + "）";
+        label += " HP " + before + "→" + after;
+      }
+      else if(cmd.type === "heal"){
+        const before = Number(c.hp.current||0);
+        heal(Math.abs(amt));
+        const after = Number(c.hp.current||0);
+        label = "💚 恢復 " + Math.abs(amt) + " 點 HP";
+        if(src) label += "（來源：" + src + "）";
+        label += " HP " + before + "→" + after;
+      }
+      else if(cmd.type === "gold"){ ch.coins.gp = Math.max(0, (Number(ch.coins.gp)||0) + amt); if(c.id===ch.id){ c.coins.gp = ch.coins.gp; } label = (amt>=0?"💰 獲得 ":"💸 失去 ") + Math.abs(amt) + " 金幣 (gp)"; if(src) label += "（來源：" + src + "）"; }
+      else if(cmd.type === "xp"){ ch.xp = Math.max(0, (Number(ch.xp)||0) + amt); if(c.id===ch.id){ c.xp = ch.xp; } label = (amt>=0?"🏆 獲得 ":"➖ 扣除 ") + Math.abs(amt) + " 經驗值 (累計 " + ch.xp + ")"; }
       else { return; }
+      if(cmd.note){ label += "｜" + String(cmd.note); }
+      /* 寫戰報日誌：預設寫（相容舊指令）；writesToCampaignLog===false 才不寫 */
+      if(cmd.writesToCampaignLog !== false){
+        writeCampaignLog(ch, { ts: (cmd.ts || cmd.createdAt || Date.now()), text: label, type: cmd.type });
+      }
+      /* 旗標：正規化並去重（同 label 更新 done） */
+      if(cmd.flag){
+        const f = cmd.flag;
+        const norm = { id: (f.id || ("f"+Date.now())), label: (f.label || String(f)), done: (f.done !== false), ts: Date.now() };
+        if(!Array.isArray(ch.flags)) ch.flags = [];
+        const exist = ch.flags.find(x => x && x.label === norm.label);
+        if(exist){ exist.done = norm.done; }
+        else { ch.flags.push(norm); }
+        if(c.id === ch.id){ c.flags = ch.flags.slice(); }
+      }
       persist();
       pushRoomMsg({ _key: cmd._key || ("cmd"+Date.now()), text: label, ts: cmd.ts || Date.now(), isCommand:true });
-      cmdToast.text = label; cmdToast.kind = kind; cmdToast.show = true;
-      if(cmdToastTimer) clearTimeout(cmdToastTimer);
-      cmdToastTimer = setTimeout(()=>{ cmdToast.show = false; }, 4000);
+      /* 可見性：visibleToPlayer===false → 安靜套用（不彈 toast）；未帶/true 照舊彈 */
+      if(cmd.visibleToPlayer !== false){
+        cmdToast.text = label; cmdToast.kind = kind; cmdToast.show = true;
+        if(cmdToastTimer) clearTimeout(cmdToastTimer);
+        cmdToastTimer = setTimeout(()=>{ cmdToast.show = false; }, 4000);
+      }
+    }
+
+    /* M4-1 戰報日誌 / 已知情報 computed（舊存檔無欄位時回 []，mount 期不報錯） */
+    const logEntries = computed(() => { const a = activeChar(); return (a && Array.isArray(a.campaignLog)) ? a.campaignLog : []; });
+    const flagList  = computed(() => { const a = activeChar(); return (a && Array.isArray(a.flags)) ? a.flags : []; });
+    function clearCampaignLog(){
+      const a = activeChar();
+      if(!a) return;
+      if(!confirm("確定清空戰報日誌？此操作無法復原。")) return;
+      a.campaignLog = [];
+      if(c.id === a.id){ c.campaignLog = []; }
+      persist();
     }
 
     function initFirebase(){
@@ -2678,6 +2765,7 @@ const app = createApp({
 
     return {
       joinCode, joinCharId, showSeatNotice, roomState, joinRoom, cmdToast,
+      logEntries, flagList, clearCampaignLog,
       isJoined, worldBadge, sessionBadge,
       worldSave, showConflict, handleWorldSave, applyWorldSave,
       c, tab, tabs, msg, fileInput, dataState, search,
