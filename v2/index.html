@@ -593,17 +593,17 @@
                           <div v-for="(item, idx) in equippedItems" :key="'eq-'+idx" class="px-3 py-2 bg-blue-50/50 border border-blue-100 rounded-lg flex flex-col gap-1">
                             <div class="flex justify-between items-center w-full">
                               <span class="font-bold text-sm text-blue-900 flex items-center gap-1">
-                                {{ item.name || item }}
-                                <span v-if="hasStatEffect(item.name||item, item.desc)" class="text-[9px] bg-red-50 text-red-600 border border-red-200 px-1 py-0.5 rounded shrink-0 leading-none">⚠️ 影響數值</span>
+                                {{ item?.name || item }}
+                                <span v-if="hasStatEffect(item?.name||item, item?.desc)" class="text-[9px] bg-red-50 text-red-600 border border-red-200 px-1 py-0.5 rounded shrink-0 leading-none">⚠️ 影響數值</span>
                               </span>
                               <div class="flex items-center gap-2">
-                                <span class="text-xs text-blue-700 bg-blue-100 px-2 py-0.5 rounded">x{{ item.qty || 1 }}</span>
+                                <span class="text-xs text-blue-700 bg-blue-100 px-2 py-0.5 rounded">x{{ item?.qty || 1 }}</span>
                                 <button @click="toggleEquip(item)" class="text-[10px] bg-white text-gray-500 border border-gray-200 px-2 py-0.5 rounded hover:bg-gray-50 shadow-sm transition">卸下</button>
                               </div>
                             </div>
-                            <div v-if="item.desc" class="mt-1">
-                              <div class="text-xs text-gray-600 whitespace-pre-wrap" :class="!descOpen['inv-eq-'+idx] && needsExpand(item.desc) ? 'line-clamp-3' : ''">{{ item.desc }}</div>
-                              <button v-if="needsExpand(item.desc)" @click="toggleDesc('inv-eq-'+idx)" class="text-xs text-blue-500 hover:text-blue-700 mt-0.5">
+                            <div v-if="item?.desc" class="mt-1">
+                              <div class="text-xs text-gray-600 whitespace-pre-wrap" :class="!descOpen['inv-eq-'+idx] && needsExpand(item?.desc) ? 'line-clamp-3' : ''">{{ item?.desc }}</div>
+                              <button v-if="needsExpand(item?.desc)" @click="toggleDesc('inv-eq-'+idx)" class="text-xs text-blue-500 hover:text-blue-700 mt-0.5">
                                 {{ descOpen['inv-eq-'+idx] ? '▲ 收起' : '... 更多' }}
                               </button>
                             </div>
@@ -618,15 +618,15 @@
                         <div v-if="backpackItems.length > 0" class="space-y-2">
                           <div v-for="(item, idx) in backpackItems" :key="'bp-'+idx" class="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex flex-col gap-1 opacity-90">
                             <div class="flex justify-between items-center w-full">
-                              <span class="font-bold text-sm text-gray-800">{{ item.name || item }}</span>
+                              <span class="font-bold text-sm text-gray-800">{{ item?.name || item }}</span>
                               <div class="flex items-center gap-2">
-                                <span class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">x{{ item.qty || 1 }}</span>
+                                <span class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">x{{ item?.qty || 1 }}</span>
                                 <button @click="toggleEquip(item)" class="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-2 py-0.5 rounded hover:bg-blue-100 shadow-sm transition">裝備</button>
                               </div>
                             </div>
-                            <div v-if="item.desc" class="mt-1">
-                              <div class="text-xs text-gray-500 whitespace-pre-wrap" :class="!descOpen['inv-bp-'+idx] && needsExpand(item.desc) ? 'line-clamp-3' : ''">{{ item.desc }}</div>
-                              <button v-if="needsExpand(item.desc)" @click="toggleDesc('inv-bp-'+idx)" class="text-xs text-blue-500 hover:text-blue-700 mt-0.5">
+                            <div v-if="item?.desc" class="mt-1">
+                              <div class="text-xs text-gray-500 whitespace-pre-wrap" :class="!descOpen['inv-bp-'+idx] && needsExpand(item?.desc) ? 'line-clamp-3' : ''">{{ item?.desc }}</div>
+                              <button v-if="needsExpand(item?.desc)" @click="toggleDesc('inv-bp-'+idx)" class="text-xs text-blue-500 hover:text-blue-700 mt-0.5">
                                 {{ descOpen['inv-bp-'+idx] ? '▲ 收起' : '... 更多' }}
                               </button>
                             </div>
@@ -649,21 +649,21 @@
                     <div class="border-t pt-4">
                       <label class="block text-xs font-bold text-gray-500 mb-2">物品清單管理 (點擊可切換裝備狀態)</label>
                       <div class="space-y-2 mb-4">
-                        <div v-for="(item, idx) in selectedChar.inventory" :key="idx" class="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm flex justify-between items-start shadow-sm gap-2" :class="item.equipped ? 'border-blue-300 bg-blue-50/30' : ''">
+                        <div v-for="(item, idx) in selectedChar.inventory" :key="idx" class="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm flex justify-between items-start shadow-sm gap-2" :class="item?.equipped ? 'border-blue-300 bg-blue-50/30' : ''">
                           <div class="shrink-0 pt-0.5">
-                            <button @click="toggleEquip(item)" class="text-xl" :title="item.equipped ? '卸下' : '裝備'">
-                              {{ item.equipped ? '🛡️' : '🎒' }}
+                            <button @click="toggleEquip(item)" class="text-xl" :title="item?.equipped ? '卸下' : '裝備'">
+                              {{ item?.equipped ? '🛡️' : '🎒' }}
                             </button>
                           </div>
                           <div class="flex-1 min-w-0">
                             <div class="font-bold text-gray-800 flex items-center gap-1 min-w-0">
-                              <span class="truncate" :class="item.equipped ? 'text-blue-900' : ''">{{ item.name || item }}</span>
-                              <span v-if="hasStatEffect(item.name||item, item.desc)" class="text-[9px] bg-red-50 text-red-600 border border-red-200 px-1 py-0.5 rounded shrink-0 leading-none">⚠️ 數值</span>
+                              <span class="truncate" :class="item?.equipped ? 'text-blue-900' : ''">{{ item?.name || item }}</span>
+                              <span v-if="hasStatEffect(item?.name||item, item?.desc)" class="text-[9px] bg-red-50 text-red-600 border border-red-200 px-1 py-0.5 rounded shrink-0 leading-none">⚠️ 數值</span>
                             </div>
-                            <div v-if="item.desc" class="text-xs text-gray-400 mt-1 line-clamp-2" :title="item.desc">{{ item.desc }}</div>
+                            <div v-if="item?.desc" class="text-xs text-gray-400 mt-1 line-clamp-2" :title="item?.desc">{{ item?.desc }}</div>
                           </div>
                           <div class="flex items-center gap-2 shrink-0">
-                            <input type="number" v-model.number="item.qty" class="w-16 border border-gray-300 rounded p-1 text-center text-sm outline-none bg-white" min="1" placeholder="數量">
+                            <input type="number" v-model.number="item?.qty" class="w-16 border border-gray-300 rounded p-1 text-center text-sm outline-none bg-white" min="1" placeholder="數量">
                             <button @click="removeItem(idx)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded bg-red-50 shrink-0">移除</button>
                           </div>
                         </div>
@@ -840,12 +840,12 @@
                       </div>
 
                       <div class="max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white">
-                        <div v-for="sp in filteredAvailableSpells" :key="sp.id || sp.name_zh" class="flex flex-col p-2 border-b last:border-b-0 hover:bg-gray-50 gap-1">
+                        <div v-for="sp in filteredAvailableSpells" :key="sp.id || sp?.name_zh" class="flex flex-col p-2 border-b last:border-b-0 hover:bg-gray-50 gap-1">
                           <div class="flex justify-between items-start">
                             <div class="flex-1">
                               <div class="font-bold text-sm text-gray-800 flex items-center gap-2">
-                                {{ sp.name_zh || sp.name_en || sp.name }}
-                                <span class="text-[10px] bg-purple-100 text-purple-700 px-1.5 rounded">{{ sp.level === 0 ? '戲法' : 'Lv ' + sp.level }}</span>
+                                {{ sp?.name_zh || sp?.name_en || sp?.name }}
+                                <span class="text-[10px] bg-purple-100 text-purple-700 px-1.5 rounded">{{ sp?.level === 0 ? '戲法' : 'Lv ' + sp?.level }}</span>
                               </div>
                               <div class="text-[10px] text-gray-400 mt-0.5">
                                 {{ [sp.school ? '學派:'+sp.school : '', sp.time && sp.time.length ? '時間:'+sp.time[0].number+sp.time[0].unit : '', sp.range && sp.range.distance ? '射程:'+(sp.range.distance.amount||'')+(sp.range.distance.type||'') : ''].filter(Boolean).join(' | ') }}
@@ -1022,16 +1022,16 @@
           
           const equipped = (char.inventory || []).filter(i => i.equipped);
           equipped.forEach(item => {
-            let text = String(item.name || '') + ' ' + String(item.desc || '');
+            let text = String(item?.name || '') + ' ' + String(item?.desc || '');
             
             // 處理護甲基礎AC
             let matchArmor = text.match(/AC:\s*(\d+)/);
-            if (matchArmor && item.category && item.category.includes('護甲')) {
+            if (matchArmor && item?.category && item?.category.includes('護甲')) {
               let acVal = parseInt(matchArmor[1], 10);
               // 如果是中甲，敏捷加值最多+2
-              if (item.category.includes('中型')) acVal += Math.min(2, dexMod);
+              if (item?.category.includes('中型')) acVal += Math.min(2, dexMod);
               // 如果是重甲，不加敏捷
-              else if (item.category.includes('重型')) acVal = acVal;
+              else if (item?.category.includes('重型')) acVal = acVal;
               // 輕甲
               else acVal += dexMod;
               
@@ -1039,7 +1039,7 @@
             }
             
             // 處理盾牌
-            if (item.category && item.category.includes('盾牌')) shieldAC = 2;
+            if (item?.category && item?.category.includes('盾牌')) shieldAC = 2;
             
             // 處理額外AC加值 (例如 AC +1)
             let matchBonus = text.match(/AC\s*\+(\d+)/i) || text.match(/防禦等級.*?\+(\d+)/);
@@ -1063,7 +1063,7 @@
           
           let override = 0;
           equipped.forEach(item => {
-            let text = String(item.name || '') + ' ' + String(item.desc || '');
+            let text = String(item?.name || '') + ' ' + String(item?.desc || '');
             const match = text.match(new RegExp(zh + '值變為(\\d+)'));
             if (match) {
               const val = parseInt(match[1], 10);
@@ -1096,10 +1096,10 @@
           let q = newSpellQuery.value.toLowerCase().trim();
           let level = spellFilterLevel.value;
           return availableSpells.value.filter(sp => {
-            if (level !== '' && String(sp.level) !== String(level)) return false;
+            if (level !== '' && String(sp?.level) !== String(level)) return false;
             if (q) {
-              const zh = (sp.name_zh || sp.name || '').toLowerCase();
-              const en = (sp.name_en || '').toLowerCase();
+              const zh = (sp?.name_zh || sp?.name || '').toLowerCase();
+              const en = (sp?.name_en || '').toLowerCase();
               if (!zh.includes(q) && !en.includes(q)) return false;
             }
             return true;
@@ -1108,15 +1108,15 @@
         
         const isSpellInBook = (sp) => {
           if(!selectedChar.value || !selectedChar.value.spellbook) return false;
-          return selectedChar.value.spellbook.some(b => b.name === sp.name_zh || b.name === sp.name || b.name === sp.name_en);
+          return selectedChar.value.spellbook.some(b => b.name === sp?.name_zh || b.name === sp?.name || b.name === sp?.name_en);
         };
 
         const filteredAvailableItems = computed(() => {
           let q = itemSearch.value.toLowerCase().trim();
           return availableItems.value.filter(item => {
             if (!q) return true;
-            const zh = (item.name_zh || item.name || '').toLowerCase();
-            const en = (item.name_en || '').toLowerCase();
+            const zh = (item?.name_zh || item?.name || '').toLowerCase();
+            const en = (item?.name_en || '').toLowerCase();
             return zh.includes(q) || en.includes(q);
           }).slice(0, 30);
         });
@@ -1318,7 +1318,7 @@
           equippedItems: Vue.computed(() => (selectedChar.value?.inventory || []).filter(i => i.equipped)),
           backpackItems: Vue.computed(() => (selectedChar.value?.inventory || []).filter(i => !i.equipped)),
           toggleEquip: (item) => {
-            item.equipped = !item.equipped;
+            item?.equipped = !item?.equipped;
             
             // 清理上一版殘留的髒數據 (防呆還原)
             const char = selectedChar.value;
@@ -1327,19 +1327,19 @@
               delete item._appliedStats;
             }
 
-            let text = String(item.name || '') + ' ' + String(item.desc || '');
+            let text = String(item?.name || '') + ' ' + String(item?.desc || '');
             let acMatch = text.match(/AC\s*\+(\d+)/i) || text.match(/防禦等級.*?\+(\d+)/);
             let saveMatch = text.match(/豁免.*?\+(\d+)/);
 
             if (acMatch || saveMatch) {
-              alert(`【裝備狀態切換】\n\n您${item.equipped ? '裝備' : '卸下'}了「${item.name}」\n` + 
-                    (acMatch ? `\n• 防禦等級 (AC) ${item.equipped ? '+' : '-'}${acMatch[1]}` : '') +
-                    (saveMatch ? `\n• 豁免檢定 ${item.equipped ? '+' : '-'}${saveMatch[1]}` : '') +
+              alert(`【裝備狀態切換】\n\n您${item?.equipped ? '裝備' : '卸下'}了「${item?.name}」\n` + 
+                    (acMatch ? `\n• 防禦等級 (AC) ${item?.equipped ? '+' : '-'}${acMatch[1]}` : '') +
+                    (saveMatch ? `\n• 豁免檢定 ${item?.equipped ? '+' : '-'}${saveMatch[1]}` : '') +
                     `\n\n(註：能力值已由系統【即時動態運算】，但 AC 與豁免目前請於戰鬥時自行加減！)`);
             }
           },
           removeItem: (idx) => { selectedChar.value.inventory.splice(idx, 1); },
-          addSpell: (sp) => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; selectedChar.value.spellbook.push({ id: sp.id || Date.now(), name: sp.name_zh || sp.name_en || sp.name, level: sp.level, desc: (
+          addSpell: (sp) => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; selectedChar.value.spellbook.push({ id: sp.id || Date.now(), name: sp?.name_zh || sp?.name_en || sp?.name, level: sp?.level, desc: (
   [
     sp.school ? `學派: ${sp.school}` : null,
     sp.time && sp.time.length ? `施法時間: ${sp.time.map(t => t.number + ' ' + t.unit).join(', ')}` : null,
