@@ -1155,7 +1155,7 @@
           customItem,
           addItem: (itemData) => {
             if(!selectedChar.value.inventory) selectedChar.value.inventory = [];
-            selectedChar.value.inventory.push({ id: itemData.id||Date.now(), name: itemData.name_zh || itemData.name_en || itemData.name, qty: 1, desc: Array.isArray(itemData.entries_zh) ? itemData.entries_zh.join('\n') : (Array.isArray(itemData.entries) ? itemData.entries.join('\n') : (itemData.desc_zh || itemData.desc || '')) });
+            selectedChar.value.inventory.push({ id: itemData.id||Date.now(), name: itemData.name_zh || itemData.name_en || itemData.name, qty: 1, desc: (Array.isArray(itemData.entries_zh) && itemData.entries_zh.length > 0) ? itemData.entries_zh.join('\n') : ((Array.isArray(itemData.entries) && itemData.entries.length > 0) ? itemData.entries.join('\n') : ((itemData.damage ? itemData.damage.map(d => d.dice + ' ' + (d.type||'')).join(', ') : '') || itemData.desc_zh || itemData.desc || '')) });
           },
           addCustomItem: () => {
             if(!selectedChar.value.inventory) selectedChar.value.inventory = [];
