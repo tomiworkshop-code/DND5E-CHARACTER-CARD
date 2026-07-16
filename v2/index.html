@@ -45,7 +45,18 @@
         </svg>
       </button>
       <h1 class="text-lg font-bold tracking-wider">{{ viewTitle }}</h1>
-      <div class="w-6"><!-- 佔位對齊用 --></div>
+      <div class="flex items-center gap-2">
+        <select v-model="selectedCharId" class="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 outline-none w-24">
+          <option :value="null">🧙 選擇</option>
+          <option v-for="ch in chars" :key="ch.id" :value="ch.id">🧙 {{ ch.name || '未命名' }}</option>
+        </select>
+        <select v-if="selectedChar" v-model="selectedWorldKey" class="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 outline-none w-24">
+          <option value="__solo__">🧳 單人</option>
+          <option v-for="(progress, key) in selectedChar.worldProgress" :key="key" v-show="key !== '__solo__'" :value="key">
+            🌍 {{ progress.name || key }}
+          </option>
+        </select>
+      </div>
     </header>
 
     <!-- 隱藏式側邊選單 (Hidden Sidebar Menu) -->
@@ -164,15 +175,7 @@
               </div>
             </div>
             
-            <div class="flex flex-col min-w-[200px]">
-              <label class="text-[10px] text-gray-400 font-bold mb-1 uppercase tracking-wider">目前所在世界</label>
-              <select v-model="selectedWorldKey" class="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 outline-none">
-                <option value="__solo__">🧳 單人冒險 (未綁定)</option>
-                <option v-for="(progress, key) in selectedChar.worldProgress" :key="key" v-show="key !== '__solo__'" :value="key">
-                  🌍 {{ progress.name || key }}
-                </option>
-              </select>
-            </div>
+            
           </div>
 
           <!-- 管理模塊網格 -->
