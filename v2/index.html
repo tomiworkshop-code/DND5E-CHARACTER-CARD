@@ -565,7 +565,10 @@
                       </div>
                     </div>
                     <div>
-                      <div class="text-xs font-bold text-gray-500 mb-2">裝備與物品</div>
+                      <div class="flex justify-between items-end mb-2">
+                        <div class="text-xs font-bold text-gray-500">穿戴裝備與背包物品</div>
+                        <div class="text-[10px] text-gray-400">目前將所有物品統一管理</div>
+                      </div>
                       <div v-if="selectedChar.inventory && selectedChar.inventory.length > 0" class="space-y-2">
                         <div v-for="(item, idx) in selectedChar.inventory" :key="idx" class="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex flex-col gap-1">
                           <div class="flex justify-between items-center w-full">
