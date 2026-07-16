@@ -1185,6 +1185,12 @@
       }
     });
 
+    
+    app.config.errorHandler = (err, vm, info) => {
+      console.error('VUE GLOBAL ERROR:', err, info);
+      document.body.innerHTML = '<div style="color:red;font-size:20px;padding:20px;"><h1>VUE ERROR</h1><pre>' + err.stack + '</pre><p>Info: ' + info + '</p></div>';
+    };
+
     app.mount('#app');
   </script>
 </body>
