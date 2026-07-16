@@ -525,8 +525,12 @@
                       <div :class="['text-3xl font-black mb-1', abilityMod(abilityTotal(def.key)) >= 0 ? 'text-blue-600' : 'text-red-600']">
                         {{ fmtMod(abilityMod(abilityTotal(def.key))) }}
                       </div>
-                      <div class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full font-medium">
-                        總分 {{ abilityTotal(def.key) }}
+                      <div class="text-[10px] text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full font-medium tracking-wider">
+                        {{ selectedChar.abilities[def.key] }}
+                        <span v-if="selectedChar.abilityBonus[def.key]" :class="selectedChar.abilityBonus[def.key] > 0 ? 'text-blue-600' : 'text-red-600'">
+                          {{ selectedChar.abilityBonus[def.key] > 0 ? '+' : '' }}{{ selectedChar.abilityBonus[def.key] }}
+                        </span>
+                        = <span class="text-gray-800 font-bold">{{ abilityTotal(def.key) }}</span>
                       </div>
                     </div>
                   </div>
