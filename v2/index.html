@@ -452,11 +452,11 @@
                         <div v-if="featOpen[idx]" class="mt-2 space-y-2 text-sm bg-white p-2 rounded border border-gray-100 shadow-sm">
                           <div v-for="(f, i) in classFeaturesFor(cls)" :key="'cf-'+i">
                             <div class="font-bold text-gray-700">{{ f.name_zh || f.name_en }} <span class="text-[10px] text-gray-400 font-normal ml-1">Lv {{ f.level }}</span></div>
-                            <div class="text-xs text-gray-500">{{ f.desc_zh || f.desc_en }}</div>
+                            <div class="text-xs text-gray-500 whitespace-pre-wrap">{{ f.desc || f.desc_zh || f.desc_en }}</div>
                           </div>
                           <div v-for="(f, i) in subclassFeaturesFor(cls)" :key="'sf-'+i">
                             <div class="font-bold text-gray-700 text-purple-700">{{ f.name_zh || f.name_en }} <span class="text-[10px] text-purple-400 font-normal ml-1">Lv {{ f.level }} (子職業)</span></div>
-                            <div class="text-xs text-gray-500">{{ f.desc_zh || f.desc_en }}</div>
+                            <div class="text-xs text-gray-500 whitespace-pre-wrap">{{ f.desc || f.desc_zh || f.desc_en }}</div>
                           </div>
                         </div>
                       </div>
@@ -502,11 +502,11 @@
                         <div v-if="featOpen[idx]" class="mt-2 space-y-2 text-sm bg-white p-2 rounded border border-gray-100 shadow-sm">
                           <div v-for="(f, i) in classFeaturesFor(cls)" :key="'cf-'+i">
                             <div class="font-bold text-gray-700">{{ f.name_zh || f.name_en }} <span class="text-[10px] text-gray-400 font-normal ml-1">Lv {{ f.level }}</span></div>
-                            <div class="text-xs text-gray-500">{{ f.desc_zh || f.desc_en }}</div>
+                            <div class="text-xs text-gray-500 whitespace-pre-wrap">{{ f.desc || f.desc_zh || f.desc_en }}</div>
                           </div>
                           <div v-for="(f, i) in subclassFeaturesFor(cls)" :key="'sf-'+i">
                             <div class="font-bold text-gray-700 text-purple-700">{{ f.name_zh || f.name_en }} <span class="text-[10px] text-purple-400 font-normal ml-1">Lv {{ f.level }} (子職業)</span></div>
-                            <div class="text-xs text-gray-500">{{ f.desc_zh || f.desc_en }}</div>
+                            <div class="text-xs text-gray-500 whitespace-pre-wrap">{{ f.desc || f.desc_zh || f.desc_en }}</div>
                           </div>
                         </div>
                       </div>
