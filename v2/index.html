@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Adventurer V2 - Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    /* 基礎模塊化變數，不預設立場，先用乾淨的灰階與安全色 */
+    :root {
+      --bg-base: #f3f4f6;
+      --bg-surface: #ffffff;
+      --text-main: #1f2937;
+      --text-muted: #6b7280;
+      --accent: #3b82f6;
+      --border: #e5e7eb;
+    }
+    body { background-color: var(--bg-base); color: var(--text-main); font-family: sans-serif; }
+    
+    /* 隱藏式側邊欄過渡動畫 */
+    .sidebar-enter-active, .sidebar-leave-active { transition: transform 0.3s ease; }
+    .sidebar-enter-from, .sidebar-leave-to { transform: translateX(-100%); }
+    .overlay-enter-active, .overlay-leave-active { transition: opacity 0.3s ease; }
+    .overlay-enter-from, .overlay-leave-to { opacity: 0; }
+    
+    .module-card {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="min-h-screen flex flex-col relative" v-cloak>
+    
+    <!-- 頂部導覽列 (Top Header) -->
+    <header class="sticky top-0 z-20 flex items-center justify-between p-4 bg-white shadow-sm">
+      <button @click="isMenuOpen = true" class="p-2 -ml-2 text-gray-600 hover:text-gray-900 focus:outline-none">
+        <!-- Hamburger Icon -->
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+      <h1 class="text-lg font-bold tracking-wider">{{ viewTitle }}</h1>
+      <div class="w-6"><!-- 佔位對齊用 --></div>
+    </header>
+
+    <!-- 隱藏式側邊選單 (Hidden Sidebar Menu) -->
+    <transition name="overlay">
+      <div v-if="isMenuOpen" @click="isMenuOpen = false" class="fixed inset-0 bg-black bg-opacity-50 z-30"></div>
+    </transition>
+    <transition name="sidebar">
+      <div v-if="isMenuOpen" class="fixed inset-y-0 left-0 w-64 bg-white shadow-xl z-40 flex flex-col">
+        <div class="p-6 border-b border-gray-100">
+          <h2 class="text-xl font-bold text-gray-800">冒險者檔案</h2>
+          <p class="text-xs text-gray-500 mt-1">V2 架構預覽版</p>
+        </div>
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+          <a href="#" @click.prevent="switchView('dashboard')" :class="['block px-4 py-3 rounded-lg font-medium', currentView === 'dashboard' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50']">📊 個人儀表板</a>
+          <a href="#" @click.prevent="switchView('characters')" :class="['block px-4 py-3 rounded-lg font-medium', currentView === 'characters' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50']">🧙 角色列表</a>
+          <a href="#" @click.prevent="switchView('worlds')" :class="['block px-4 py-3 rounded-lg font-medium', currentView === 'worlds' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50']">🌍 冒險世界</a>
+          <a href="#" class="block px-4 py-3 rounded-lg font-medium text-gray-400 cursor-not-allowed">⚙️ 系統設定</a>
+        </nav>
+      </div>
+    </transition>
+
+    <!-- 主要內容區塊 (Main Content Area) -->
+    <main class="flex-1 p-4 w-full max-w-3xl mx-auto">
+      
+      <!-- 模塊：個人儀表板 (Dashboard) -->
+      <template v-if="currentView === 'dashboard'">
+        <!-- 歡迎與大數據摘要 -->
+        <div class="module-card">
+          <h2 class="text-gray-500 text-sm mb-4">冒險生涯摘要</h2>
+          <div class="grid grid-cols-3 gap-4 text-center">
+            <div class="p-3 bg-gray-50 rounded-lg">
+              <div class="text-2xl font-bold text-gray-800">{{ stats.totalChars }}</div>
+              <div class="text-xs text-gray-500 mt-1">建立角色</div>
+            </div>
+            <div class="p-3 bg-gray-50 rounded-lg">
+              <div class="text-2xl font-bold text-gray-800">{{ stats.totalWorlds }}</div>
+              <div class="text-xs text-gray-500 mt-1">接觸世界</div>
+            </div>
+            <div class="p-3 bg-gray-50 rounded-lg">
+              <div class="text-2xl font-bold text-gray-800">{{ stats.totalEvents }}</div>
+              <div class="text-xs text-gray-500 mt-1">遭遇事件</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 模塊：近期活動 / 活躍角色 -->
+        <div class="module-card">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-gray-500 text-sm">最近活躍的角色</h2>
+            <button @click="switchView('characters')" class="text-xs text-blue-500 font-medium">查看全部</button>
+          </div>
+          <div v-if="chars.length > 0" class="space-y-3">
+            <div v-for="ch in chars.slice(0, 3)" :key="ch.id" class="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:shadow-sm">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-xl">🧙</div>
+                <div>
+                  <div class="font-bold text-gray-800">{{ ch.name || '未命名' }}</div>
+                  <div class="text-xs text-gray-500">{{ ch.classes?.map(c=>c.name).join('/') || '無職業' }}</div>
+                </div>
+              </div>
+              <button class="px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded font-medium hover:bg-gray-200">進入</button>
+            </div>
+          </div>
+          <div v-else class="text-center py-6 text-sm text-gray-400">
+            尚無角色紀錄
+          </div>
+        </div>
+
+        <!-- 模塊：快速行動區 -->
+        <div class="grid grid-cols-2 gap-4">
+          <button class="bg-blue-600 text-white rounded-xl p-4 text-left shadow-sm hover:bg-blue-700 transition">
+            <div class="text-xl mb-1">🎲</div>
+            <div class="font-bold text-sm">加入牌桌</div>
+            <div class="text-xs text-blue-200 mt-1">掃描或輸入房號</div>
+          </button>
+          <button class="bg-white border border-gray-200 text-gray-700 rounded-xl p-4 text-left shadow-sm hover:bg-gray-50 transition">
+            <div class="text-xl mb-1">✍️</div>
+            <div class="font-bold text-sm">創建新角色</div>
+            <div class="text-xs text-gray-400 mt-1">展開新的冒險</div>
+          </button>
+        </div>
+      </template>
+
+      <!-- 模塊：角色列表 (Characters Placeholder) -->
+      <template v-if="currentView === 'characters'">
+        <div class="module-card text-center py-10 text-gray-500">
+          這是未來的「角色列表」模塊
+        </div>
+      </template>
+
+      <!-- 模塊：世界列表 (Worlds Placeholder) -->
+      <template v-if="currentView === 'worlds'">
+        <div class="module-card text-center py-10 text-gray-500">
+          這是未來的「冒險世界紀錄」模塊
+        </div>
+      </template>
+
+    </main>
+  </div>
+
+  <script>
+    const { createApp, ref, computed, onMounted } = Vue;
+
+    const app = createApp({
+      setup() {
+        const isMenuOpen = ref(false);
+        const currentView = ref('dashboard');
+        const chars = ref([]);
+
+        // 啟動時讀取 V1 既有的本地存檔資料
+        onMounted(() => {
+          try {
+            const raw = localStorage.getItem('dnd_chars');
+            if (raw) {
+              chars.value = JSON.parse(raw);
+            }
+          } catch(e) {
+            console.error("無法讀取既有存檔", e);
+          }
+        });
+
+        // 統計模塊：計算所有角色、接觸過的世界與戰報數量
+        const stats = computed(() => {
+          let totalChars = chars.value.length;
+          let worldSet = new Set();
+          let eventCount = 0;
+
+          chars.value.forEach(ch => {
+            if (ch.worldProgress) {
+              Object.keys(ch.worldProgress).forEach(k => {
+                if (k !== '__solo__') worldSet.add(k);
+                // 計算每個世界桶內的戰報數量
+                if (ch.worldProgress[k].campaignLog) {
+                  eventCount += ch.worldProgress[k].campaignLog.length;
+                }
+              });
+            }
+          });
+
+          return {
+            totalChars,
+            totalWorlds: worldSet.size,
+            totalEvents: eventCount
+          };
+        });
+
+        const viewTitle = computed(() => {
+          switch(currentView.value) {
+            case 'dashboard': return '個人儀表板';
+            case 'characters': return '我的角色';
+            case 'worlds': return '冒險世界';
+            default: return '冒險者檔案';
+          }
+        });
+
+        const switchView = (view) => {
+          currentView.value = view;
+          isMenuOpen.value = false;
+        };
+
+        return {
+          isMenuOpen,
+          currentView,
+          viewTitle,
+          switchView,
+          chars,
+          stats
+        };
+      }
+    });
+
+    app.mount('#app');
+  </script>
+</body>
+</html>
