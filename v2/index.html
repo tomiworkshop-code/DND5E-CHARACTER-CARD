@@ -663,7 +663,7 @@
                             <div v-if="item?.desc" class="text-xs text-gray-400 mt-1 line-clamp-2" :title="item?.desc">{{ item?.desc }}</div>
                           </div>
                           <div class="flex items-center gap-2 shrink-0">
-                            <input type="number" v-model.number="item?.qty" class="w-16 border border-gray-300 rounded p-1 text-center text-sm outline-none bg-white" min="1" placeholder="數量">
+                            <input type="number" v-model.number="item.qty" class="w-16 border border-gray-300 rounded p-1 text-center text-sm outline-none bg-white" min="1" placeholder="數量">
                             <button @click="removeItem(idx)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded bg-red-50 shrink-0">移除</button>
                           </div>
                         </div>
@@ -1318,7 +1318,7 @@
           equippedItems: Vue.computed(() => (selectedChar.value?.inventory || []).filter(i => i.equipped)),
           backpackItems: Vue.computed(() => (selectedChar.value?.inventory || []).filter(i => !i.equipped)),
           toggleEquip: (item) => {
-            item?.equipped = !item?.equipped;
+            if (item) item.equipped = !item.equipped;
             
             // 清理上一版殘留的髒數據 (防呆還原)
             const char = selectedChar.value;
