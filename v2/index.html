@@ -176,10 +176,10 @@
           </div>
 
           <!-- 管理模塊網格 -->
-          <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div v-if="!activeModule" class="grid grid-cols-2 md:grid-cols-3 gap-3">
             
             <!-- 全域模塊：故事背景 -->
-            <button class="col-span-2 md:col-span-3 bg-white border border-purple-200 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-purple-300 transition relative overflow-hidden group">
+            <button @click="activeModule = 'story'" class="col-span-2 md:col-span-3 bg-white border border-purple-200 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-purple-300 transition relative overflow-hidden group">
               <div class="absolute top-0 right-0 bg-purple-100 text-purple-700 text-[10px] px-2 py-1 rounded-bl-lg font-bold tracking-wider">🌐 全域跨世界</div>
               <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">📜</div>
               <div class="font-bold text-gray-800">故事背景</div>
@@ -188,7 +188,7 @@
 
             <!-- 綁定世界的模塊 -->
             <!-- 職業 -->
-            <button class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
+            <button @click="activeModule = 'classes'" class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
               <div class="absolute top-0 right-0 bg-blue-50 text-blue-500 text-[9px] px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl font-medium">📍 當前世界</div>
               <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">⚔️</div>
               <div class="font-bold text-gray-800">職業與等級</div>
@@ -196,7 +196,7 @@
             </button>
 
             <!-- 能力值 -->
-            <button class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
+            <button @click="activeModule = 'stats'" class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
               <div class="absolute top-0 right-0 bg-blue-50 text-blue-500 text-[9px] px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl font-medium">📍 當前世界</div>
               <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">💪</div>
               <div class="font-bold text-gray-800">能力值</div>
@@ -204,7 +204,7 @@
             </button>
 
             <!-- 物品 -->
-            <button class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
+            <button @click="activeModule = 'inventory'" class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
               <div class="absolute top-0 right-0 bg-blue-50 text-blue-500 text-[9px] px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl font-medium">📍 當前世界</div>
               <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">🎒</div>
               <div class="font-bold text-gray-800">物品與背包</div>
@@ -212,7 +212,7 @@
             </button>
 
             <!-- 魔寵 -->
-            <button class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
+            <button @click="activeModule = 'familiar'" class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
               <div class="absolute top-0 right-0 bg-blue-50 text-blue-500 text-[9px] px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl font-medium">📍 當前世界</div>
               <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">🦉</div>
               <div class="font-bold text-gray-800">魔寵</div>
@@ -220,7 +220,7 @@
             </button>
 
             <!-- 法術 -->
-            <button class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
+            <button @click="activeModule = 'spells'" class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
               <div class="absolute top-0 right-0 bg-blue-50 text-blue-500 text-[9px] px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl font-medium">📍 當前世界</div>
               <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">✨</div>
               <div class="font-bold text-gray-800">法術</div>
@@ -228,13 +228,100 @@
             </button>
 
             <!-- 技能 -->
-            <button class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
+            <button @click="activeModule = 'skills'" class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
               <div class="absolute top-0 right-0 bg-blue-50 text-blue-500 text-[9px] px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl font-medium">📍 當前世界</div>
               <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">🎯</div>
               <div class="font-bold text-gray-800">技能</div>
               <div class="text-xs text-gray-400 mt-1">專長與技能熟練度</div>
             </button>
 
+          </div>
+
+          <!-- 內頁視圖 -->
+          <div v-else class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <!-- 內頁標題與返回 -->
+            <div class="flex items-center justify-between mb-4 border-b pb-3">
+              <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <span v-if="activeModule === 'story'">📜 故事背景與頭像</span>
+                <span v-else-if="activeModule === 'classes'">⚔️ 職業與等級</span>
+                <span v-else-if="activeModule === 'stats'">💪 能力值</span>
+                <span v-else-if="activeModule === 'inventory'">🎒 物品與背包</span>
+                <span v-else-if="activeModule === 'familiar'">🦉 魔寵</span>
+                <span v-else-if="activeModule === 'spells'">✨ 法術</span>
+                <span v-else-if="activeModule === 'skills'">🎯 技能</span>
+              </h3>
+              <button @click="activeModule = null" class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 font-medium transition">
+                ← 返回
+              </button>
+            </div>
+
+            <!-- 全域模塊內頁：故事背景 -->
+            <div v-if="activeModule === 'story'" class="space-y-4">
+              <div class="bg-purple-50 text-purple-700 text-xs p-2 rounded-md mb-2 flex items-center gap-2 border border-purple-100">
+                <span class="text-base">🌐</span> 此為全域跨世界設定，修改會自動套用到所有世界。
+              </div>
+              <div class="flex gap-4 items-start">
+                <div class="flex-1 space-y-3">
+                  <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">頭像 URL</label>
+                    <input v-model="selectedChar.avatar" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none" placeholder="輸入圖片網址...">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">名稱</label>
+                    <input v-model="selectedChar.name" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none">
+                  </div>
+                </div>
+                <div class="w-20 h-20 shrink-0 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
+                  <img v-if="selectedChar.avatar" :src="selectedChar.avatar" class="w-full h-full object-cover">
+                  <span v-else class="text-3xl">🧙</span>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 mb-1">種族</label>
+                  <input v-model="selectedChar.race" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 mb-1">陣營</label>
+                  <input v-model="selectedChar.alignment" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">背景故事</label>
+                <textarea v-model="selectedChar.notes" rows="4" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none resize-none placeholder-gray-300" placeholder="寫下角色的起源與羈絆..."></textarea>
+              </div>
+            </div>
+
+            <!-- 綁定世界模塊內頁：共用結構展示 -->
+            <div v-else class="space-y-4">
+              <!-- DM 提示與單人提示 -->
+              <div v-if="isDMWorld" class="bg-blue-50 text-blue-700 text-xs p-3 rounded-md mb-4 border border-blue-200 flex items-start gap-2">
+                <span class="text-lg mt-0.5">🛡️</span>
+                <div>
+                  <div class="font-bold mb-0.5">DM 世界模式</div>
+                  <div>當前顯示為此世界中經 DM 確認的狀態。您的修改將作為提案發送，需 DM 批准後生效。</div>
+                </div>
+              </div>
+              <div v-else class="bg-gray-50 text-gray-600 text-xs p-3 rounded-md mb-4 border border-gray-200 flex items-center gap-2">
+                <span class="text-lg">🧳</span> 單人模式：您可以自由修改並儲存這些數值。
+              </div>
+
+              <!-- 佔位模擬內容 -->
+              <div class="p-6 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 text-center text-sm text-gray-400">
+                <div class="mb-2">🚧 開發中</div>
+                (此處將載入 <span class="font-bold text-gray-600">{{ activeModule }}</span> 在世界 <span class="font-bold text-gray-600">{{ selectedWorldKey }}</span> 下的詳細數據表單)
+              </div>
+
+              <!-- 修改操作區 -->
+              <div class="pt-4 border-t border-gray-100 flex justify-end">
+                <button v-if="isDMWorld" @click="requestDMApproval" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition shadow-sm flex items-center gap-2">
+                  <span>✉️</span> 送出修改申請 (Propose)
+                </button>
+                <button v-else class="px-5 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition shadow-sm flex items-center gap-2">
+                  <span>💾</span> 儲存設定
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </template>
@@ -259,16 +346,32 @@
         const chars = ref([]);
         const selectedCharId = ref(null);
         const selectedWorldKey = ref('__solo__');
+        const activeModule = ref(null);
+
+        const isDMWorld = computed(() => selectedWorldKey.value !== '__solo__');
 
         const selectedChar = computed(() => {
           if (!selectedCharId.value) return null;
           return chars.value.find(c => c.id === selectedCharId.value) || null;
         });
 
-        // 當選擇的角色改變時，重設世界選擇器為 __solo__
+        // 當選擇的角色改變時，重設世界選擇器並關閉內頁
         watch(selectedCharId, (newId) => {
           selectedWorldKey.value = '__solo__';
+          activeModule.value = null;
         });
+
+        // 當世界切換時，退出內頁以防狀態混亂（可選，增加安全感）
+        watch(selectedWorldKey, () => {
+          if (activeModule.value !== 'story') {
+             // activeModule.value = null; // 暫不強制關閉，讓使用者在不同世界間快速比對數值也是一種好體驗
+          }
+        });
+
+        const requestDMApproval = () => {
+          alert(`已發送修改申請至 DM 世界：${selectedWorldKey.value}。請等待 DM 批准。`);
+          console.log(`[Action] Requesting DM approval for ${activeModule.value} in world ${selectedWorldKey.value}`);
+        };
 
         // 啟動時讀取 V1 既有的本地存檔資料
         onMounted(() => {
@@ -319,6 +422,7 @@
         const switchView = (view) => {
           currentView.value = view;
           isMenuOpen.value = false;
+          activeModule.value = null; // 切換大視圖時關閉內頁
           
           if (view === 'characters' && !selectedCharId.value && chars.value.length > 0) {
             // 如果切換到角色視圖且沒有選定角色，預設選擇第一個
@@ -337,7 +441,10 @@
           stats,
           selectedCharId,
           selectedChar,
-          selectedWorldKey
+          selectedWorldKey,
+          activeModule,
+          isDMWorld,
+          requestDMApproval
         };
       }
     });
