@@ -46,18 +46,101 @@
       </button>
       <h1 class="text-lg font-bold tracking-wider">{{ viewTitle }}</h1>
       <div class="flex items-center gap-2">
-        <select v-model="selectedCharId" class="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 outline-none w-24">
-          <option :value="null">🧙 選擇</option>
-          <option v-for="ch in chars" :key="ch.id" :value="ch.id">🧙 {{ ch.name || '未命名' }}</option>
-        </select>
-        <select v-if="selectedChar" v-model="selectedWorldKey" class="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 outline-none w-24">
-          <option value="__solo__">🧳 單人</option>
-          <option v-for="(progress, key) in selectedChar.worldProgress" :key="key" v-show="key !== '__solo__'" :value="key">
-            🌍 {{ progress.name || key }}
-          </option>
-        </select>
+        <button @click="openGlobalSwitcher" class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 hover:bg-gray-100 transition shadow-sm max-w-[200px]">
+          <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 shrink-0 overflow-hidden">
+            <template v-if="selectedChar?.avatar">
+              <img :src="selectedChar.avatar" class="w-full h-full object-cover">
+            </template>
+            <template v-else-if="selectedChar">
+              {{ selectedChar.name ? selectedChar.name.charAt(0) : '未' }}
+            </template>
+            <template v-else>
+              🧙
+            </template>
+          </div>
+          <div class="flex flex-col items-start truncate">
+            <div class="text-xs font-bold text-gray-800 truncate w-full">{{ selectedChar ? (selectedChar.name || '未命名') : '選擇角色' }}</div>
+            <div class="text-[10px] text-gray-500 truncate w-full">{{ selectedChar ? (selectedWorldKey === '__solo__' ? '🧳 單人冒險' : '🌍 ' + (selectedChar.worldProgress?.[selectedWorldKey]?.name || selectedWorldKey)) : '點擊切換' }}</div>
+          </div>
+          <div class="text-gray-400 ml-1 text-xs">▼</div>
+        </button>
       </div>
     </header>
+
+    <!-- 全域角色/世界切換選單 -->
+    <transition name="overlay">
+      <div v-if="isGlobalSwitcherOpen" class="fixed inset-0 z-50 flex items-start justify-end sm:justify-center pt-16 pr-4 sm:pt-20">
+        <!-- 滿版透明遮罩 -->
+        <div @click="isGlobalSwitcherOpen = false" class="fixed inset-0 bg-black/20 backdrop-blur-sm"></div>
+        
+        <!-- 浮動選單 -->
+        <div class="bg-white rounded-xl shadow-2xl border border-gray-100 w-72 overflow-hidden relative z-10 flex flex-col max-h-[70vh]">
+          <!-- Step 1: 選擇角色 -->
+          <template v-if="switcherStep === 'char'">
+            <div class="p-3 border-b bg-gray-50 flex justify-between items-center">
+              <div class="font-bold text-gray-700 text-sm">選擇角色</div>
+              <button @click="isGlobalSwitcherOpen = false" class="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div class="overflow-y-auto p-2 space-y-1">
+              <button v-for="ch in chars" :key="ch.id" @click="selectSwitcherChar(ch)" class="w-full flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg transition text-left">
+                <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-700 shrink-0 overflow-hidden">
+                  <img v-if="ch.avatar" :src="ch.avatar" class="w-full h-full object-cover">
+                  <span v-else>{{ ch.name ? ch.name.charAt(0) : '未' }}</span>
+                </div>
+                <div class="flex-1 truncate">
+                  <div class="font-bold text-gray-800 text-sm truncate">{{ ch.name || '未命名' }}</div>
+                  <div class="text-xs text-gray-500 truncate">{{ ch.race || '未設定種族' }}</div>
+                </div>
+                <div class="text-gray-300">▶</div>
+              </button>
+              <div v-if="chars.length === 0" class="p-4 text-center text-gray-400 text-sm">無可用角色</div>
+            </div>
+          </template>
+
+          <!-- Step 2: 選擇世界 -->
+          <template v-if="switcherStep === 'world'">
+            <div class="p-3 border-b bg-gray-50 flex flex-col gap-2">
+              <button @click="switcherStep = 'char'" class="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1 font-medium w-fit">
+                <span>←</span> 返回角色列表
+              </button>
+              <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 shrink-0 overflow-hidden">
+                  <img v-if="switcherTempChar?.avatar" :src="switcherTempChar.avatar" class="w-full h-full object-cover">
+                  <span v-else>{{ switcherTempChar?.name ? switcherTempChar.name.charAt(0) : '未' }}</span>
+                </div>
+                <div class="font-bold text-gray-700 text-sm truncate">{{ switcherTempChar?.name || '未命名' }} 的世界</div>
+              </div>
+            </div>
+            <div class="overflow-y-auto p-2 space-y-1">
+              <button @click="confirmSwitcherWorld('__solo__')" class="w-full flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg transition text-left">
+                <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-lg">🧳</div>
+                <div class="flex-1">
+                  <div class="font-bold text-gray-800 text-sm">單人冒險</div>
+                  <div class="text-xs text-gray-500">自由編輯模式</div>
+                </div>
+              </button>
+              
+              <template v-if="switcherTempChar?.worldProgress">
+                <button v-for="(progress, key) in switcherTempChar.worldProgress" :key="key" v-show="key !== '__solo__'" @click="confirmSwitcherWorld(key)" class="w-full flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg transition text-left">
+                  <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-lg">🌍</div>
+                  <div class="flex-1 truncate">
+                    <div class="font-bold text-gray-800 text-sm truncate">{{ progress.name || key }}</div>
+                    <div class="text-xs text-gray-500 truncate">DM 批准模式</div>
+                  </div>
+                </button>
+              </template>
+              
+              <div class="pt-2 mt-2 border-t border-gray-100">
+                <button @click="createNewWorld" class="w-full flex items-center gap-2 p-2 hover:bg-gray-50 text-blue-600 rounded-lg transition justify-center border border-dashed border-blue-200">
+                  <span class="text-lg">+</span>
+                  <span class="text-sm font-medium">新增/加入世界</span>
+                </button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </transition>
 
     <!-- 隱藏式側邊選單 (Hidden Sidebar Menu) -->
     <transition name="overlay">
@@ -828,6 +911,16 @@ const BACKGROUNDS = [
         const spellFilterLevel = ref('');
         const customSpell = ref({ name: '', level: '1' });
         
+        const isGlobalSwitcherOpen = ref(false);
+        const switcherStep = ref('char'); // 'char' 或 'world'
+        const switcherTempCharId = ref(null);
+        const switcherTempChar = computed(() => chars.value.find(c => c.id === switcherTempCharId.value));
+        
+        const openGlobalSwitcher = () => { switcherStep.value = 'char'; isGlobalSwitcherOpen.value = true; };
+        const selectSwitcherChar = (ch) => { switcherTempCharId.value = ch.id; switcherStep.value = 'world'; };
+        const confirmSwitcherWorld = (worldKey) => { selectedCharId.value = switcherTempCharId.value; selectedWorldKey.value = worldKey; isGlobalSwitcherOpen.value = false; };
+        const createNewWorld = () => { alert('新增/加入世界 功能開發中...'); };
+
         const filteredAvailableSpells = computed(() => {
           let q = newSpellQuery.value.toLowerCase().trim();
           let level = spellFilterLevel.value;
@@ -941,6 +1034,14 @@ const BACKGROUNDS = [
 
         return {
           isMenuOpen,
+          isGlobalSwitcherOpen,
+          switcherStep,
+          switcherTempCharId,
+          switcherTempChar,
+          openGlobalSwitcher,
+          selectSwitcherChar,
+          confirmSwitcherWorld,
+          createNewWorld,
           currentView,
           viewTitle,
           switchView,
