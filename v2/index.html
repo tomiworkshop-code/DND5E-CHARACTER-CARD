@@ -911,21 +911,7 @@
           {key:'int', zh:'智力'}, {key:'wis', zh:'感知'}, {key:'cha', zh:'魅力'}
         ];
 
-        watch([isEditMode, activeModule, selectedChar], ([edit, mod, char]) => {
-          if (edit && mod === 'stats' && char) {
-            if (!char.abilities) {
-              char.abilities = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
-            }
-            if (!char.abilityBonus) {
-              char.abilityBonus = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
-            }
-          }
-          if (edit && mod === 'inventory' && char) {
-            if (char.inventory && char.inventory.length > 0 && typeof char.inventory[0] === 'string') {
-              char.inventory = char.inventory.map(item => ({ name: item, qty: 1, desc: '' }));
-            }
-          }
-        }, { immediate: true });
+
         
         const isGlobalSwitcherOpen = ref(false);
         const switcherStep = ref('char'); // 'char' 或 'world'
@@ -972,6 +958,22 @@
           if (!selectedCharId.value) return null;
           return chars.value.find(c => c.id === selectedCharId.value) || null;
         });
+
+        watch([isEditMode, activeModule, selectedChar], ([edit, mod, char]) => {
+          if (edit && mod === 'stats' && char) {
+            if (!char.abilities) {
+              char.abilities = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+            }
+            if (!char.abilityBonus) {
+              char.abilityBonus = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
+            }
+          }
+          if (edit && mod === 'inventory' && char) {
+            if (char.inventory && char.inventory.length > 0 && typeof char.inventory[0] === 'string') {
+              char.inventory = char.inventory.map(item => ({ name: item, qty: 1, desc: '' }));
+            }
+          }
+        }, { immediate: true });
 
         // 當選擇的角色改變時，重設世界選擇器並關閉內頁
         watch(selectedCharId, (newId) => {
