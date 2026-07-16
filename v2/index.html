@@ -253,9 +253,14 @@
                 <span v-else-if="activeModule === 'spells'">✨ 法術</span>
                 <span v-else-if="activeModule === 'skills'">🎯 技能</span>
               </h3>
-              <button @click="activeModule = null" class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 font-medium transition">
-                ← 返回
-              </button>
+              <div class="flex gap-2">
+                <button @click="isEditMode = !isEditMode" :class="isEditMode ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'" class="px-3 py-1 text-sm rounded-lg hover:bg-gray-200 font-medium transition">
+                  {{ isEditMode ? '✏️ 編輯中' : '👁️ 檢視模式' }}
+                </button>
+                <button @click="activeModule = null; isEditMode = false;" class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 font-medium transition">
+                  ← 返回
+                </button>
+              </div>
             </div>
 
             <!-- 全域模塊內頁：故事背景 -->
@@ -263,45 +268,66 @@
               <div class="bg-purple-50 text-purple-700 text-xs p-2 rounded-md mb-2 flex items-center gap-2 border border-purple-100">
                 <span class="text-base">🌐</span> 此為全域跨世界設定，修改會自動套用到所有世界。
               </div>
-              <div class="flex gap-4 items-start">
-                <div class="flex-1 space-y-3">
+              
+              <div v-if="!isEditMode" class="space-y-4">
+                <div class="flex gap-4 items-start">
+                  <div class="flex-1 space-y-3">
+                    <div><span class="text-xs text-gray-500 block">名稱</span><div class="font-bold text-lg">{{ selectedChar.name || '未命名' }}</div></div>
+                  </div>
+                  <div class="w-20 h-20 shrink-0 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
+                    <img v-if="selectedChar.avatar" :src="selectedChar.avatar" class="w-full h-full object-cover">
+                    <span v-else class="text-3xl">🧙</span>
+                  </div>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                  <div><span class="text-xs text-gray-500 block">種族</span><div class="font-medium">{{ selectedChar.race || '未設定' }}</div></div>
+                  <div><span class="text-xs text-gray-500 block">陣營</span><div class="font-medium">{{ selectedChar.alignment || '未設定' }}</div></div>
+                  <div><span class="text-xs text-gray-500 block">背景</span><div class="font-medium">{{ selectedChar.background || '未設定' }}</div></div>
+                </div>
+                <div><span class="text-xs text-gray-500 block">背景故事</span><div class="text-sm whitespace-pre-wrap">{{ selectedChar.notes || '無' }}</div></div>
+              </div>
+
+              <div v-else class="space-y-4">
+                <div class="flex gap-4 items-start">
+                  <div class="flex-1 space-y-3">
+                    <div>
+                      <label class="block text-xs font-bold text-gray-500 mb-1">頭像 URL</label>
+                      <input v-model="selectedChar.avatar" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none" placeholder="輸入圖片網址...">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-gray-500 mb-1">名稱</label>
+                      <input v-model="selectedChar.name" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none">
+                    </div>
+                  </div>
+                  <div class="w-20 h-20 shrink-0 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
+                    <img v-if="selectedChar.avatar" :src="selectedChar.avatar" class="w-full h-full object-cover">
+                    <span v-else class="text-3xl">🧙</span>
+                  </div>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
                   <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">頭像 URL</label>
-                    <input v-model="selectedChar.avatar" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none" placeholder="輸入圖片網址...">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">種族</label>
+                    <select v-model="selectedChar.race" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
+                      <option v-for="r in RACES" :key="r.name" :value="r.name">{{ r.name }}</option>
+                    </select>
                   </div>
                   <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">名稱</label>
-                    <input v-model="selectedChar.name" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">陣營</label>
+                    <select v-model="selectedChar.alignment" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
+                      <option v-for="a in ALIGNMENTS" :key="a" :value="a">{{ a }}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">背景</label>
+                    <select v-model="selectedChar.background" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
+                      <option v-for="b in BACKGROUNDS" :key="b.name" :value="b.name">{{ b.name }}</option>
+                    </select>
                   </div>
                 </div>
-                <div class="w-20 h-20 shrink-0 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
-                  <img v-if="selectedChar.avatar" :src="selectedChar.avatar" class="w-full h-full object-cover">
-                  <span v-else class="text-3xl">🧙</span>
-                </div>
-              </div>
-              <div class="grid grid-cols-3 gap-3">
                 <div>
-                  <label class="block text-xs font-bold text-gray-500 mb-1">種族</label>
-                  <select v-model="selectedChar.race" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
-                    <option v-for="r in RACES" :key="r.name" :value="r.name">{{ r.name }}</option>
-                  </select>
+                  <label class="block text-xs font-bold text-gray-500 mb-1">背景故事</label>
+                  <textarea v-model="selectedChar.notes" rows="4" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none resize-none placeholder-gray-300" placeholder="寫下角色的起源與羈絆..."></textarea>
                 </div>
-                <div>
-                  <label class="block text-xs font-bold text-gray-500 mb-1">陣營</label>
-                  <select v-model="selectedChar.alignment" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
-                    <option v-for="a in ALIGNMENTS" :key="a" :value="a">{{ a }}</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-gray-500 mb-1">背景</label>
-                  <select v-model="selectedChar.background" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
-                    <option v-for="b in BACKGROUNDS" :key="b.name" :value="b.name">{{ b.name }}</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-500 mb-1">背景故事</label>
-                <textarea v-model="selectedChar.notes" rows="4" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none resize-none placeholder-gray-300" placeholder="寫下角色的起源與羈絆..."></textarea>
               </div>
             </div>
 
@@ -324,78 +350,136 @@
                 
                 <!-- CLASSES 職業 -->
                 <div v-if="activeModule === 'classes'" class="space-y-4">
-                  <div v-for="(cls, idx) in (selectedChar.classes || [])" :key="idx" class="border border-gray-200 p-4 rounded-lg bg-gray-50">
-                    <div class="grid grid-cols-2 gap-3 mb-2">
+                  <div v-if="!isEditMode" class="space-y-2">
+                    <div v-if="!selectedChar.classes || selectedChar.classes.length === 0" class="text-gray-400 text-sm">無職業資料</div>
+                    <div v-for="(cls, idx) in (selectedChar.classes || [])" :key="idx" class="flex justify-between items-center border-b border-gray-100 py-2">
                       <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">職業</label>
-                        <select v-model="cls.name" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
-                          <option v-for="c in CLASSES" :key="c.name_zh" :value="c.name_zh">{{ c.name_zh }} ({{ c.name_en }})</option>
-                        </select>
+                        <div class="font-bold text-gray-800">{{ cls.name }}</div>
+                        <div class="text-xs text-gray-500">{{ cls.subclass || '無子職業' }}</div>
                       </div>
-                      <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">等級</label>
-                        <input type="number" v-model.number="cls.level" min="1" max="20" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
-                      </div>
-                    </div>
-                    <div>
-                      <label class="block text-xs font-bold text-gray-500 mb-1">子職業 (可選)</label>
-                      <input type="text" v-model="cls.subclass" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="例如：生命領域">
+                      <div class="text-sm font-bold text-blue-600">Lv. {{ cls.level }}</div>
                     </div>
                   </div>
-                  <button @click="if(!selectedChar.classes) selectedChar.classes=[]; selectedChar.classes.push({name:'戰士', level:1, subclass:''})" class="w-full py-2 border border-dashed border-gray-300 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition">+ 新增兼職</button>
+                  <div v-else class="space-y-4">
+                    <div v-for="(cls, idx) in (selectedChar.classes || [])" :key="idx" class="border border-gray-200 p-4 rounded-lg bg-gray-50 relative">
+                      <button @click="selectedChar.classes.splice(idx, 1)" class="absolute top-2 right-2 text-gray-400 hover:text-red-500">❌</button>
+                      <div class="grid grid-cols-2 gap-3 mb-2">
+                        <div>
+                          <label class="block text-xs font-bold text-gray-500 mb-1">職業</label>
+                          <select v-model="cls.name" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            <option v-for="c in CLASSES" :key="c.name_zh" :value="c.name_zh">{{ c.name_zh }} ({{ c.name_en }})</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label class="block text-xs font-bold text-gray-500 mb-1">等級</label>
+                          <input type="number" v-model.number="cls.level" min="1" max="20" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
+                        </div>
+                      </div>
+                      <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">子職業 (可選)</label>
+                        <input type="text" v-model="cls.subclass" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="例如：生命領域">
+                      </div>
+                    </div>
+                    <button @click="if(!selectedChar.classes) selectedChar.classes=[]; selectedChar.classes.push({name:'戰士', level:1, subclass:''})" class="w-full py-2 border border-dashed border-gray-300 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition">+ 新增兼職</button>
+                  </div>
                 </div>
 
                 <!-- STATS 能力值 -->
-                <div v-if="activeModule === 'stats'" class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  <div v-for="(val, key) in selectedChar.abilities" :key="key" class="border border-gray-200 p-3 rounded-lg bg-gray-50 text-center">
-                    <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">{{ key }}</label>
-                    <input type="number" v-model.number="selectedChar.abilities[key]" class="w-full text-center font-bold text-lg border border-gray-300 rounded-md p-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                <div v-if="activeModule === 'stats'">
+                  <div v-if="!isEditMode" class="grid grid-cols-3 gap-3">
+                    <div v-for="(val, key) in selectedChar.abilities" :key="key" class="border border-gray-200 p-3 rounded-lg bg-gray-50 text-center">
+                      <div class="text-xs font-bold text-gray-500 mb-1 uppercase">{{ key }}</div>
+                      <div class="text-2xl font-bold text-gray-800">{{ val }}</div>
+                    </div>
+                  </div>
+                  <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div v-for="(val, key) in selectedChar.abilities" :key="key" class="border border-gray-200 p-3 rounded-lg bg-gray-50 text-center">
+                      <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">{{ key }}</label>
+                      <input type="number" v-model.number="selectedChar.abilities[key]" class="w-full text-center font-bold text-lg border border-gray-300 rounded-md p-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    </div>
                   </div>
                 </div>
 
                 <!-- INVENTORY 物品與背包 -->
                 <div v-if="activeModule === 'inventory'" class="space-y-4">
-                  <div class="grid grid-cols-4 gap-2">
-                    <div v-for="c in ['cp','sp','gp','pp']" :key="c">
-                      <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">{{c}}</label>
-                      <input type="number" v-model.number="selectedChar.coins[c]" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
+                  <div v-if="!isEditMode">
+                    <div class="flex gap-4 mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-100 justify-around">
+                      <div v-for="c in ['cp','sp','gp','pp']" :key="c" class="text-center">
+                        <div class="text-xs font-bold text-yellow-600 uppercase">{{ c }}</div>
+                        <div class="font-bold text-gray-800">{{ selectedChar.coins[c] || 0 }}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="text-xs font-bold text-gray-500 mb-2">裝備與物品</div>
+                      <ul class="list-disc pl-5 text-sm space-y-1">
+                        <li v-for="(item, idx) in selectedChar.inventory" :key="idx">{{ item }}</li>
+                        <li v-if="!selectedChar.inventory || selectedChar.inventory.length === 0" class="text-gray-400 list-none -ml-5">背包空空如也</li>
+                      </ul>
                     </div>
                   </div>
-                  <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">裝備與物品 (每行一項)</label>
-                    <textarea :value="selectedChar.inventory.join('\n')" @input="selectedChar.inventory = $event.target.value.split('\n').filter(Boolean)" rows="6" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"></textarea>
+                  <div v-else class="space-y-4">
+                    <div class="grid grid-cols-4 gap-2">
+                      <div v-for="c in ['cp','sp','gp','pp']" :key="c">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">{{c}}</label>
+                        <input type="number" v-model.number="selectedChar.coins[c]" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-gray-500 mb-1">裝備與物品 (每行一項)</label>
+                      <textarea :value="(selectedChar.inventory||[]).join('\n')" @input="selectedChar.inventory = $event.target.value.split('\n').filter(Boolean)" rows="6" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"></textarea>
+                    </div>
                   </div>
                 </div>
 
                 <!-- FAMILIAR 魔寵 -->
                 <div v-if="activeModule === 'familiar'" class="space-y-3">
-                  <div v-if="!selectedChar.familiar" class="text-center py-6 border-2 border-dashed border-gray-200 rounded-xl">
-                    <div class="text-gray-400 text-sm mb-2">尚未設定魔寵</div>
-                    <button @click="selectedChar.familiar = {name:'', type:'', speed:'', ac:10, hp:{current:1, max:1}, abilities:{str:10, dex:10, con:10, int:10, wis:10, cha:10}, attacks:'', notes:''}" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200 transition">新增魔寵</button>
-                  </div>
-                  <div v-else class="space-y-3">
-                    <div class="grid grid-cols-2 gap-3">
-                      <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">名稱</label>
-                        <input type="text" v-model="selectedChar.familiar.name" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                  <div v-if="!isEditMode">
+                    <div v-if="!selectedChar.familiar" class="text-gray-400 text-sm text-center py-6">尚未設定魔寵</div>
+                    <div v-else class="space-y-4">
+                      <div class="flex justify-between items-end border-b pb-2">
+                        <div>
+                          <div class="text-lg font-bold">{{ selectedChar.familiar.name || '未命名魔寵' }}</div>
+                          <div class="text-xs text-gray-500">{{ selectedChar.familiar.type || '未知種類' }}</div>
+                        </div>
+                        <div class="text-right">
+                          <div class="text-xs text-gray-500">HP</div>
+                          <div class="font-bold text-red-600">{{ selectedChar.familiar.hp.current }} / {{ selectedChar.familiar.hp.max }}</div>
+                        </div>
                       </div>
                       <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">類型/種類</label>
-                        <input type="text" v-model="selectedChar.familiar.type" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                        <span class="text-xs text-gray-500">AC</span> <span class="font-bold">{{ selectedChar.familiar.ac }}</span>
                       </div>
                     </div>
-                    <div class="grid grid-cols-3 gap-3">
-                      <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">HP (目前)</label>
-                        <input type="number" v-model.number="selectedChar.familiar.hp.current" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                  </div>
+                  <div v-else>
+                    <div v-if="!selectedChar.familiar" class="text-center py-6 border-2 border-dashed border-gray-200 rounded-xl">
+                      <div class="text-gray-400 text-sm mb-2">尚未設定魔寵</div>
+                      <button @click="selectedChar.familiar = {name:'', type:'', speed:'', ac:10, hp:{current:1, max:1}, abilities:{str:10, dex:10, con:10, int:10, wis:10, cha:10}, attacks:'', notes:''}" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200 transition">新增魔寵</button>
+                    </div>
+                    <div v-else class="space-y-3">
+                      <div class="grid grid-cols-2 gap-3">
+                        <div>
+                          <label class="block text-xs font-bold text-gray-500 mb-1">名稱</label>
+                          <input type="text" v-model="selectedChar.familiar.name" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                        </div>
+                        <div>
+                          <label class="block text-xs font-bold text-gray-500 mb-1">類型/種類</label>
+                          <input type="text" v-model="selectedChar.familiar.type" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                        </div>
                       </div>
-                      <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">HP (最大)</label>
-                        <input type="number" v-model.number="selectedChar.familiar.hp.max" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
-                      </div>
-                      <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">AC</label>
-                        <input type="number" v-model.number="selectedChar.familiar.ac" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                      <div class="grid grid-cols-3 gap-3">
+                        <div>
+                          <label class="block text-xs font-bold text-gray-500 mb-1">HP (目前)</label>
+                          <input type="number" v-model.number="selectedChar.familiar.hp.current" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                        </div>
+                        <div>
+                          <label class="block text-xs font-bold text-gray-500 mb-1">HP (最大)</label>
+                          <input type="number" v-model.number="selectedChar.familiar.hp.max" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                        </div>
+                        <div>
+                          <label class="block text-xs font-bold text-gray-500 mb-1">AC</label>
+                          <input type="number" v-model.number="selectedChar.familiar.ac" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -424,7 +508,19 @@
 
                 <!-- SKILLS 技能 -->
                 <div v-if="activeModule === 'skills'" class="space-y-4">
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div v-if="!isEditMode">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      <div v-for="(skData, skName) in selectedChar.skills" :key="skName" class="p-2 border rounded-lg flex items-center justify-between" :class="skData.proficient ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'">
+                        <div class="flex items-center gap-2">
+                          <span v-if="skData.proficient" class="text-blue-500">★</span>
+                          <span v-else class="text-gray-300">☆</span>
+                          <span class="text-sm" :class="skData.proficient ? 'font-bold text-blue-900' : 'text-gray-600'">{{ skName }}</span>
+                        </div>
+                        <div v-if="skData.override" class="text-xs font-bold bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">={{ skData.override }}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div v-for="(skData, skName) in selectedChar.skills" :key="skName" class="flex items-center justify-between p-2 border border-gray-200 rounded-lg bg-gray-50">
                       <div class="flex items-center gap-2">
                         <input type="checkbox" v-model="skData.proficient" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
@@ -441,7 +537,7 @@
               </div>
 
               <!-- 修改操作區 -->
-              <div class="pt-4 border-t border-gray-100 flex justify-end">
+              <div v-if="isEditMode" class="pt-4 border-t border-gray-100 flex justify-end">
                 <button v-if="isDMWorld" @click="requestDMApproval" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition shadow-sm flex items-center gap-2">
                   <span>✉️</span> 送出修改申請 (Propose)
                 </button>
@@ -649,6 +745,10 @@ const BACKGROUNDS = [
         const selectedCharId = ref(null);
         const selectedWorldKey = ref('__solo__');
         const activeModule = ref(null);
+        const isEditMode = ref(false);
+        const availableSpells = ref([]);
+        const newSpellQuery = ref('');
+        const customSpell = ref({ name: '', level: '1' });
 
         const isDMWorld = computed(() => selectedWorldKey.value !== '__solo__');
 
@@ -677,6 +777,14 @@ const BACKGROUNDS = [
 
         // 啟動時讀取 V1 既有的本地存檔資料
         onMounted(() => {
+          fetch('../data/spells.json').then(res => res.json()).then(data => {
+            availableSpells.value = data.spells || data || [];
+          }).catch(() => {
+            availableSpells.value = [
+              { id: 'fireball', name_zh: '火球術', level: 3 },
+              { id: 'magic_missile', name_zh: '魔法飛彈', level: 1 }
+            ];
+          });
           try {
             const raw = localStorage.getItem('dnd_chars');
             if (raw) {
@@ -755,6 +863,13 @@ const BACKGROUNDS = [
           ALIGNMENTS,
           BACKGROUNDS,
           activeModule,
+          isEditMode,
+          availableSpells,
+          newSpellQuery,
+          customSpell,
+          addSpell: (sp) => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; selectedChar.value.spellbook.push({ id: sp.id || Date.now(), name: sp.name_zh || sp.name, level: sp.level, custom: false }); },
+          addCustomSpell: () => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; if(customSpell.value.name) { selectedChar.value.spellbook.push({ id: Date.now(), name: customSpell.value.name, level: customSpell.value.level, custom: true }); customSpell.value.name = ''; } },
+          removeSpell: (idx) => { selectedChar.value.spellbook.splice(idx, 1); },
           isDMWorld,
           requestDMApproval
         };
