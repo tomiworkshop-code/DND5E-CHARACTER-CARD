@@ -572,7 +572,12 @@
                             <span class="font-bold text-sm text-gray-800">{{ item.name || item }}</span>
                             <span class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">x{{ item.qty || 1 }}</span>
                           </div>
-                          <div v-if="item.desc" class="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{{ item.desc }}</div>
+                          <div v-if="item.desc" class="mt-1">
+                            <div class="text-xs text-gray-500 whitespace-pre-wrap" :class="!descOpen['inv-'+idx] && needsExpand(item.desc) ? 'line-clamp-3' : ''">{{ item.desc }}</div>
+                            <button v-if="needsExpand(item.desc)" @click="toggleDesc('inv-'+idx)" class="text-xs text-blue-500 hover:text-blue-700 mt-0.5">
+                              {{ descOpen['inv-'+idx] ? '▲ 收起' : '... 更多' }}
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <div v-else class="text-xs text-gray-400 p-4 border border-dashed rounded-lg text-center">背包空空如也</div>
@@ -716,7 +721,12 @@
                             <span class="font-bold text-sm text-gray-800">{{ spell.name || spell.name_zh || spell.id }}</span>
                             <span class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">{{ spell.level === 0 || spell.level === '0' ? '戲法' : 'Lv ' + spell.level }}</span>
                           </div>
-                          <div v-if="spell.desc" class="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{{ spell.desc }}</div>
+                          <div v-if="spell.desc" class="mt-1">
+                            <div class="text-xs text-gray-500 whitespace-pre-wrap" :class="!descOpen['spl-'+idx] && needsExpand(spell.desc) ? 'line-clamp-3' : ''">{{ spell.desc }}</div>
+                            <button v-if="needsExpand(spell.desc)" @click="toggleDesc('spl-'+idx)" class="text-xs text-blue-500 hover:text-blue-700 mt-0.5">
+                              {{ descOpen['spl-'+idx] ? '▲ 收起' : '... 更多' }}
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <div v-else class="text-xs text-gray-400 p-4 border border-dashed rounded-lg text-center">尚未習得任何法術</div>
@@ -920,6 +930,12 @@
         const itemSearch = ref('');
         const customItem = ref({ name: '', qty: 1, desc: '' });
         const featOpen = ref({});
+        const descOpen = ref({});
+        const toggleDesc = (id) => { descOpen.value[id] = !descOpen.value[id]; };
+        const needsExpand = (text) => {
+          if (!text) return false;
+          return text.length > 150 || text.split('\n').length > 4;
+        };
 
         const abilityTotal = (key) => (Number(selectedChar.value?.abilities?.[key]) || 10) + (Number(selectedChar.value?.abilityBonus?.[key]) || 0);
         const abilityMod = (score) => Math.floor((score - 10) / 2);
@@ -1236,6 +1252,9 @@
           },
           featOpen,
           toggleFeat: (idx) => { featOpen.value[idx] = !featOpen.value[idx]; },
+          descOpen,
+          toggleDesc,
+          needsExpand,
           classFeaturesFor: (cl) => {
             const def = coreRules.CLASSES.find(k => k.name_en === (cl.name_en || cl.name));
             const lv = Number(cl.level) || 0;
