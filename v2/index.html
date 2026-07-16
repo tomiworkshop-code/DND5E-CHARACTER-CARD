@@ -598,7 +598,10 @@
                       <div class="space-y-2 mb-4">
                         <div v-for="(item, idx) in selectedChar.inventory" :key="idx" class="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm flex justify-between items-start shadow-sm gap-2">
                           <div class="flex-1 min-w-0">
-                            <div class="font-bold text-gray-800 truncate">{{ item.name || item }}</div>
+                            <div class="font-bold text-gray-800 flex items-center gap-1 min-w-0">
+                              <span class="truncate">{{ item.name || item }}</span>
+                              <span v-if="hasStatEffect(item.name||item, item.desc)" class="text-[9px] bg-red-50 text-red-600 border border-red-200 px-1 py-0.5 rounded shrink-0 leading-none">⚠️ 數值</span>
+                            </div>
                             <div v-if="item.desc" class="text-xs text-gray-400 mt-1 line-clamp-2" :title="item.desc">{{ item.desc }}</div>
                           </div>
                           <div class="flex items-center gap-2 shrink-0">
@@ -620,7 +623,10 @@
                       <div class="max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white">
                         <div v-for="it in filteredAvailableItems" :key="it.id || it.name_zh" class="flex justify-between items-center p-2 border-b last:border-b-0 hover:bg-gray-50">
                           <div>
-                            <div class="font-bold text-sm text-gray-800">{{ it.name_zh || it.name_en || it.name }}</div>
+                            <div class="font-bold text-sm text-gray-800 flex items-center gap-1">
+                              <span>{{ it.name_zh || it.name_en || it.name }}</span>
+                              <span v-if="hasStatEffect(it.name_zh || it.name_en || it.name, '', it)" class="text-[9px] bg-red-50 text-red-600 border border-red-200 px-1 py-0.5 rounded shrink-0 leading-none">⚠️ 影響數值</span>
+                            </div>
                             <div v-if="it.type" class="text-xs text-gray-500">{{ it.type }}</div>
                           </div>
                           <button @click="addItem(it)" class="text-xs px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded font-medium">+ 加入</button>
@@ -930,6 +936,15 @@
         const itemSearch = ref('');
         const customItem = ref({ name: '', qty: 1, desc: '' });
         const featOpen = ref({});
+        const hasStatEffect = (name, desc, rawItem = null) => {
+          let text = String(name || '') + ' ' + String(desc || '');
+          if (rawItem) {
+            if (rawItem.bonus) return true;
+            if (Array.isArray(rawItem.entries_zh)) text += ' ' + rawItem.entries_zh.join('');
+          }
+          const keywords = ['+1', '+2', '+3', '防禦等級', '豁免', '值變為', 'AC:'];
+          return keywords.some(k => text.includes(k));
+        };
         const descOpen = ref({});
         const toggleDesc = (id) => { descOpen.value[id] = !descOpen.value[id]; };
         const needsExpand = (text) => {
@@ -1255,6 +1270,7 @@
           descOpen,
           toggleDesc,
           needsExpand,
+          hasStatEffect,
           classFeaturesFor: (cl) => {
             const def = coreRules.CLASSES.find(k => k.name_en === (cl.name_en || cl.name));
             const lv = Number(cl.level) || 0;
