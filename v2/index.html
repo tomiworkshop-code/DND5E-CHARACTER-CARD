@@ -566,22 +566,76 @@
                     </div>
                     <div>
                       <div class="text-xs font-bold text-gray-500 mb-2">裝備與物品</div>
-                      <ul class="list-disc pl-5 text-sm space-y-1">
-                        <li v-for="(item, idx) in selectedChar.inventory" :key="idx">{{ item }}</li>
-                        <li v-if="!selectedChar.inventory || selectedChar.inventory.length === 0" class="text-gray-400 list-none -ml-5">背包空空如也</li>
-                      </ul>
+                      <div v-if="selectedChar.inventory && selectedChar.inventory.length > 0" class="space-y-2">
+                        <div v-for="(item, idx) in selectedChar.inventory" :key="idx" class="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex flex-col gap-1">
+                          <div class="flex justify-between items-center w-full">
+                            <span class="font-bold text-sm text-gray-800">{{ item.name || item }}</span>
+                            <span class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">x{{ item.qty || 1 }}</span>
+                          </div>
+                          <div v-if="item.desc" class="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{{ item.desc }}</div>
+                        </div>
+                      </div>
+                      <div v-else class="text-xs text-gray-400 p-4 border border-dashed rounded-lg text-center">背包空空如也</div>
                     </div>
                   </div>
-                  <div v-else class="space-y-4">
-                    <div class="grid grid-cols-4 gap-2">
-                      <div v-for="c in ['cp','sp','gp','pp']" :key="c">
-                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">{{c}}</label>
-                        <input type="number" v-model.number="selectedChar.coins[c]" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
+                  <div v-else class="space-y-6">
+                    <div>
+                      <div class="grid grid-cols-4 gap-2">
+                        <div v-for="c in ['cp','sp','gp','pp']" :key="c">
+                          <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">{{c}}</label>
+                          <input type="number" v-model.number="selectedChar.coins[c]" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <label class="block text-xs font-bold text-gray-500 mb-1">裝備與物品 (每行一項)</label>
-                      <textarea :value="(selectedChar.inventory||[]).join('\n')" @input="selectedChar.inventory = $event.target.value.split('\n').filter(Boolean)" rows="6" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"></textarea>
+                    
+                    <div class="border-t pt-4">
+                      <label class="block text-xs font-bold text-gray-500 mb-2">已有物品列表</label>
+                      <div class="space-y-2 mb-4">
+                        <div v-for="(item, idx) in selectedChar.inventory" :key="idx" class="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm flex justify-between items-start shadow-sm gap-2">
+                          <div class="flex-1 min-w-0">
+                            <div class="font-bold text-gray-800 truncate">{{ item.name || item }}</div>
+                            <div v-if="item.desc" class="text-xs text-gray-400 mt-1 line-clamp-2" :title="item.desc">{{ item.desc }}</div>
+                          </div>
+                          <div class="flex items-center gap-2 shrink-0">
+                            <input type="number" v-model.number="item.qty" class="w-16 border border-gray-300 rounded p-1 text-center text-sm outline-none" min="1" placeholder="數量">
+                            <button @click="removeItem(idx)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded bg-red-50 shrink-0">移除</button>
+                          </div>
+                        </div>
+                        <div v-if="!selectedChar.inventory || selectedChar.inventory.length === 0" class="text-xs text-gray-400 text-center py-2">目前沒有物品</div>
+                      </div>
+                    </div>
+
+                    <div class="border border-blue-100 bg-blue-50/30 p-4 rounded-xl space-y-3">
+                      <label class="block text-sm font-bold text-blue-800">🎒 加入物品</label>
+                      
+                      <div class="flex gap-2">
+                        <input type="text" v-model="itemSearch" placeholder="搜尋物品名稱..." class="flex-1 border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
+                      </div>
+
+                      <div class="max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+                        <div v-for="it in filteredAvailableItems" :key="it.id || it.name_zh" class="flex justify-between items-center p-2 border-b last:border-b-0 hover:bg-gray-50">
+                          <div>
+                            <div class="font-bold text-sm text-gray-800">{{ it.name_zh || it.name_en || it.name }}</div>
+                            <div v-if="it.type" class="text-xs text-gray-500">{{ it.type }}</div>
+                          </div>
+                          <button @click="addItem(it)" class="text-xs px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded font-medium">+ 加入</button>
+                        </div>
+                        <div v-if="filteredAvailableItems.length === 0" class="text-center text-xs text-gray-400 py-4">無符合的物品</div>
+                      </div>
+                      
+                      <div class="pt-2 border-t border-blue-100 mt-2">
+                        <label class="block text-xs font-bold text-gray-500 mb-1">新增自訂物品</label>
+                        <div class="flex flex-col gap-2">
+                          <div class="flex gap-2">
+                            <input type="text" v-model="customItem.name" placeholder="物品名稱" class="flex-1 border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                            <input type="number" v-model.number="customItem.qty" placeholder="數量" min="1" class="w-20 border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                          </div>
+                          <div class="flex gap-2">
+                            <input type="text" v-model="customItem.desc" placeholder="物品描述 (選填)" class="flex-1 border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                            <button @click="addCustomItem" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm rounded-lg transition font-medium whitespace-nowrap">新增</button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -844,6 +898,9 @@
         const newSpellQuery = ref('');
         const spellFilterLevel = ref('');
         const customSpell = ref({ name: '', level: '1' });
+        const availableItems = ref([]);
+        const itemSearch = ref('');
+        const customItem = ref({ name: '', qty: 1, desc: '' });
         const featOpen = ref({});
 
         const abilityTotal = (key) => (Number(selectedChar.value?.abilities?.[key]) || 10) + (Number(selectedChar.value?.abilityBonus?.[key]) || 0);
@@ -861,6 +918,11 @@
             }
             if (!char.abilityBonus) {
               char.abilityBonus = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
+            }
+          }
+          if (edit && mod === 'inventory' && char) {
+            if (char.inventory && char.inventory.length > 0 && typeof char.inventory[0] === 'string') {
+              char.inventory = char.inventory.map(item => ({ name: item, qty: 1, desc: '' }));
             }
           }
         }, { immediate: true });
@@ -893,6 +955,16 @@
           if(!selectedChar.value || !selectedChar.value.spellbook) return false;
           return selectedChar.value.spellbook.some(b => b.name === sp.name_zh || b.name === sp.name || b.name === sp.name_en);
         };
+
+        const filteredAvailableItems = computed(() => {
+          let q = itemSearch.value.toLowerCase().trim();
+          return availableItems.value.filter(item => {
+            if (!q) return true;
+            const zh = (item.name_zh || item.name || '').toLowerCase();
+            const en = (item.name_en || '').toLowerCase();
+            return zh.includes(q) || en.includes(q);
+          }).slice(0, 30);
+        });
 
         const isDMWorld = computed(() => selectedWorldKey.value !== '__solo__');
 
@@ -928,6 +1000,12 @@
               { id: 'fireball', name_zh: '火球術', level: 3 },
               { id: 'magic_missile', name_zh: '魔法飛彈', level: 1 }
             ];
+          });
+          fetch('../data/items.json').then(res => res.json()).then(data => {
+            availableItems.value = data.items || [];
+          }).catch(e => {
+             console.error("無法讀取物品資料", e);
+             availableItems.value = [];
           });
           try {
             const raw = localStorage.getItem('dnd_chars');
@@ -1022,6 +1100,24 @@
           filteredAvailableSpells,
           isSpellInBook,
           customSpell,
+          availableItems,
+          itemSearch,
+          filteredAvailableItems,
+          customItem,
+          addItem: (itemData) => {
+            if(!selectedChar.value.inventory) selectedChar.value.inventory = [];
+            selectedChar.value.inventory.push({ id: itemData.id||Date.now(), name: itemData.name_zh || itemData.name_en || itemData.name, qty: 1, desc: itemData.desc_zh || itemData.desc || '' });
+          },
+          addCustomItem: () => {
+            if(!selectedChar.value.inventory) selectedChar.value.inventory = [];
+            if(customItem.value.name) {
+              selectedChar.value.inventory.push({ id: Date.now(), name: customItem.value.name, qty: customItem.value.qty, desc: customItem.value.desc || '' });
+              customItem.value.name = '';
+              customItem.value.qty = 1;
+              customItem.value.desc = '';
+            }
+          },
+          removeItem: (idx) => { selectedChar.value.inventory.splice(idx, 1); },
           addSpell: (sp) => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; selectedChar.value.spellbook.push({ id: sp.id || Date.now(), name: sp.name_zh || sp.name_en || sp.name, level: sp.level, desc: sp.desc_zh || sp.desc_en || sp.desc || '', custom: false }); },
           addCustomSpell: () => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; if(customSpell.value.name) { selectedChar.value.spellbook.push({ id: Date.now(), name: customSpell.value.name, level: customSpell.value.level, desc: customSpell.value.desc || '', custom: true }); customSpell.value.name = ''; customSpell.value.desc = ''; } },
           removeSpell: (idx) => { selectedChar.value.spellbook.splice(idx, 1); },
