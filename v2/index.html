@@ -518,15 +518,39 @@
                 <!-- STATS 能力值 -->
                 <div v-if="activeModule === 'stats'">
                   <div v-if="!isEditMode" class="grid grid-cols-3 gap-3">
-                    <div v-for="(val, key) in selectedChar.abilities" :key="key" class="border border-gray-200 p-3 rounded-lg bg-gray-50 text-center">
-                      <div class="text-xs font-bold text-gray-500 mb-1 uppercase">{{ key }}</div>
-                      <div class="text-2xl font-bold text-gray-800">{{ val }}</div>
+                    <div v-for="def in abilityDefs" :key="def.key" class="border border-gray-200 p-3 rounded-lg bg-gray-50 flex flex-col items-center shadow-sm">
+                      <div class="text-xs font-bold text-gray-500 mb-1 uppercase flex gap-1">
+                        <span>{{ def.key }}</span><span class="text-gray-400">{{ def.zh }}</span>
+                      </div>
+                      <div :class="['text-3xl font-black mb-1', abilityMod(abilityTotal(def.key)) >= 0 ? 'text-blue-600' : 'text-red-600']">
+                        {{ fmtMod(abilityMod(abilityTotal(def.key))) }}
+                      </div>
+                      <div class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full font-medium">
+                        總分 {{ abilityTotal(def.key) }}
+                      </div>
                     </div>
                   </div>
                   <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <div v-for="(val, key) in selectedChar.abilities" :key="key" class="border border-gray-200 p-3 rounded-lg bg-gray-50 text-center">
-                      <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">{{ key }}</label>
-                      <input type="number" v-model.number="selectedChar.abilities[key]" class="w-full text-center font-bold text-lg border border-gray-300 rounded-md p-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    <div v-for="def in abilityDefs" :key="def.key" class="border border-gray-200 p-3 rounded-lg bg-gray-50">
+                      <div class="text-xs font-bold text-gray-700 mb-2 uppercase text-center flex justify-center gap-1">
+                        <span>{{ def.key }}</span><span class="text-gray-400">{{ def.zh }}</span>
+                      </div>
+                      <div class="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <label class="block text-[10px] text-gray-500 text-center mb-1">基礎</label>
+                          <input type="number" v-model.number="selectedChar.abilities[def.key]" class="w-full text-center font-bold text-sm border border-gray-300 rounded p-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                        </div>
+                        <div>
+                          <label class="block text-[10px] text-gray-500 text-center mb-1">加值</label>
+                          <input type="number" v-model.number="selectedChar.abilityBonus[def.key]" class="w-full text-center font-bold text-sm border border-gray-300 rounded p-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                        </div>
+                      </div>
+                      <div class="bg-white border border-gray-100 rounded p-1.5 flex justify-between items-center text-xs">
+                        <span class="text-gray-500">總分 <span class="font-bold text-gray-800">{{ abilityTotal(def.key) }}</span></span>
+                        <span :class="['font-bold', abilityMod(abilityTotal(def.key)) >= 0 ? 'text-blue-600' : 'text-red-600']">
+                          {{ fmtMod(abilityMod(abilityTotal(def.key))) }}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -821,6 +845,22 @@
         const spellFilterLevel = ref('');
         const customSpell = ref({ name: '', level: '1' });
         const featOpen = ref({});
+
+        const abilityTotal = (key) => (Number(selectedChar.value?.abilities?.[key]) || 10) + (Number(selectedChar.value?.abilityBonus?.[key]) || 0);
+        const abilityMod = (score) => Math.floor((score - 10) / 2);
+        const fmtMod = (m) => m >= 0 ? '+' + m : m;
+        const abilityDefs = [
+          {key:'str', zh:'力量'}, {key:'dex', zh:'敏捷'}, {key:'con', zh:'體質'},
+          {key:'int', zh:'智力'}, {key:'wis', zh:'感知'}, {key:'cha', zh:'魅力'}
+        ];
+
+        watch([isEditMode, activeModule, selectedChar], ([edit, mod, char]) => {
+          if (edit && mod === 'stats' && char) {
+            if (!char.abilityBonus) {
+              char.abilityBonus = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
+            }
+          }
+        }, { immediate: true });
         
         const isGlobalSwitcherOpen = ref(false);
         const switcherStep = ref('char'); // 'char' 或 'world'
@@ -982,6 +1022,10 @@
           addSpell: (sp) => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; selectedChar.value.spellbook.push({ id: sp.id || Date.now(), name: sp.name_zh || sp.name_en || sp.name, level: sp.level, desc: sp.desc_zh || sp.desc_en || sp.desc || '', custom: false }); },
           addCustomSpell: () => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; if(customSpell.value.name) { selectedChar.value.spellbook.push({ id: Date.now(), name: customSpell.value.name, level: customSpell.value.level, desc: customSpell.value.desc || '', custom: true }); customSpell.value.name = ''; customSpell.value.desc = ''; } },
           removeSpell: (idx) => { selectedChar.value.spellbook.splice(idx, 1); },
+          abilityTotal,
+          abilityMod,
+          fmtMod,
+          abilityDefs,
           isDMWorld,
           requestDMApproval,
           subclassDef: (cl) => {
