@@ -435,12 +435,31 @@
                 <div v-if="activeModule === 'classes'" class="space-y-4">
                   <div v-if="!isEditMode" class="space-y-2">
                     <div v-if="!selectedChar.classes || selectedChar.classes.length === 0" class="text-gray-400 text-sm">無職業資料</div>
-                    <div v-for="(cls, idx) in (selectedChar.classes || [])" :key="idx" class="flex justify-between items-center border-b border-gray-100 py-2">
-                      <div>
-                        <div class="font-bold text-gray-800">{{ getClassName(cls) || '未知職業' }}</div>
-                        <div class="text-xs text-gray-500">{{ getSubclassName(cls) || '無子職業' }}</div>
+                    <div v-for="(cls, idx) in (selectedChar.classes || [])" :key="idx" class="flex flex-col border-b border-gray-100 py-2">
+                      <div class="flex justify-between items-center">
+                        <div>
+                          <div class="font-bold text-gray-800">{{ getClassName(cls) || '未知職業' }}</div>
+                          <div class="text-xs text-gray-500">{{ getSubclassName(cls) || '無子職業' }}</div>
+                        </div>
+                        <div class="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">Lv {{ cls.level || 0 }}</div>
                       </div>
-                      <div class="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">Lv {{ cls.level || 0 }}</div>
+                      
+                      <!-- View 模式特性顯示 -->
+                      <div v-if="classFeaturesFor(cls).length > 0 || subclassFeaturesFor(cls).length > 0" class="mt-2">
+                        <button @click="toggleFeat(idx)" class="text-xs text-blue-500 flex items-center gap-1 font-medium">
+                          <span>{{ featOpen[idx] ? '▼ 收合特性' : '▶ 展開特性' }}</span>
+                        </button>
+                        <div v-if="featOpen[idx]" class="mt-2 space-y-2 text-sm bg-white p-2 rounded border border-gray-100 shadow-sm">
+                          <div v-for="(f, i) in classFeaturesFor(cls)" :key="'cf-'+i">
+                            <div class="font-bold text-gray-700">{{ f.name_zh || f.name_en }} <span class="text-[10px] text-gray-400 font-normal ml-1">Lv {{ f.level }}</span></div>
+                            <div class="text-xs text-gray-500">{{ f.desc_zh || f.desc_en }}</div>
+                          </div>
+                          <div v-for="(f, i) in subclassFeaturesFor(cls)" :key="'sf-'+i">
+                            <div class="font-bold text-gray-700 text-purple-700">{{ f.name_zh || f.name_en }} <span class="text-[10px] text-purple-400 font-normal ml-1">Lv {{ f.level }} (子職業)</span></div>
+                            <div class="text-xs text-gray-500">{{ f.desc_zh || f.desc_en }}</div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div v-else class="space-y-4">
@@ -472,6 +491,23 @@
                         </select>
                         <div v-if="selectedSubclassDesc(cls)" class="text-[11px] text-gray-500 mt-1.5 leading-snug bg-white p-2 rounded border border-gray-100">
                           {{ selectedSubclassDesc(cls) }}
+                        </div>
+                      </div>
+
+                      <!-- Edit 模式特性顯示 -->
+                      <div v-if="classFeaturesFor(cls).length > 0 || subclassFeaturesFor(cls).length > 0" class="mt-3 pt-3 border-t border-gray-200 border-dashed">
+                        <button @click="toggleFeat(idx)" class="text-xs text-blue-500 flex items-center gap-1 font-medium">
+                          <span>{{ featOpen[idx] ? '▼ 收合特性' : '▶ 展開特性' }}</span>
+                        </button>
+                        <div v-if="featOpen[idx]" class="mt-2 space-y-2 text-sm bg-white p-2 rounded border border-gray-100 shadow-sm">
+                          <div v-for="(f, i) in classFeaturesFor(cls)" :key="'cf-'+i">
+                            <div class="font-bold text-gray-700">{{ f.name_zh || f.name_en }} <span class="text-[10px] text-gray-400 font-normal ml-1">Lv {{ f.level }}</span></div>
+                            <div class="text-xs text-gray-500">{{ f.desc_zh || f.desc_en }}</div>
+                          </div>
+                          <div v-for="(f, i) in subclassFeaturesFor(cls)" :key="'sf-'+i">
+                            <div class="font-bold text-gray-700 text-purple-700">{{ f.name_zh || f.name_en }} <span class="text-[10px] text-purple-400 font-normal ml-1">Lv {{ f.level }} (子職業)</span></div>
+                            <div class="text-xs text-gray-500">{{ f.desc_zh || f.desc_en }}</div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -763,6 +799,7 @@
         const newSpellQuery = ref('');
         const spellFilterLevel = ref('');
         const customSpell = ref({ name: '', level: '1' });
+        const featOpen = ref({});
         
         const isGlobalSwitcherOpen = ref(false);
         const switcherStep = ref('char'); // 'char' 或 'world'
@@ -946,6 +983,22 @@
             if(!def || !def.subclasses || !cl.subclass) return "";
             const sc = def.subclasses.find(x => x.name_en === cl.subclass);
             return sc ? sc.name_zh : cl.subclass;
+          },
+          featOpen,
+          toggleFeat: (idx) => { featOpen.value[idx] = !featOpen.value[idx]; },
+          classFeaturesFor: (cl) => {
+            const def = coreRules.CLASSES.find(k => k.name_en === (cl.name_en || cl.name));
+            const lv = Number(cl.level) || 0;
+            if(!def || !def.features) return [];
+            return def.features.filter(f => !f.level || f.level <= lv);
+          },
+          subclassFeaturesFor: (cl) => {
+            const def = coreRules.CLASSES.find(k => k.name_en === (cl.name_en || cl.name));
+            const lv = Number(cl.level) || 0;
+            if(!def || !def.subclasses || !cl.subclass) return [];
+            const sc = def.subclasses.find(x => x.name_en === cl.subclass);
+            if(!sc || !sc.features) return [];
+            return sc.features.filter(f => !f.level || f.level <= lv);
           }
         };
       }
