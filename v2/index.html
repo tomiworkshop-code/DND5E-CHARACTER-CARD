@@ -502,9 +502,12 @@
                     <div class="mt-4">
                       <label class="block text-xs font-bold text-gray-500 mb-2">已準備 / 習得法術</label>
                       <div v-if="selectedChar.spellbook && selectedChar.spellbook.length > 0" class="space-y-2">
-                        <div v-for="(spell, idx) in selectedChar.spellbook" :key="idx" class="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm flex justify-between items-center">
-                          <span class="font-bold text-gray-800">{{ spell.name || spell.name_zh || spell.id }}</span>
-                          <span class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">{{ spell.level === 0 || spell.level === '0' ? '戲法' : 'Lv ' + spell.level }}</span>
+                        <div v-for="(spell, idx) in selectedChar.spellbook" :key="idx" class="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex flex-col gap-1">
+                          <div class="flex justify-between items-center w-full">
+                            <span class="font-bold text-sm text-gray-800">{{ spell.name || spell.name_zh || spell.id }}</span>
+                            <span class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">{{ spell.level === 0 || spell.level === '0' ? '戲法' : 'Lv ' + spell.level }}</span>
+                          </div>
+                          <div v-if="spell.desc" class="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{{ spell.desc }}</div>
                         </div>
                       </div>
                       <div v-else class="text-xs text-gray-400 p-4 border border-dashed rounded-lg text-center">尚未習得任何法術</div>
@@ -527,12 +530,15 @@
                     <div class="border-t pt-4">
                       <label class="block text-xs font-bold text-gray-500 mb-2">法術書 (目前習得)</label>
                       <div class="space-y-2 mb-4">
-                        <div v-for="(spell, idx) in selectedChar.spellbook" :key="idx" class="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm flex justify-between items-center shadow-sm">
-                          <div>
-                            <span class="font-bold text-gray-800">{{ spell.name || spell.name_zh || spell.id }}</span>
-                            <span class="text-xs text-gray-500 ml-2">({{ spell.level === 0 || spell.level === '0' ? '戲法' : 'Lv ' + spell.level }})</span>
+                        <div v-for="(spell, idx) in selectedChar.spellbook" :key="idx" class="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm flex justify-between items-start shadow-sm">
+                          <div class="flex-1">
+                            <div class="font-bold text-gray-800">
+                              {{ spell.name || spell.name_zh || spell.id }}
+                              <span class="text-xs text-gray-500 font-normal ml-1">({{ spell.level === 0 || spell.level === '0' ? '戲法' : 'Lv ' + spell.level }})</span>
+                            </div>
+                            <div v-if="spell.desc" class="text-xs text-gray-400 mt-1 line-clamp-2" :title="spell.desc">{{ spell.desc }}</div>
                           </div>
-                          <button @click="removeSpell(idx)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded bg-red-50">移除</button>
+                          <button @click="removeSpell(idx)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded bg-red-50 ml-2 mt-0.5 shrink-0">移除</button>
                         </div>
                         <div v-if="!selectedChar.spellbook || selectedChar.spellbook.length === 0" class="text-xs text-gray-400 text-center py-2">目前沒有法術</div>
                       </div>
@@ -961,8 +967,8 @@ const BACKGROUNDS = [
           filteredAvailableSpells,
           isSpellInBook,
           customSpell,
-          addSpell: (sp) => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; selectedChar.value.spellbook.push({ id: sp.id || Date.now(), name: sp.name_zh || sp.name_en || sp.name, level: sp.level, custom: false }); },
-          addCustomSpell: () => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; if(customSpell.value.name) { selectedChar.value.spellbook.push({ id: Date.now(), name: customSpell.value.name, level: customSpell.value.level, custom: true }); customSpell.value.name = ''; } },
+          addSpell: (sp) => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; selectedChar.value.spellbook.push({ id: sp.id || Date.now(), name: sp.name_zh || sp.name_en || sp.name, level: sp.level, desc: sp.desc_zh || sp.desc_en || sp.desc || '', custom: false }); },
+          addCustomSpell: () => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; if(customSpell.value.name) { selectedChar.value.spellbook.push({ id: Date.now(), name: customSpell.value.name, level: customSpell.value.level, desc: customSpell.value.desc || '', custom: true }); customSpell.value.name = ''; customSpell.value.desc = ''; } },
           removeSpell: (idx) => { selectedChar.value.spellbook.splice(idx, 1); },
           isDMWorld,
           requestDMApproval
