@@ -517,6 +517,18 @@
 
                 <!-- STATS 能力值 -->
                 <div v-if="activeModule === 'stats'">
+                  <!-- Combat Stats -->
+                  <div class="mb-4 grid grid-cols-2 gap-3">
+                    <div class="border border-blue-200 p-3 rounded-lg bg-blue-50 flex items-center justify-between shadow-sm">
+                      <div class="text-xs font-bold text-blue-800">防禦等級 (AC)</div>
+                      <div class="text-2xl font-black text-blue-900">{{ computedAC }}</div>
+                    </div>
+                    <div class="border border-green-200 p-3 rounded-lg bg-green-50 flex items-center justify-between shadow-sm">
+                      <div class="text-xs font-bold text-green-800">先攻加值</div>
+                      <div class="text-2xl font-black text-green-900">{{ fmtMod(abilityMod(abilityTotal('dex'))) }}</div>
+                    </div>
+                  </div>
+
                   <div v-if="!isEditMode" class="grid grid-cols-3 gap-3">
                     <div v-for="def in abilityDefs" :key="def.key" class="border border-gray-200 p-3 rounded-lg bg-gray-50 flex flex-col items-center shadow-sm">
                       <div class="text-xs font-bold text-gray-500 mb-1 uppercase flex gap-1">
@@ -530,7 +542,15 @@
                       </div>
                     </div>
                   </div>
-                  <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div v-else>
+                    <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                      <div class="text-xs font-bold text-blue-800">基礎防禦等級 (未穿甲)</div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-xs text-blue-600">10 + 敏捷調整值 =</span>
+                        <span class="text-lg font-black text-blue-900">{{ 10 + abilityMod(abilityTotal('dex')) }}</span>
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <div v-for="def in abilityDefs" :key="def.key" class="border border-gray-200 p-3 rounded-lg bg-gray-50">
                       <div class="text-xs font-bold text-gray-700 mb-2 uppercase text-center flex justify-center gap-1">
                         <span>{{ def.key }}</span><span class="text-gray-400">{{ def.zh }}</span>
@@ -989,6 +1009,47 @@
           return text.length > 150 || text.split('\n').length > 4;
         };
 
+        const computedAC = computed(() => {
+          const char = selectedChar.value;
+          if (!char) return 10;
+          const dexMod = abilityMod((Number(char.abilities?.dex) || 10) + (Number(char.abilityBonus?.dex) || 0));
+          
+          let baseAC = 10 + dexMod;
+          let armorAC = null;
+          let bonusAC = 0;
+          let shieldAC = 0;
+          
+          const equipped = (char.inventory || []).filter(i => i.equipped);
+          equipped.forEach(item => {
+            let text = String(item.name || '') + ' ' + String(item.desc || '');
+            
+            // 處理護甲基礎AC
+            let matchArmor = text.match(/AC:\s*(\d+)/);
+            if (matchArmor && item.category && item.category.includes('護甲')) {
+              let acVal = parseInt(matchArmor[1], 10);
+              // 如果是中甲，敏捷加值最多+2
+              if (item.category.includes('中型')) acVal += Math.min(2, dexMod);
+              // 如果是重甲，不加敏捷
+              else if (item.category.includes('重型')) acVal = acVal;
+              // 輕甲
+              else acVal += dexMod;
+              
+              if (armorAC === null || acVal > armorAC) armorAC = acVal;
+            }
+            
+            // 處理盾牌
+            if (item.category && item.category.includes('盾牌')) shieldAC = 2;
+            
+            // 處理額外AC加值 (例如 AC +1)
+            let matchBonus = text.match(/AC\s*\+(\d+)/i) || text.match(/防禦等級.*?\+(\d+)/);
+            if (matchBonus) {
+              bonusAC += parseInt(matchBonus[1], 10);
+            }
+          });
+          
+          return (armorAC !== null ? armorAC : baseAC) + shieldAC + bonusAC;
+        });
+
         const abilityTotal = (key) => {
           const char = selectedChar.value;
           if (!char) return 10;
@@ -1291,6 +1352,7 @@
 ).trim(), custom: false }); },
           addCustomSpell: () => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; if(customSpell.value.name) { selectedChar.value.spellbook.push({ id: Date.now(), name: customSpell.value.name, level: customSpell.value.level, desc: customSpell.value.desc || '', custom: true }); customSpell.value.name = ''; customSpell.value.desc = ''; } },
           removeSpell: (idx) => { selectedChar.value.spellbook.splice(idx, 1); },
+          computedAC,
           abilityTotal,
           abilityMod,
           fmtMod,
