@@ -276,14 +276,24 @@
                   <span v-else class="text-3xl">🧙</span>
                 </div>
               </div>
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-3 gap-3">
                 <div>
                   <label class="block text-xs font-bold text-gray-500 mb-1">種族</label>
-                  <input v-model="selectedChar.race" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none">
+                  <select v-model="selectedChar.race" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
+                    <option v-for="r in RACES" :key="r.name" :value="r.name">{{ r.name }}</option>
+                  </select>
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-gray-500 mb-1">陣營</label>
-                  <input v-model="selectedChar.alignment" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none">
+                  <select v-model="selectedChar.alignment" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
+                    <option v-for="a in ALIGNMENTS" :key="a" :value="a">{{ a }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 mb-1">背景</label>
+                  <select v-model="selectedChar.background" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
+                    <option v-for="b in BACKGROUNDS" :key="b.name" :value="b.name">{{ b.name }}</option>
+                  </select>
                 </div>
               </div>
               <div>
@@ -306,10 +316,125 @@
                 <span class="text-lg">🧳</span> 單人模式：您可以自由修改並儲存這些數值。
               </div>
 
-              <!-- 佔位模擬內容 -->
-              <div class="p-6 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 text-center text-sm text-gray-400">
-                <div class="mb-2">🚧 開發中</div>
-                (此處將載入 <span class="font-bold text-gray-600">{{ activeModule }}</span> 在世界 <span class="font-bold text-gray-600">{{ selectedWorldKey }}</span> 下的詳細數據表單)
+              <!-- 內容區塊 -->
+              <div class="space-y-4">
+                
+                <!-- CLASSES 職業 -->
+                <div v-if="activeModule === 'classes'" class="space-y-4">
+                  <div v-for="(cls, idx) in (selectedChar.classes || [])" :key="idx" class="border border-gray-200 p-4 rounded-lg bg-gray-50">
+                    <div class="grid grid-cols-2 gap-3 mb-2">
+                      <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">職業</label>
+                        <select v-model="cls.name" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
+                          <option v-for="c in CLASSES" :key="c.name_zh" :value="c.name_zh">{{ c.name_zh }} ({{ c.name_en }})</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">等級</label>
+                        <input type="number" v-model.number="cls.level" min="1" max="20" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-gray-500 mb-1">子職業 (可選)</label>
+                      <input type="text" v-model="cls.subclass" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="例如：生命領域">
+                    </div>
+                  </div>
+                  <button @click="if(!selectedChar.classes) selectedChar.classes=[]; selectedChar.classes.push({name:'戰士', level:1, subclass:''})" class="w-full py-2 border border-dashed border-gray-300 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition">+ 新增兼職</button>
+                </div>
+
+                <!-- STATS 能力值 -->
+                <div v-if="activeModule === 'stats'" class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div v-for="(val, key) in selectedChar.abilities" :key="key" class="border border-gray-200 p-3 rounded-lg bg-gray-50 text-center">
+                    <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">{{ key }}</label>
+                    <input type="number" v-model.number="selectedChar.abilities[key]" class="w-full text-center font-bold text-lg border border-gray-300 rounded-md p-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                  </div>
+                </div>
+
+                <!-- INVENTORY 物品與背包 -->
+                <div v-if="activeModule === 'inventory'" class="space-y-4">
+                  <div class="grid grid-cols-4 gap-2">
+                    <div v-for="c in ['cp','sp','gp','pp']" :key="c">
+                      <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">{{c}}</label>
+                      <input type="number" v-model.number="selectedChar.coins[c]" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">裝備與物品 (每行一項)</label>
+                    <textarea :value="selectedChar.inventory.join('\n')" @input="selectedChar.inventory = $event.target.value.split('\n').filter(Boolean)" rows="6" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"></textarea>
+                  </div>
+                </div>
+
+                <!-- FAMILIAR 魔寵 -->
+                <div v-if="activeModule === 'familiar'" class="space-y-3">
+                  <div v-if="!selectedChar.familiar" class="text-center py-6 border-2 border-dashed border-gray-200 rounded-xl">
+                    <div class="text-gray-400 text-sm mb-2">尚未設定魔寵</div>
+                    <button @click="selectedChar.familiar = {name:'', type:'', speed:'', ac:10, hp:{current:1, max:1}, abilities:{str:10, dex:10, con:10, int:10, wis:10, cha:10}, attacks:'', notes:''}" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200 transition">新增魔寵</button>
+                  </div>
+                  <div v-else class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">名稱</label>
+                        <input type="text" v-model="selectedChar.familiar.name" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                      </div>
+                      <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">類型/種類</label>
+                        <input type="text" v-model="selectedChar.familiar.type" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                      <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">HP (目前)</label>
+                        <input type="number" v-model.number="selectedChar.familiar.hp.current" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                      </div>
+                      <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">HP (最大)</label>
+                        <input type="number" v-model.number="selectedChar.familiar.hp.max" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                      </div>
+                      <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">AC</label>
+                        <input type="number" v-model.number="selectedChar.familiar.ac" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SPELLS 法術 -->
+                <div v-if="activeModule === 'spells'" class="space-y-4">
+                  <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">法術位 (Slots)</label>
+                    <div class="space-y-2">
+                      <div v-for="slot in selectedChar.spellSlots" :key="slot.level" class="flex items-center gap-2 text-sm">
+                        <span class="w-8 font-bold text-gray-600">Lv {{ slot.level }}</span>
+                        <input type="number" v-model.number="slot.used" class="w-16 border border-gray-300 rounded p-1 text-center" title="已使用">
+                        <span class="text-gray-400">/</span>
+                        <input type="number" v-model.number="slot.max" class="w-16 border border-gray-300 rounded p-1 text-center" title="最大值">
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">法術列表 (每行一項)</label>
+                    <textarea v-model="selectedChar.spellsText" rows="6" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none resize-none" placeholder="例如：
+魔法飛彈
+火球術"></textarea>
+                  </div>
+                </div>
+
+                <!-- SKILLS 技能 -->
+                <div v-if="activeModule === 'skills'" class="space-y-4">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div v-for="(skData, skName) in selectedChar.skills" :key="skName" class="flex items-center justify-between p-2 border border-gray-200 rounded-lg bg-gray-50">
+                      <div class="flex items-center gap-2">
+                        <input type="checkbox" v-model="skData.proficient" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                        <span class="text-sm font-medium text-gray-700">{{ skName }}</span>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <span class="text-xs text-gray-400">覆蓋</span>
+                        <input type="number" v-model.number="skData.override" class="w-12 text-center text-xs border border-gray-300 rounded p-1" placeholder="無">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
               </div>
 
               <!-- 修改操作區 -->
@@ -338,6 +463,180 @@
 
   <script>
     const { createApp, ref, computed, watch, onMounted } = Vue;
+/* ===== 內嵌職業資料（離線可用，不靠外部 fetch） ===== */
+const CLASSES = [
+  { "name_zh":"野蠻人","name_en":"Barbarian","hit_dice":"d12","skills_choices":["動物認同","運動","威嚇","自然","察覺","求生"],
+    "subclass_label":"原始之道","subclass_level":3,"subclasses":[
+      { "name_zh":"狂戰士之道","name_en":"Path of the Berserker","desc_zh":"狂暴時可進入『狂亂』獲得額外一次攻擊，代價是回合後陷入力竭。純粹的暴力輸出流。" },
+      { "name_zh":"圖騰武者之道","name_en":"Path of the Totem Warrior","desc_zh":"選擇靈魂圖騰（熊／鷹／狼等）取得對應增益，如熊圖騰在狂暴時抗除精神外所有傷害，適合坦克。" }
+    ] },
+  { "name_zh":"吟遊詩人","name_en":"Bard","hit_dice":"d8","skills_choices":["任何技能"],
+    "subclass_label":"詩人學院","subclass_level":3,"subclasses":[
+      { "name_zh":"知識學院","name_en":"College of Lore","desc_zh":"再獲三項技能熟練與『銳語切磋』（以鼓舞骰扣減敵人攻擊／檢定／傷害），6級可借用他職法術，博學多聞型。" },
+      { "name_zh":"勇氣學院","name_en":"College of Valor","desc_zh":"獲得中甲、盾牌與軍用武器熟練；鼓舞骰可加武器傷害或AC，6級可額外攻擊，前線戰吟型。" }
+    ] },
+  { "name_zh":"牧師","name_en":"Cleric","hit_dice":"d8","skills_choices":["歷史","洞悉","醫藥","遊說","宗教"],
+    "subclass_label":"神聖領域","subclass_level":1,"subclasses":[
+      { "name_zh":"知識領域","name_en":"Knowledge Domain","desc_zh":"通曉語言與雙倍技能熟練，善用預言與探知，博學導向。" },
+      { "name_zh":"生命領域","name_en":"Life Domain","desc_zh":"重甲熟練，治療法術額外回復生命，最強白值奶媽。" },
+      { "name_zh":"光明領域","name_en":"Light Domain","desc_zh":"焰化爆發護身，擅長塑能範圍傷害與驅散黑暗。" },
+      { "name_zh":"自然領域","name_en":"Nature Domain","desc_zh":"重甲與德魯伊系法術，可魅惑動植物、招喚自然之力。" },
+      { "name_zh":"風暴領域","name_en":"Tempest Domain","desc_zh":"重甲熟練，受擊可電擊反擊，雷電傷害擲最大值。" },
+      { "name_zh":"詭術領域","name_en":"Trickery Domain","desc_zh":"賜予盟友潛行祝福，可製造分身幻影，欺敵滲透導向。" },
+      { "name_zh":"戰爭領域","name_en":"War Domain","desc_zh":"重甲與軍用武器熟練，可額外附贈神力加值攻擊，戰鬥牧師。" }
+    ] },
+  { "name_zh":"德魯伊","name_en":"Druid","hit_dice":"d8","skills_choices":["奧秘","動物認同","洞悉","醫藥","自然","察覺","宗教","求生"],
+    "subclass_label":"德魯伊結社","subclass_level":2,"subclasses":[
+      { "name_zh":"大地結社","name_en":"Circle of the Land","desc_zh":"依地形取得額外領域法術，可休息回復法術位，法術施放型德魯伊。" },
+      { "name_zh":"明月結社","name_en":"Circle of the Moon","desc_zh":"以附贈動作變身戰鬥形態（更高CR野獸），變身可回血，近戰肉搏流。" }
+    ] },
+  { "name_zh":"戰士","name_en":"Fighter","hit_dice":"d10","skills_choices":["特技","動物認同","運動","歷史","洞悉","威嚇","察覺","求生"],
+    "subclass_label":"武術原型","subclass_level":3,"subclasses":[
+      { "name_zh":"鬥士","name_en":"Champion","desc_zh":"重擊範圍擴大（19–20暴擊）、體能出眾，簡單粗暴穩定輸出。" },
+      { "name_zh":"戰鬥大師","name_en":"Battle Master","desc_zh":"學會戰技招式（擊倒／威逼／佯攻等）並以優勢骰驅動，戰術操作型。" },
+      { "name_zh":"祕法騎士","name_en":"Eldritch Knight","desc_zh":"習得法師系法術（以防護與塑能為主）與武器連結，魔劍士。" }
+    ] },
+  { "name_zh":"武僧","name_en":"Monk","hit_dice":"d8","skills_choices":["特技","運動","歷史","洞悉","宗教","隱匿"],
+    "subclass_label":"修行之道","subclass_level":3,"subclasses":[
+      { "name_zh":"開掌之道","name_en":"Way of the Open Hand","desc_zh":"疾風連擊可附加擊倒／推開／剝奪反應，並能調息回血，格鬥控場王。" },
+      { "name_zh":"暗影之道","name_en":"Way of Shadow","desc_zh":"以氣施展隱匿系法術，可於暗影間瞬移，忍者暗殺流。" },
+      { "name_zh":"四象之道","name_en":"Way of the Four Elements","desc_zh":"以氣施放元素法術（火球、推撞等），元素法武僧。" }
+    ] },
+  { "name_zh":"聖騎士","name_en":"Paladin","hit_dice":"d10","skills_choices":["運動","洞悉","威嚇","醫藥","遊說","宗教"],
+    "subclass_label":"神聖誓言","subclass_level":3,"subclasses":[
+      { "name_zh":"奉獻誓言","name_en":"Oath of Devotion","desc_zh":"神聖武器加值命中、驅散不死與邪祟，正義聖騎典範。" },
+      { "name_zh":"遠古誓言","name_en":"Oath of the Ancients","desc_zh":"自然庇佑抗法術傷害、驅散，守護生機的翠綠騎士。" },
+      { "name_zh":"復仇誓言","name_en":"Oath of Vengeance","desc_zh":"標記仇敵、追擊與驅散，鎖定單體的復仇獵手。" }
+    ] },
+  { "name_zh":"遊俠","name_en":"Ranger","hit_dice":"d10","skills_choices":["動物認同","運動","洞悉","調查","自然","察覺","隱匿","求生"],
+    "subclass_label":"遊俠原型","subclass_level":3,"subclasses":[
+      { "name_zh":"狩獵者","name_en":"Hunter","desc_zh":"選擇對抗群敵或巨敵的戰技（如巨獸剋星、多重射擊），泛用輸出遊俠。" },
+      { "name_zh":"馭獸大師","name_en":"Beast Master","desc_zh":"獲得野獸夥伴並肩作戰，可指揮牠攻擊與行動，馴獸師。" }
+    ] },
+  { "name_zh":"盜賊","name_en":"Rogue","hit_dice":"d8","skills_choices":["特技","運動","欺瞞","洞悉","威嚇","調查","察覺","表演","遊說","巧手","隱匿"],
+    "subclass_label":"盜賊原型","subclass_level":3,"subclasses":[
+      { "name_zh":"神偷","name_en":"Thief","desc_zh":"快手可用附贈動作開鎖／使用物品，攀爬更快、擅長攀樓潛入，經典盜賊。" },
+      { "name_zh":"刺客","name_en":"Assassin","desc_zh":"對尚未行動的目標暴擊、偷襲致命，精通易容與偽造，暗殺專家。" },
+      { "name_zh":"詭術師","name_en":"Arcane Trickster","desc_zh":"習得法師系法術（以惑控與幻術為主）並強化『法師之手』遠程扒竊，魔法盜賊。" }
+    ] },
+  { "name_zh":"術士","name_en":"Sorcerer","hit_dice":"d6","skills_choices":["奧秘","欺瞞","洞悉","威嚇","遊說","宗教"],
+    "subclass_label":"術法之源","subclass_level":1,"subclasses":[
+      { "name_zh":"龍族血脈","name_en":"Draconic Bloodline","desc_zh":"每級額外HP、選定龍屬抗性，無甲時龍鱗提供13+敏AC，硬朗術士。" },
+      { "name_zh":"狂野魔法","name_en":"Wild Magic","desc_zh":"施法可能觸發隨機『狂野魔法效應』，並能扭轉命運骰（機緣潮），混沌賭徒。" }
+    ] },
+  { "name_zh":"契術師","name_en":"Warlock","hit_dice":"d8","skills_choices":["奧秘","欺瞞","歷史","威嚇","調查","自然","宗教"],
+    "subclass_label":"契約庇主","subclass_level":1,"subclasses":[
+      { "name_zh":"妖精領主","name_en":"The Archfey","desc_zh":"迷惑或驚懼敵人的妖精魔法，可短暫隱形脫身，魅惑操控型。" },
+      { "name_zh":"魔鬼","name_en":"The Fiend","desc_zh":"擊殺敵人時獲得臨時生命，額外火焰／地獄系法術，耐打爆發型。" },
+      { "name_zh":"遠古巨物","name_en":"The Great Old One","desc_zh":"心靈感應、支配心智與扭曲精神的異界魔法，克蘇魯風控制流。" }
+    ] },
+  { "name_zh":"法師","name_en":"Wizard","hit_dice":"d6","skills_choices":["奧秘","歷史","洞悉","調查","醫藥","宗教"],
+    "subclass_label":"祕法傳承","subclass_level":2,"subclasses":[
+      { "name_zh":"防護學派","name_en":"School of Abjuration","desc_zh":"生成祕法護盾吸收傷害，擅長反制與解除魔法，防禦大師。" },
+      { "name_zh":"咒法學派","name_en":"School of Conjuration","desc_zh":"召喚生物與物件、瞬間傳送，戰場召喚流。" },
+      { "name_zh":"預言學派","name_en":"School of Divination","desc_zh":"預擲骰替換命運（預兆），洞悉先機的預言者。" },
+      { "name_zh":"惑控學派","name_en":"School of Enchantment","desc_zh":"魅惑與催眠強化，可扭曲敵人心智，操控型。" },
+      { "name_zh":"塑能學派","name_en":"School of Evocation","desc_zh":"塑能法術傷害加成且可保護盟友不被波及，經典炮手法師。" },
+      { "name_zh":"幻術學派","name_en":"School of Illusion","desc_zh":"幻象更逼真可實體化，欺敵與控場的幻術師。" },
+      { "name_zh":"死靈學派","name_en":"School of Necromancy","desc_zh":"操控生死、統御更多不死僕役，死靈法師。" },
+      { "name_zh":"變化學派","name_en":"School of Transmutation","desc_zh":"改變物質與生物，可製作變化寶石施展多種效果，變化大師。" }
+    ] }
+];
+
+/* 18 項標準技能與對應屬性 */
+const SKILLS = [
+  { zh:"特技", attr:"dex", attrZh:"敏捷" },
+  { zh:"動物認同", attr:"wis", attrZh:"感知" },
+  { zh:"奧秘", attr:"int", attrZh:"智力" },
+  { zh:"運動", attr:"str", attrZh:"力量" },
+  { zh:"欺瞞", attr:"cha", attrZh:"魅力" },
+  { zh:"歷史", attr:"int", attrZh:"智力" },
+  { zh:"洞悉", attr:"wis", attrZh:"感知" },
+  { zh:"威嚇", attr:"cha", attrZh:"魅力" },
+  { zh:"調查", attr:"int", attrZh:"智力" },
+  { zh:"醫藥", attr:"wis", attrZh:"感知" },
+  { zh:"自然", attr:"int", attrZh:"智力" },
+  { zh:"察覺", attr:"wis", attrZh:"感知" },
+  { zh:"表演", attr:"cha", attrZh:"魅力" },
+  { zh:"說服", attr:"cha", attrZh:"魅力" },
+  { zh:"宗教", attr:"int", attrZh:"智力" },
+  { zh:"巧手", attr:"dex", attrZh:"敏捷" },
+  { zh:"隱匿", attr:"dex", attrZh:"敏捷" },
+  { zh:"求生", attr:"wis", attrZh:"感知" }
+];
+
+/* JSON 內技能名稱對應到標準 18 技能（合理對應） */
+const SKILL_ALIAS = { "遊說":"說服", "說服":"說服", "潛行":"隱匿" };
+
+/* ===== D&D 5e 標準狀態（14 種）中英對照 ===== */
+const CONDITIONS = [
+  { id:"blinded",      zh:"目盲" },
+  { id:"charmed",      zh:"魅惑" },
+  { id:"deafened",     zh:"耳聾" },
+  { id:"frightened",   zh:"恐懼" },
+  { id:"grappled",     zh:"被擒抱" },
+  { id:"incapacitated",zh:"失能" },
+  { id:"invisible",    zh:"隱形" },
+  { id:"paralyzed",    zh:"麻痺" },
+  { id:"petrified",    zh:"石化" },
+  { id:"poisoned",     zh:"中毒" },
+  { id:"prone",        zh:"倒地" },
+  { id:"restrained",   zh:"束縛" },
+  { id:"stunned",      zh:"震懾" },
+  { id:"unconscious",  zh:"昏迷" }
+];
+
+/* ===== 常見語言（快捷選單；可另外自訂） ===== */
+const COMMON_LANGUAGES = [
+  "通用語","矮人語","精靈語","巨人語","地侏語","半身人語","獸人語","龍語",
+  "地下通用語","炼狱語","天界語","深潛語","原始語","德魯伊語","盜賊黑話"
+];
+
+/* ===== 常見熟練選項（護甲／武器／工具；快捷選單，可另外自訂） ===== */
+const ARMOR_OPTIONS = ["輕甲","中甲","重甲","盾牌"];
+const WEAPON_OPTIONS = ["簡易武器","軍用武器","匕首","飛鏢","投石索","木棒","巨棒","手斧","標槍","輕錘","錘矛","長棍","鐮刀","矛","長劍","短劍","彎刀","戰錘","巨劍","巨斧","長柄大鐮","戰斧","西洋劍","三叉戟","戰鎬","長矛","短弓","長弓","輕弩","重弩","手弩","吹箭槍","網"];
+const TOOL_OPTIONS = ["盜賊工具","煉金術士工具","釀造工具","書法工具","製圖工具","木工工具","烹飪工具","玻璃吹製工具","珠寶匠工具","皮匠工具","泥水匠工具","畫家工具","陶匠工具","補鞋匠工具","鐵匠工具","織補工具","木雕工具","易容工具","偽造工具","草藥工具","領航工具","毒師工具","樂器","骰子組","紙牌組","象棋組","陸上載具","水上載具"];
+
+/* ===== 種族（含 2014 PHB 標準 ASI 建議） ===== */
+const RACES = [
+  { name:"人類",      asi:{ str:1, dex:1, con:1, int:1, wis:1, cha:1 }, note:"" },
+  { name:"精靈",      asi:{ dex:2 }, note:"" },
+  { name:"矮人",      asi:{ con:2 }, note:"" },
+  { name:"半身人",    asi:{ dex:2 }, note:"" },
+  { name:"龍裔",      asi:{ str:2, cha:1 }, note:"" },
+  { name:"地侏",      asi:{ int:2 }, note:"" },
+  { name:"半精靈",    asi:{ cha:2 }, note:"半精靈另有兩項屬性各 +1，請於對應屬性「加值」欄手動填入。" },
+  { name:"半獸人",    asi:{ str:2, con:1 }, note:"" },
+  { name:"提夫林",    asi:{ cha:2, int:1 }, note:"" },
+  { name:"其他/自訂", asi:{}, note:"" }
+];
+
+/* ===== 陣營（九宮格，純角色扮演，不影響數值） ===== */
+const ALIGNMENTS = [
+  "守序善良","中立善良","混亂善良",
+  "守序中立","絕對中立","混亂中立",
+  "守序邪惡","中立邪惡","混亂邪惡"
+];
+
+/* ===== 背景（grantedSkills 名稱對應既有 SKILLS zh：說服=Persuasion） ===== */
+const BACKGROUNDS = [
+  { name:"侍僕",     grantedSkills:["洞悉","宗教"],     note:"語言：兩種任選" },
+  { name:"罪犯",     grantedSkills:["欺瞞","隱匿"],     note:"工具：一種遊戲組、盜賊工具" },
+  { name:"民間英雄", grantedSkills:["動物認同","求生"], note:"工具：一種匠人工具、載具（陸地）" },
+  { name:"貴族",     grantedSkills:["歷史","說服"],     note:"工具：一種遊戲組；語言：一種任選" },
+  { name:"賢者",     grantedSkills:["奧秘","歷史"],     note:"語言：兩種任選" },
+  { name:"士兵",     grantedSkills:["運動","威嚇"],     note:"工具：一種遊戲組、載具（陸地）" },
+  { name:"藝人",     grantedSkills:["特技","表演"],     note:"工具：易容工具、一種樂器" },
+  { name:"騙子",     grantedSkills:["欺瞞","巧手"],     note:"工具：易容工具、偽造工具" },
+  { name:"公會工匠", grantedSkills:["洞悉","說服"],     note:"工具：一種匠人工具；語言：一種任選" },
+  { name:"隱士",     grantedSkills:["醫藥","宗教"],     note:"工具：藥草工具；語言：一種任選" },
+  { name:"海員",     grantedSkills:["特技","察覺"],     note:"工具：航海工具、載具（水路）" },
+  { name:"城市浪人", grantedSkills:["巧手","隱匿"],     note:"工具：易容工具、盜賊工具" },
+  { name:"其他/自訂", grantedSkills:[],                  note:"" }
+];
+
+
+
 
     const app = createApp({
       setup() {
@@ -442,6 +741,16 @@
           selectedCharId,
           selectedChar,
           selectedWorldKey,
+          CLASSES,
+          SKILLS,
+          CONDITIONS,
+          COMMON_LANGUAGES,
+          ARMOR_OPTIONS,
+          WEAPON_OPTIONS,
+          TOOL_OPTIONS,
+          RACES,
+          ALIGNMENTS,
+          BACKGROUNDS,
           activeModule,
           isDMWorld,
           requestDMApproval
