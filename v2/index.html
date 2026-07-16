@@ -981,12 +981,14 @@
           return chars.value.find(c => c.id === selectedCharId.value) || null;
         });
 
-        watch([isEditMode, activeModule, selectedChar], ([edit, mod, char]) => {
-          if (edit && mod === 'skills' && char) {
+        watch([isEditMode, activeModule, selectedChar, () => coreRules.SKILLS], ([edit, mod, char, rulesSkills]) => {
+          if (mod === 'skills' && char) {
             if (!char.skills) char.skills = {};
-            coreRules.SKILLS.forEach(s => {
-              if (!char.skills[s.zh]) char.skills[s.zh] = { proficient: false, override: null };
-            });
+            if (rulesSkills && rulesSkills.length) {
+              rulesSkills.forEach(s => {
+                if (!char.skills[s.zh]) char.skills[s.zh] = { proficient: false, override: null };
+              });
+            }
           }
           if (edit && mod === 'stats' && char) {
             if (!char.abilities) {
