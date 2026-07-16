@@ -52,14 +52,14 @@
               <img :src="selectedChar.avatar" class="w-full h-full object-cover">
             </template>
             <template v-else-if="selectedChar">
-              {{ selectedChar.name ? selectedChar.name.charAt(0) : '未' }}
+              {{ selectedChar?.name ? selectedChar?.name.charAt(0) : '未' }}
             </template>
             <template v-else>
               🧙
             </template>
           </div>
           <div class="flex flex-col items-start truncate">
-            <div class="text-xs font-bold text-gray-800 truncate w-full">{{ selectedChar ? (selectedChar.name || '未命名') : '選擇角色' }}</div>
+            <div class="text-xs font-bold text-gray-800 truncate w-full">{{ selectedChar ? (selectedChar?.name || '未命名') : '選擇角色' }}</div>
             <div class="text-[10px] text-gray-500 truncate w-full">{{ selectedChar ? (selectedWorldKey === '__solo__' ? '🧳 單人冒險' : '🌍 ' + (selectedChar.worldProgress?.[selectedWorldKey]?.name || selectedWorldKey)) : '點擊切換' }}</div>
           </div>
           <div class="text-gray-400 ml-1 text-xs">▼</div>
@@ -85,10 +85,10 @@
               <button v-for="ch in chars" :key="ch.id" @click="selectSwitcherChar(ch)" class="w-full flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg transition text-left">
                 <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-700 shrink-0 overflow-hidden">
                   <img v-if="ch.avatar" :src="ch.avatar" class="w-full h-full object-cover">
-                  <span v-else>{{ ch.name ? ch.name.charAt(0) : '未' }}</span>
+                  <span v-else>{{ ch?.name ? ch?.name.charAt(0) : '未' }}</span>
                 </div>
                 <div class="flex-1 truncate">
-                  <div class="font-bold text-gray-800 text-sm truncate">{{ ch.name || '未命名' }}</div>
+                  <div class="font-bold text-gray-800 text-sm truncate">{{ ch?.name || '未命名' }}</div>
                   <div class="text-xs text-gray-500 truncate">{{ ch.race || '未設定種族' }}</div>
                 </div>
                 <div class="text-gray-300">▶</div>
@@ -106,7 +106,7 @@
               <div class="flex items-center gap-2">
                 <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 shrink-0 overflow-hidden">
                   <img v-if="switcherTempChar?.avatar" :src="switcherTempChar.avatar" class="w-full h-full object-cover">
-                  <span v-else>{{ switcherTempChar?.name ? switcherTempChar.name.charAt(0) : '未' }}</span>
+                  <span v-else>{{ switcherTempChar?.name ? switcherTempChar?.name.charAt(0) : '未' }}</span>
                 </div>
                 <div class="font-bold text-gray-700 text-sm truncate">{{ switcherTempChar?.name || '未命名' }} 的世界</div>
               </div>
@@ -124,7 +124,7 @@
                 <button v-for="(progress, key) in switcherTempChar.worldProgress" :key="key" v-show="key !== '__solo__'" @click="confirmSwitcherWorld(key)" class="w-full flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg transition text-left">
                   <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-lg">🌍</div>
                   <div class="flex-1 truncate">
-                    <div class="font-bold text-gray-800 text-sm truncate">{{ progress.name || key }}</div>
+                    <div class="font-bold text-gray-800 text-sm truncate">{{ progress?.name || key }}</div>
                     <div class="text-xs text-gray-500 truncate">DM 批准模式</div>
                   </div>
                 </button>
@@ -210,8 +210,8 @@
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-xl">🧙</div>
                 <div>
-                  <div class="font-bold text-gray-800">{{ ch.name || '未命名' }}</div>
-                  <div class="text-xs text-gray-500">{{ ch.classes?.map(c=>c.name).join('/') || '無職業' }}</div>
+                  <div class="font-bold text-gray-800">{{ ch?.name || '未命名' }}</div>
+                  <div class="text-xs text-gray-500">{{ ch.classes?.map(c=>c?.name).join('/') || '無職業' }}</div>
                 </div>
               </div>
               <button @click="switchView('characters'); selectedCharId = ch.id" class="px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded font-medium hover:bg-gray-200">進入</button>
@@ -253,7 +253,7 @@
             <div class="flex items-center gap-3">
               <div class="w-12 h-12 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-2xl">🧙</div>
               <div>
-                <h2 class="text-xl font-bold text-gray-800">{{ selectedChar.name || '未命名' }}</h2>
+                <h2 class="text-xl font-bold text-gray-800">{{ selectedChar?.name || '未命名' }}</h2>
                 <div class="text-xs text-gray-500">{{ selectedChar.race || '未知種族' }}</div>
               </div>
             </div>
@@ -355,7 +355,7 @@
               <div v-if="!isEditMode" class="space-y-4">
                 <div class="flex gap-4 items-start">
                   <div class="flex-1 space-y-3">
-                    <div><span class="text-xs text-gray-500 block">名稱</span><div class="font-bold text-lg">{{ selectedChar.name || '未命名' }}</div></div>
+                    <div><span class="text-xs text-gray-500 block">名稱</span><div class="font-bold text-lg">{{ selectedChar?.name || '未命名' }}</div></div>
                   </div>
                   <div class="w-20 h-20 shrink-0 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
                     <img v-if="selectedChar.avatar" :src="selectedChar.avatar" class="w-full h-full object-cover">
@@ -391,7 +391,7 @@
                   <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">種族</label>
                     <select v-model="selectedChar.race" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
-                      <option v-for="r in RACES" :key="r.name" :value="r.name">{{ r.name }}</option>
+                      <option v-for="r in RACES" :key="r?.name" :value="r?.name">{{ r?.name }}</option>
                     </select>
                   </div>
                   <div>
@@ -403,7 +403,7 @@
                   <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">背景</label>
                     <select v-model="selectedChar.background" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
-                      <option v-for="b in BACKGROUNDS" :key="b.name" :value="b.name">{{ b.name }}</option>
+                      <option v-for="b in BACKGROUNDS" :key="b?.name" :value="b?.name">{{ b?.name }}</option>
                     </select>
                   </div>
                 </div>
@@ -451,11 +451,11 @@
                         </button>
                         <div v-if="featOpen[idx]" class="mt-2 space-y-2 text-sm bg-white p-2 rounded border border-gray-100 shadow-sm">
                           <div v-for="(f, i) in classFeaturesFor(cls)" :key="'cf-'+i">
-                            <div class="font-bold text-gray-700">{{ f.name_zh || f.name_en }} <span class="text-[10px] text-gray-400 font-normal ml-1">Lv {{ f.level }}</span></div>
+                            <div class="font-bold text-gray-700">{{ f?.name_zh || f?.name_en }} <span class="text-[10px] text-gray-400 font-normal ml-1">Lv {{ f.level }}</span></div>
                             <div class="text-xs text-gray-500 whitespace-pre-wrap">{{ f.desc || f.desc_zh || f.desc_en }}</div>
                           </div>
                           <div v-for="(f, i) in subclassFeaturesFor(cls)" :key="'sf-'+i">
-                            <div class="font-bold text-gray-700 text-purple-700">{{ f.name_zh || f.name_en }} <span class="text-[10px] text-purple-400 font-normal ml-1">Lv {{ f.level }} (子職業)</span></div>
+                            <div class="font-bold text-gray-700 text-purple-700">{{ f?.name_zh || f?.name_en }} <span class="text-[10px] text-purple-400 font-normal ml-1">Lv {{ f.level }} (子職業)</span></div>
                             <div class="text-xs text-gray-500 whitespace-pre-wrap">{{ f.desc || f.desc_zh || f.desc_en }}</div>
                           </div>
                         </div>
@@ -487,7 +487,7 @@
                         </div>
                         <select v-model="cls.subclass" :disabled="(Number(cls.level)||0) < subclassDef(cls).level" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none bg-white disabled:bg-gray-100 disabled:text-gray-400">
                           <option value="">— 未選擇 —</option>
-                          <option v-for="sc in subclassDef(cls).list" :key="sc.name_en" :value="sc.name_en">{{ sc.name_zh }}</option>
+                          <option v-for="sc in subclassDef(cls).list" :key="sc?.name_en" :value="sc?.name_en">{{ sc?.name_zh }}</option>
                         </select>
                         <div v-if="selectedSubclassDesc(cls)" class="text-[11px] text-gray-500 mt-1.5 leading-snug bg-white p-2 rounded border border-gray-100">
                           {{ selectedSubclassDesc(cls) }}
@@ -501,11 +501,11 @@
                         </button>
                         <div v-if="featOpen[idx]" class="mt-2 space-y-2 text-sm bg-white p-2 rounded border border-gray-100 shadow-sm">
                           <div v-for="(f, i) in classFeaturesFor(cls)" :key="'cf-'+i">
-                            <div class="font-bold text-gray-700">{{ f.name_zh || f.name_en }} <span class="text-[10px] text-gray-400 font-normal ml-1">Lv {{ f.level }}</span></div>
+                            <div class="font-bold text-gray-700">{{ f?.name_zh || f?.name_en }} <span class="text-[10px] text-gray-400 font-normal ml-1">Lv {{ f.level }}</span></div>
                             <div class="text-xs text-gray-500 whitespace-pre-wrap">{{ f.desc || f.desc_zh || f.desc_en }}</div>
                           </div>
                           <div v-for="(f, i) in subclassFeaturesFor(cls)" :key="'sf-'+i">
-                            <div class="font-bold text-gray-700 text-purple-700">{{ f.name_zh || f.name_en }} <span class="text-[10px] text-purple-400 font-normal ml-1">Lv {{ f.level }} (子職業)</span></div>
+                            <div class="font-bold text-gray-700 text-purple-700">{{ f?.name_zh || f?.name_en }} <span class="text-[10px] text-purple-400 font-normal ml-1">Lv {{ f.level }} (子職業)</span></div>
                             <div class="text-xs text-gray-500 whitespace-pre-wrap">{{ f.desc || f.desc_zh || f.desc_en }}</div>
                           </div>
                         </div>
@@ -716,7 +716,7 @@
                     <div v-else class="space-y-4">
                       <div class="flex justify-between items-end border-b pb-2">
                         <div>
-                          <div class="text-lg font-bold">{{ selectedChar.familiar.name || '未命名魔寵' }}</div>
+                          <div class="text-lg font-bold">{{ selectedChar.familiar?.name || '未命名魔寵' }}</div>
                           <div class="text-xs text-gray-500">{{ selectedChar.familiar.type || '未知種類' }}</div>
                         </div>
                         <div class="text-right">
@@ -782,7 +782,7 @@
                       <div v-if="selectedChar.spellbook && selectedChar.spellbook.length > 0" class="space-y-2">
                         <div v-for="(spell, idx) in selectedChar.spellbook" :key="idx" class="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex flex-col gap-1">
                           <div class="flex justify-between items-center w-full">
-                            <span class="font-bold text-sm text-gray-800">{{ spell.name || spell.name_zh || spell.id }}</span>
+                            <span class="font-bold text-sm text-gray-800">{{ spell?.name || spell?.name_zh || spell.id }}</span>
                             <span class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">{{ spell.level === 0 || spell.level === '0' ? '戲法' : 'Lv ' + spell.level }}</span>
                           </div>
                           <div v-if="spell.desc" class="mt-1">
@@ -816,7 +816,7 @@
                         <div v-for="(spell, idx) in selectedChar.spellbook" :key="idx" class="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm flex justify-between items-start shadow-sm">
                           <div class="flex-1">
                             <div class="font-bold text-gray-800">
-                              {{ spell.name || spell.name_zh || spell.id }}
+                              {{ spell?.name || spell?.name_zh || spell.id }}
                               <span class="text-xs text-gray-500 font-normal ml-1">({{ spell.level === 0 || spell.level === '0' ? '戲法' : 'Lv ' + spell.level }})</span>
                             </div>
                             <div v-if="spell.desc" class="text-xs text-gray-400 mt-1 line-clamp-2" :title="spell.desc">{{ spell.desc }}</div>
@@ -964,11 +964,11 @@
               if (classData && classData.classes) {
                 // 將 features 與 subclasses features 合併進 coreRules.CLASSES
                 coreRules.CLASSES.forEach(baseDef => {
-                  const fullDef = classData.classes.find(c => c.name_en === baseDef.name_en);
+                  const fullDef = classData.classes.find(c => c.name_en === baseDef?.name_en);
                   if (fullDef) {
                     baseDef.features = fullDef.features || [];
                     (baseDef.subclasses || []).forEach(baseSc => {
-                      const fullSc = (fullDef.subclasses || []).find(sc => sc.name_en === baseSc.name_en);
+                      const fullSc = (fullDef.subclasses || []).find(sc => sc?.name_en === baseSc.name_en);
                       if (fullSc) {
                         baseSc.features = fullSc.features || [];
                       }
@@ -1108,7 +1108,7 @@
         
         const isSpellInBook = (sp) => {
           if(!selectedChar.value || !selectedChar.value.spellbook) return false;
-          return selectedChar.value.spellbook.some(b => b.name === sp?.name_zh || b.name === sp?.name || b.name === sp?.name_en);
+          return selectedChar.value.spellbook.some(b => b?.name === sp?.name_zh || b?.name === sp?.name || b?.name === sp?.name_en);
         };
 
         const filteredAvailableItems = computed(() => {
@@ -1363,25 +1363,25 @@
           isDMWorld,
           requestDMApproval,
           subclassDef: (cl) => {
-            const def = (coreRules.CLASSES || []).find(k => k.name_en === (cl.name_en || cl.name));
+            const def = (coreRules.CLASSES || []).find(k => k.name_en === (cl?.name_en || cl?.name));
             if(!def || !def.subclasses || !def.subclasses.length) return null;
             return { label: def.subclass_label, level: def.subclass_level, list: def.subclasses };
           },
           selectedSubclassDesc: (cl) => {
-            const def = (coreRules.CLASSES || []).find(k => k.name_en === (cl.name_en || cl.name));
+            const def = (coreRules.CLASSES || []).find(k => k.name_en === (cl?.name_en || cl?.name));
             if(!def || !def.subclasses || !cl.subclass) return "";
             const sc = def.subclasses.find(x => x.name_en === cl.subclass);
-            return sc ? (sc.name_zh + "：" + (sc.desc_zh || '')) : "";
+            return sc ? (sc?.name_zh + "：" + (sc.desc_zh || '')) : "";
           },
           getClassName: (cl) => {
-            const def = (coreRules.CLASSES || []).find(k => k.name_en === (cl.name_en || cl.name));
-            return def ? def.name_zh : (cl.name_en || cl.name);
+            const def = (coreRules.CLASSES || []).find(k => k.name_en === (cl?.name_en || cl?.name));
+            return def ? def?.name_zh : (cl?.name_en || cl?.name);
           },
           getSubclassName: (cl) => {
-            const def = (coreRules.CLASSES || []).find(k => k.name_en === (cl.name_en || cl.name));
+            const def = (coreRules.CLASSES || []).find(k => k.name_en === (cl?.name_en || cl?.name));
             if(!def || !def.subclasses || !cl.subclass) return "";
             const sc = def.subclasses.find(x => x.name_en === cl.subclass);
-            return sc ? sc.name_zh : cl.subclass;
+            return sc ? sc?.name_zh : cl.subclass;
           },
           featOpen,
           toggleFeat: (idx) => { featOpen.value[idx] = !featOpen.value[idx]; },
@@ -1390,13 +1390,13 @@
           needsExpand,
           hasStatEffect,
           classFeaturesFor: (cl) => {
-            const def = coreRules.CLASSES.find(k => k.name_en === (cl.name_en || cl.name));
+            const def = coreRules.CLASSES.find(k => k.name_en === (cl?.name_en || cl?.name));
             const lv = Number(cl.level) || 0;
             if(!def || !def.features) return [];
             return def.features.filter(f => !f.level || f.level <= lv);
           },
           subclassFeaturesFor: (cl) => {
-            const def = coreRules.CLASSES.find(k => k.name_en === (cl.name_en || cl.name));
+            const def = coreRules.CLASSES.find(k => k.name_en === (cl?.name_en || cl?.name));
             const lv = Number(cl.level) || 0;
             if(!def || !def.subclasses || !cl.subclass) return [];
             const sc = def.subclasses.find(x => x.name_en === cl.subclass);
