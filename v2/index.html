@@ -1072,7 +1072,28 @@ const BACKGROUNDS = [
           addCustomSpell: () => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; if(customSpell.value.name) { selectedChar.value.spellbook.push({ id: Date.now(), name: customSpell.value.name, level: customSpell.value.level, desc: customSpell.value.desc || '', custom: true }); customSpell.value.name = ''; customSpell.value.desc = ''; } },
           removeSpell: (idx) => { selectedChar.value.spellbook.splice(idx, 1); },
           isDMWorld,
-          requestDMApproval
+          requestDMApproval,
+          subclassDef: (cl) => {
+            const def = CLASSES.find(k => k.name_en === (cl.name_en || cl.name));
+            if(!def || !def.subclasses || !def.subclasses.length) return null;
+            return { label: def.subclass_label, level: def.subclass_level, list: def.subclasses };
+          },
+          selectedSubclassDesc: (cl) => {
+            const def = CLASSES.find(k => k.name_en === (cl.name_en || cl.name));
+            if(!def || !def.subclasses || !cl.subclass) return "";
+            const sc = def.subclasses.find(x => x.name_en === cl.subclass);
+            return sc ? (sc.name_zh + "：" + (sc.desc_zh || '')) : "";
+          },
+          getClassName: (cl) => {
+            const def = CLASSES.find(k => k.name_en === (cl.name_en || cl.name));
+            return def ? def.name_zh : (cl.name_en || cl.name);
+          },
+          getSubclassName: (cl) => {
+            const def = CLASSES.find(k => k.name_en === (cl.name_en || cl.name));
+            if(!def || !def.subclasses || !cl.subclass) return "";
+            const sc = def.subclasses.find(x => x.name_en === cl.subclass);
+            return sc ? sc.name_zh : cl.subclass;
+          }
         };
       }
     });
