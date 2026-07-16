@@ -316,38 +316,39 @@
           <div class="text-[10px] mt-1 text-right" style="color:var(--ink-soft)">{{ new Date(m.ts).toLocaleTimeString() }}</div>
         </div>
       </div>
-      <!-- 階段二 世界進度切換器 -->
-      <div class="card p-3 mt-3">
-        <div class="flex justify-between items-center mb-2">
-          <span class="text-sm font-bold" style="color:var(--gold-deep)">🌍 世界進度</span>
-          <button @click="renameWorld(currentWorldKey)" class="btn px-2 py-0.5 text-[11px]" style="background:var(--bg-2, var(--bg));color:var(--ink-soft);border:1px solid var(--border-color)">✏️ 命名</button>
-        </div>
-        <select :value="currentWorldKey" @change="switchWorld($event.target.value)" class="w-full px-2 py-1.5 rounded border text-sm" style="background:var(--bg);border-color:var(--border-color);color:var(--ink)">
-          <option v-for="w in knownWorlds" :key="w.key" :value="w.key">{{ w.name }}（戰報 {{ w.logCount }}・情報 {{ w.flagCount }}）</option>
-        </select>
-        <p class="text-[11px] mt-1" style="color:var(--ink-soft)">切換世界會顯示該世界的戰報與情報；角色身份不變。</p>
-      </div>
-      <!-- M4-1 戰報日誌（Session 過程紀錄） -->
-      <div class="card p-3 mt-3">
-        <div class="flex justify-between items-center mb-2">
-          <span class="text-sm font-bold" style="color:var(--gold-deep)">📜 戰報日誌</span>
-          <button v-if="logEntries.length" @click="clearCampaignLog()" class="btn px-2 py-0.5 text-[11px]" style="background:var(--bg-2, var(--bg));color:var(--ink-soft);border:1px solid var(--border-color)">清空</button>
-        </div>
-        <div v-if="logEntries.length" class="overflow-y-auto rounded p-2 text-xs space-y-1" style="max-height:12rem;background:var(--bg);border:1px solid var(--border-color)">
-          <div v-for="(e, i) in logEntries" :key="e.ts + '-' + i" class="flex gap-2 items-start p-1.5 rounded" :style="'background:var(--card);border:1px solid var(--border-color);border-left:4px solid ' + logMeta(e.type).color">
-            <span class="shrink-0" style="font-size:14px;line-height:1.2">{{ logMeta(e.type).icon }}</span>
-            <div class="min-w-0 flex-1">
-              <div class="leading-snug break-words">{{ e.text }}</div>
-              <div class="text-[10px] num mt-0.5" style="color:var(--ink-soft)">{{ new Date(e.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) }}</div>
-            </div>
-          </div>
-        </div>
-        <div v-else class="italic text-center py-4 text-xs" style="color:var(--ink-soft)">尚無戰報紀錄</div>
-      </div>
     </div>
     <div v-if="roomState.error" class="text-xs mt-1" style="color:#d66">{{ roomState.error }}</div>
   </div>
-    <div v-if="!roomState.uid" class="card p-3 text-sm text-center no-print" style="color:var(--ink-soft)">🎲 牌桌連線初始化中…（需要網路連線）</div>
+  <div v-if="!roomState.uid" class="card p-3 text-sm text-center no-print mb-3" style="color:var(--ink-soft)">🎲 牌桌連線初始化中…（需要網路連線）</div>
+
+  <!-- 階段二 世界進度切換器 -->
+  <div class="card p-3 mb-3">
+    <div class="flex justify-between items-center mb-2">
+      <span class="text-sm font-bold" style="color:var(--gold-deep)">🌍 世界進度</span>
+      <button @click="renameWorld(currentWorldKey)" class="btn px-2 py-0.5 text-[11px]" style="background:var(--bg-2, var(--bg));color:var(--ink-soft);border:1px solid var(--border-color)">✏️ 命名</button>
+    </div>
+    <select :value="currentWorldKey" @change="switchWorld($event.target.value)" class="w-full px-2 py-1.5 rounded border text-sm" style="background:var(--bg);border-color:var(--border-color);color:var(--ink)">
+      <option v-for="w in knownWorlds" :key="w.key" :value="w.key">{{ w.name }}（戰報 {{ w.logCount }}・情報 {{ w.flagCount }}）</option>
+    </select>
+    <p class="text-[11px] mt-1" style="color:var(--ink-soft)">切換世界會顯示該世界的戰報與情報；角色身份不變。</p>
+  </div>
+  <!-- M4-1 戰報日誌（Session 過程紀錄） -->
+  <div class="card p-3 mb-3">
+    <div class="flex justify-between items-center mb-2">
+      <span class="text-sm font-bold" style="color:var(--gold-deep)">📜 戰報日誌</span>
+      <button v-if="logEntries.length" @click="clearCampaignLog()" class="btn px-2 py-0.5 text-[11px]" style="background:var(--bg-2, var(--bg));color:var(--ink-soft);border:1px solid var(--border-color)">清空</button>
+    </div>
+    <div v-if="logEntries.length" class="overflow-y-auto rounded p-2 text-xs space-y-1" style="max-height:12rem;background:var(--bg);border:1px solid var(--border-color)">
+      <div v-for="(e, i) in logEntries" :key="e.ts + '-' + i" class="flex gap-2 items-start p-1.5 rounded" :style="'background:var(--card);border:1px solid var(--border-color);border-left:4px solid ' + logMeta(e.type).color">
+        <span class="shrink-0" style="font-size:14px;line-height:1.2">{{ logMeta(e.type).icon }}</span>
+        <div class="min-w-0 flex-1">
+          <div class="leading-snug break-words">{{ e.text }}</div>
+          <div class="text-[10px] num mt-0.5" style="color:var(--ink-soft)">{{ new Date(e.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) }}</div>
+        </div>
+      </div>
+    </div>
+    <div v-else class="italic text-center py-4 text-xs" style="color:var(--ink-soft)">尚無戰報紀錄</div>
+  </div>
   </section>
 
   <!-- ===== 關於 / 鳴謝 彈窗（列印隱藏） ===== -->
