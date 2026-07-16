@@ -143,94 +143,98 @@
         </div>
       </template>
 
-      <!-- 模塊：角色列表與主視角 (Characters & POV) -->
+      <!-- 模塊：專屬角色管理 Dashboard -->
       <template v-if="currentView === 'characters'">
-        <!-- 列表視圖 -->
-        <div v-if="!selectedChar">
-          <div class="mb-4 text-gray-600 text-sm font-medium px-1">所有角色</div>
-          <div v-if="chars.length > 0" class="space-y-3">
-            <div v-for="ch in chars" :key="ch.id" @click="selectedCharId = ch.id" class="flex items-center justify-between p-3 border border-gray-100 bg-white rounded-lg hover:shadow-md cursor-pointer transition">
-              <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-2xl">🧙</div>
-                <div>
-                  <div class="font-bold text-gray-800 text-lg">{{ ch.name || '未命名' }}</div>
-                  <div class="text-xs text-gray-500">{{ ch.race || '未知種族' }} • {{ ch.classes?.map(c=>c.name).join('/') || '無職業' }}</div>
-                </div>
-              </div>
-              <button class="px-3 py-1 bg-blue-50 text-blue-600 text-xs rounded font-medium hover:bg-blue-100">主視角</button>
-            </div>
-          </div>
-          <div v-else class="module-card text-center py-10 text-gray-400">
-            尚無角色紀錄
-          </div>
+        <!-- 防呆：未選取角色時 -->
+        <div v-if="!selectedChar" class="module-card text-center py-10">
+          <div class="text-3xl mb-3">🧙</div>
+          <div class="text-gray-500 mb-4">請先從儀表板選擇角色</div>
+          <button @click="switchView('dashboard')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">返回儀表板</button>
         </div>
 
-        <!-- 角色主視角 (POV) -->
+        <!-- 角色管理視圖 -->
         <div v-else>
-          <div class="mb-4">
-            <button @click="selectedCharId = null" class="flex items-center text-sm text-blue-500 hover:text-blue-700 font-medium">
-              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-              返回列表
-            </button>
-          </div>
-
-          <!-- 1) 身份背景 (Identity) -->
-          <div class="module-card mb-4">
-            <div class="flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
-              <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-3xl shadow-sm border border-blue-200">🧙</div>
+          <!-- 頂部區：角色基本資訊與世界切換器 -->
+          <div class="module-card mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-2xl">🧙</div>
               <div>
-                <h2 class="text-2xl font-bold text-gray-800">{{ selectedChar.name || '未命名' }}</h2>
-                <div class="text-sm text-gray-500 mt-1">
-                  {{ selectedChar.race || '未知種族' }} | {{ selectedChar.background || '未知背景' }}
-                </div>
+                <h2 class="text-xl font-bold text-gray-800">{{ selectedChar.name || '未命名' }}</h2>
+                <div class="text-xs text-gray-500">{{ selectedChar.race || '未知種族' }}</div>
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-4 text-sm">
-              <div class="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                <div class="text-gray-400 text-xs mb-1">職業與等級</div>
-                <div class="font-medium text-gray-800">{{ selectedChar.classes?.map(c=>`${c.name} Lv.${c.level}`).join(', ') || '無職業' }}</div>
-              </div>
-              <div class="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                <div class="text-gray-400 text-xs mb-1">陣營</div>
-                <div class="font-medium text-gray-800">{{ selectedChar.alignment || '未設定' }}</div>
-              </div>
+            
+            <div class="flex flex-col min-w-[200px]">
+              <label class="text-[10px] text-gray-400 font-bold mb-1 uppercase tracking-wider">目前所在世界</label>
+              <select v-model="selectedWorldKey" class="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 outline-none">
+                <option value="__solo__">🧳 單人冒險 (未綁定)</option>
+                <option v-for="(progress, key) in selectedChar.worldProgress" :key="key" v-show="key !== '__solo__'" :value="key">
+                  🌍 {{ progress.name || key }}
+                </option>
+              </select>
             </div>
           </div>
 
-          <!-- 2) 冒險足跡 (World Connections) -->
-          <div class="module-card">
-            <h3 class="text-gray-600 font-bold mb-3">冒險足跡</h3>
-            <div v-if="selectedChar.worldProgress && Object.keys(selectedChar.worldProgress).length > 0" class="space-y-3">
-              <div v-for="(progress, key) in selectedChar.worldProgress" :key="key" class="border border-gray-200 rounded-lg p-4 bg-gray-50 relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-1 h-full" :class="key === '__solo__' ? 'bg-purple-400' : 'bg-blue-400'"></div>
-                <div class="flex justify-between items-start pl-2">
-                  <div>
-                    <div class="flex items-center gap-2 mb-1">
-                      <span class="text-sm font-bold text-gray-800">{{ progress.name || (key === '__solo__' ? '單人冒險' : '未知世界') }}</span>
-                      <span class="text-[10px] px-2 py-0.5 rounded-full font-medium" :class="key === '__solo__' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'">
-                        {{ key === '__solo__' ? '單人世界' : 'DM世界' }}
-                      </span>
-                    </div>
-                    <div class="text-xs text-gray-500" v-if="key !== '__solo__'">連線房號: {{ key }}</div>
-                  </div>
-                  <div class="text-right">
-                    <div class="text-xl font-bold text-gray-700">{{ progress.campaignLog ? progress.campaignLog.length : 0 }}</div>
-                    <div class="text-[10px] text-gray-400">事件紀錄</div>
-                  </div>
-                </div>
-                <!-- 列出前兩筆紀錄 -->
-                <div v-if="progress.campaignLog && progress.campaignLog.length > 0" class="mt-3 pt-3 border-t border-gray-200 pl-2">
-                  <div class="text-xs text-gray-400 mb-1">近期事件：</div>
-                  <ul class="text-xs text-gray-600 space-y-1 list-disc list-inside">
-                    <li v-for="(log, idx) in progress.campaignLog.slice(0, 2)" :key="idx" class="truncate">{{ log.title || log.date || '事件' }}</li>
-                  </ul>
-                  <div v-if="progress.campaignLog.length > 2" class="text-[10px] text-gray-400 mt-1 pl-1">...等 {{ progress.campaignLog.length }} 筆紀錄</div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="text-center py-6 text-sm text-gray-400 border border-dashed border-gray-200 rounded-lg">
-              尚無冒險足跡
-            </div>
+          <!-- 管理模塊網格 -->
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+            
+            <!-- 全域模塊：故事背景 -->
+            <button class="col-span-2 md:col-span-3 bg-white border border-purple-200 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-purple-300 transition relative overflow-hidden group">
+              <div class="absolute top-0 right-0 bg-purple-100 text-purple-700 text-[10px] px-2 py-1 rounded-bl-lg font-bold tracking-wider">🌐 全域跨世界</div>
+              <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">📜</div>
+              <div class="font-bold text-gray-800">故事背景</div>
+              <div class="text-xs text-gray-500 mt-1">名稱、種族、背景故事與外貌等核心設定</div>
+            </button>
+
+            <!-- 綁定世界的模塊 -->
+            <!-- 職業 -->
+            <button class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
+              <div class="absolute top-0 right-0 bg-blue-50 text-blue-500 text-[9px] px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl font-medium">📍 當前世界</div>
+              <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">⚔️</div>
+              <div class="font-bold text-gray-800">職業與等級</div>
+              <div class="text-xs text-gray-400 mt-1">管理各世界的職業與經驗</div>
+            </button>
+
+            <!-- 能力值 -->
+            <button class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
+              <div class="absolute top-0 right-0 bg-blue-50 text-blue-500 text-[9px] px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl font-medium">📍 當前世界</div>
+              <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">💪</div>
+              <div class="font-bold text-gray-800">能力值</div>
+              <div class="text-xs text-gray-400 mt-1">屬性、豁免與加值</div>
+            </button>
+
+            <!-- 物品 -->
+            <button class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
+              <div class="absolute top-0 right-0 bg-blue-50 text-blue-500 text-[9px] px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl font-medium">📍 當前世界</div>
+              <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">🎒</div>
+              <div class="font-bold text-gray-800">物品與背包</div>
+              <div class="text-xs text-gray-400 mt-1">裝備、道具與金幣</div>
+            </button>
+
+            <!-- 魔寵 -->
+            <button class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
+              <div class="absolute top-0 right-0 bg-blue-50 text-blue-500 text-[9px] px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl font-medium">📍 當前世界</div>
+              <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">🦉</div>
+              <div class="font-bold text-gray-800">魔寵</div>
+              <div class="text-xs text-gray-400 mt-1">狀態與能力</div>
+            </button>
+
+            <!-- 法術 -->
+            <button class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
+              <div class="absolute top-0 right-0 bg-blue-50 text-blue-500 text-[9px] px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl font-medium">📍 當前世界</div>
+              <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">✨</div>
+              <div class="font-bold text-gray-800">法術</div>
+              <div class="text-xs text-gray-400 mt-1">法術書與消耗紀錄</div>
+            </button>
+
+            <!-- 技能 -->
+            <button class="bg-white border border-blue-100 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-blue-300 transition relative group">
+              <div class="absolute top-0 right-0 bg-blue-50 text-blue-500 text-[9px] px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl font-medium">📍 當前世界</div>
+              <div class="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">🎯</div>
+              <div class="font-bold text-gray-800">技能</div>
+              <div class="text-xs text-gray-400 mt-1">專長與技能熟練度</div>
+            </button>
+
           </div>
         </div>
       </template>
@@ -246,7 +250,7 @@
   </div>
 
   <script>
-    const { createApp, ref, computed, onMounted } = Vue;
+    const { createApp, ref, computed, watch, onMounted } = Vue;
 
     const app = createApp({
       setup() {
@@ -254,10 +258,16 @@
         const currentView = ref('dashboard');
         const chars = ref([]);
         const selectedCharId = ref(null);
+        const selectedWorldKey = ref('__solo__');
 
         const selectedChar = computed(() => {
           if (!selectedCharId.value) return null;
           return chars.value.find(c => c.id === selectedCharId.value) || null;
+        });
+
+        // 當選擇的角色改變時，重設世界選擇器為 __solo__
+        watch(selectedCharId, (newId) => {
+          selectedWorldKey.value = '__solo__';
         });
 
         // 啟動時讀取 V1 既有的本地存檔資料
@@ -309,7 +319,11 @@
         const switchView = (view) => {
           currentView.value = view;
           isMenuOpen.value = false;
-          if (view !== 'characters') {
+          
+          if (view === 'characters' && !selectedCharId.value && chars.value.length > 0) {
+            // 如果切換到角色視圖且沒有選定角色，預設選擇第一個
+            selectedCharId.value = chars.value[0].id;
+          } else if (view !== 'characters' && view !== 'dashboard') {
             selectedCharId.value = null;
           }
         };
@@ -322,7 +336,8 @@
           chars,
           stats,
           selectedCharId,
-          selectedChar
+          selectedChar,
+          selectedWorldKey
         };
       }
     });
