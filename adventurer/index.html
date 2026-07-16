@@ -306,7 +306,7 @@
       </div>
       <div class="flex justify-between items-center mb-2">
         <span class="text-sm font-bold" style="color:var(--gold-deep)">🎲 已連線：{{ roomState.id }}</span>
-        <span class="text-[10px]" style="color:var(--ink-soft)">🏆 XP {{ c.xp || 0 }} · 即時同步中</span>
+        <span class="text-[10px]" style="color:var(--ink-soft)">🏆 XP {{ activeWorldBucket.xp || 0 }} · 即時同步中</span>
       </div>
       <div class="overflow-y-auto rounded p-2 text-xs space-y-2" style="max-height:8rem;background:var(--bg);border:1px solid var(--border-color)">
         <div v-if="roomState.messages.length===0" class="italic text-center py-6" style="color:var(--ink-soft)">等待 DM 訊息…</div>
@@ -967,7 +967,7 @@
       <div class="grid grid-cols-4 gap-2 text-center">
         <div v-for="coin in coinDefs" :key="coin.key" class="stat-box p-2">
           <div class="text-[11px]">{{ coin.zh }}</div>
-          <input v-model.number="c.coins[coin.key]" type="number" class="w-full mt-1 text-center font-bold num py-1">
+          <input v-model.number="activeWorldBucket.coins[coin.key]" type="number" class="w-full mt-1 text-center font-bold num py-1">
         </div>
       </div>
     </div>
@@ -1308,7 +1308,7 @@
     <div class="ps-section">
       <h2>背包物品</h2>
       <div class="ps-grid ps-muted" style="margin-bottom:2px">
-        <div>銅 {{ c.coins.cp }}</div><div>銀 {{ c.coins.sp }}</div><div>金 {{ c.coins.gp }}</div><div>白金 {{ c.coins.pp }}</div>
+        <div>銅 {{ activeWorldBucket.coins.cp }}</div><div>銀 {{ activeWorldBucket.coins.sp }}</div><div>金 {{ activeWorldBucket.coins.gp }}</div><div>白金 {{ activeWorldBucket.coins.pp }}</div>
       </div>
       <table v-if="c.inventory.length">
         <tr><th style="width:32px">數</th><th>物品</th><th>屬性</th></tr>
@@ -2654,6 +2654,15 @@ const app = createApp({
       const b = ch.worldProgress[k];
       if(!Array.isArray(b.campaignLog)) b.campaignLog = [];
       if(!Array.isArray(b.flags)) b.flags = [];
+      if(typeof b.xp !== "number") b.xp = 0;
+      if(!b.coins || typeof b.coins !== "object") b.coins = { cp:0, sp:0, gp:0, pp:0 };
+      /* 一次性遷移 XP/Coins：若根層有值且當前桶為 0，則遷入桶並清空根層 */
+      if(typeof ch.xp === "number" && ch.xp > 0 && b.xp === 0){ b.xp = ch.xp; ch.xp = 0; }
+      if(ch.coins && (ch.coins.cp>0 || ch.coins.sp>0 || ch.coins.gp>0 || ch.coins.pp>0) && 
+         b.coins.cp===0 && b.coins.sp===0 && b.coins.gp===0 && b.coins.pp===0){
+        b.coins = JSON.parse(JSON.stringify(ch.coins));
+        ch.coins = { cp:0, sp:0, gp:0, pp:0 };
+      }
       /* 一次性遷移：舊根層資料且此桶為空 → 移入桶並清空根層 */
       if(Array.isArray(ch.campaignLog) && ch.campaignLog.length && !b.campaignLog.length){ b.campaignLog = ch.campaignLog.slice(); ch.campaignLog = []; }
       if(Array.isArray(ch.flags) && ch.flags.length && !b.flags.length){ b.flags = ch.flags.slice(); ch.flags = []; }
@@ -2690,8 +2699,19 @@ const app = createApp({
         if(src) label += "（來源：" + src + "）";
         label += " HP " + before + "→" + after;
       }
-      else if(cmd.type === "gold"){ ch.coins.gp = Math.max(0, (Number(ch.coins.gp)||0) + amt); if(c.id===ch.id){ c.coins.gp = ch.coins.gp; } label = (amt>=0?"💰 獲得 ":"💸 失去 ") + Math.abs(amt) + " 金幣 (gp)"; if(src) label += "（來源：" + src + "）"; }
-      else if(cmd.type === "xp"){ ch.xp = Math.max(0, (Number(ch.xp)||0) + amt); if(c.id===ch.id){ c.xp = ch.xp; } label = (amt>=0?"🏆 獲得 ":"➖ 扣除 ") + Math.abs(amt) + " 經驗值 (累計 " + ch.xp + ")"; }
+      else if(cmd.type === "gold"){ 
+        const b = worldBucket(ch);
+        b.coins.gp = Math.max(0, (Number(b.coins.gp)||0) + amt); 
+        if(c.id===ch.id){ const cb = worldBucket(c); cb.coins.gp = b.coins.gp; } 
+        label = (amt>=0?"💰 獲得 ":"💸 失去 ") + Math.abs(amt) + " 金幣 (gp)"; 
+        if(src) label += "（來源：" + src + "）"; 
+      }
+      else if(cmd.type === "xp"){ 
+        const b = worldBucket(ch);
+        b.xp = Math.max(0, (Number(b.xp)||0) + amt); 
+        if(c.id===ch.id){ const cb = worldBucket(c); cb.xp = b.xp; } 
+        label = (amt>=0?"🏆 獲得 ":"➖ 扣除 ") + Math.abs(amt) + " 經驗值 (累計 " + b.xp + ")"; 
+      }
       else if(cmd.type === "info"){ label = "🚩 情報更新"; kind = "info"; }
       else if(cmd.type === "item"){
         const itemName = (cmd.itemName ? String(cmd.itemName) : "").trim();
@@ -2741,6 +2761,10 @@ const app = createApp({
       return "世界 #" + String(key).slice(-4);
     }
     const currentWorldKey = computed(()=> worldKey(activeChar()));
+    const activeWorldBucket = computed(() => {
+      if(!c.id) return { xp:0, coins:{cp:0,sp:0,gp:0,pp:0}, campaignLog:[], flags:[] };
+      return worldBucket(c);
+    });
     const knownWorlds = computed(()=>{
       const a = activeChar(); if(!a) return [];
       const keys = new Set();
@@ -2908,6 +2932,7 @@ const app = createApp({
     });
 
     return {
+      activeWorldBucket,
       joinCode, joinCharId, showSeatNotice, roomState, joinRoom, cmdToast,
       reqItemName, reqItemQty, reqItemReason, askDM, sendItemRequest,
       logEntries, flagList, clearCampaignLog, logMeta,
