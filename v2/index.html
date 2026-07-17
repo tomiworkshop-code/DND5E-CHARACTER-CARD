@@ -173,7 +173,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0716.10)
+          v2.0.0 (Build 0716.11)
         </div>
       </div>
     </transition>
@@ -232,7 +232,7 @@
             <div class="font-bold text-sm">加入牌桌</div>
             <div class="text-xs text-blue-200 mt-1">掃描或輸入房號</div>
           </button>
-          <button class="bg-white border border-gray-200 text-gray-700 rounded-xl p-4 text-left shadow-sm hover:bg-gray-50 transition">
+          <button @click="createNewChar" class="bg-white border border-gray-200 text-gray-700 rounded-xl p-4 text-left shadow-sm hover:bg-gray-50 transition">
             <div class="text-xl mb-1">✍️</div>
             <div class="font-bold text-sm">創建新角色</div>
             <div class="text-xs text-gray-400 mt-1">展開新的冒險</div>
@@ -1409,6 +1409,26 @@
           selectSwitcherChar,
           confirmSwitcherWorld,
           createNewWorld,
+          createNewChar: () => {
+            const newChar = {
+              id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+              name: '新冒險者',
+              race: '',
+              alignment: '',
+              classes: [],
+              abilities: { str:10, dex:10, con:10, int:10, wis:10, cha:10 },
+              hp: { current:10, max:10, temp:0 },
+              ac: 10,
+              initiative: 0,
+              inventory: [],
+              spellbook: [],
+              spellSlots: Array.from({length:9}, (_,i)=>({ level:i+1, max:0, used:0 })),
+              worldProgress: {}
+            };
+            chars.value.push(newChar);
+            selectedCharId.value = newChar.id;
+            switchView('characters');
+          },
           currentView,
           viewTitle,
           switchView,
