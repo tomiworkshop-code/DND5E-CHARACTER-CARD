@@ -1,8 +1,9 @@
 /* 冒險者之書 V2 · Service Worker（統一儀表板） */
-const CACHE = 'dnd-v2-v1';
+const CACHE = 'dnd-v2-v2';
 const ASSETS = [
   './',
   './index.html',
+  './app.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
