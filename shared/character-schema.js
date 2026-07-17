@@ -50,9 +50,15 @@
     };
   }
 
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+  }
+  
+  global.uid = global.uid || uid;
+
   function defaultChar(){
     const skills = {};
-    SKILLS.forEach(s => { skills[s.zh] = { proficient:false, override:null }; });
+    if (typeof SKILLS !== 'undefined' && Array.isArray(SKILLS)) SKILLS.forEach(s => { skills[s.zh] = { proficient:false, override:null }; });
     return {
       id: uid(),
       /* 存檔槽定位（Phase 3 前置，§5.6）：
