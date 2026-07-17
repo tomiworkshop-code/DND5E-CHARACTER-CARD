@@ -166,6 +166,10 @@
               <span class="text-3xl mb-2">🌍</span>
               <span class="font-medium text-sm">世界</span>
             </a>
+            <a href="#" @click.prevent="switchView('session')" :class="['flex flex-col items-center justify-center p-4 rounded-xl shadow-sm border transition', currentView === 'session' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-100 text-gray-600 hover:bg-gray-50']">
+              <span class="text-3xl mb-2">🎲</span>
+              <span class="font-medium text-sm">出團</span>
+            </a>
             <a href="#" class="flex flex-col items-center justify-center p-4 rounded-xl shadow-sm border bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed">
               <span class="text-3xl mb-2">⚙️</span>
               <span class="font-medium text-sm">設定</span>
@@ -1047,6 +1051,20 @@
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- 模塊：出團 (Session Placeholder) -->
+      <template v-if="currentView === 'session'">
+        <div class="space-y-4">
+          <div class="module-card text-center p-8">
+            <div class="text-6xl mb-4">🎲</div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">出團牌桌</h2>
+            <p class="text-gray-500 mb-6">掃描 DM 提供的 QR Code 以加入連線房間，或開始本地單人紀錄。</p>
+            <button class="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition shadow-sm">
+              📷 掃描 QR Code 入座
+            </button>
           </div>
         </div>
       </template>
