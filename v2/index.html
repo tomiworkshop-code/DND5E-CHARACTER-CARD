@@ -178,7 +178,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0717.13)
+          v2.0.0 (Build 0717.14)
         </div>
       </div>
     </transition>
@@ -262,7 +262,10 @@
           <!-- 頂部區：角色基本資訊與世界切換器 -->
           <div class="module-card mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="flex items-center gap-3">
-              <div class="w-12 h-12 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-2xl">🧙</div>
+              <div class="w-12 h-12 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-2xl overflow-hidden shrink-0">
+                <img v-if="selectedChar?.avatar" :src="selectedChar.avatar" class="w-full h-full object-cover">
+                <span v-else>🧙</span>
+              </div>
               <div>
                 <h2 class="text-xl font-bold text-gray-800">{{ selectedChar?.name || '未命名' }}</h2>
                 <div class="text-xs text-gray-500">{{ selectedChar.race || '未知種族' }}</div>
