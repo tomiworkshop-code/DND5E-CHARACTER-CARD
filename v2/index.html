@@ -173,7 +173,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0716.12)
+          v2.0.0 (Build 0716.13)
         </div>
       </div>
     </transition>
@@ -1418,12 +1418,15 @@
               alignment: '',
               classes: [],
               abilities: { str:10, dex:10, con:10, int:10, wis:10, cha:10 },
+              abilityBonus: { str:0, dex:0, con:0, int:0, wis:0, cha:0 },
               hp: { current:10, max:10, temp:0 },
               ac: 10,
               initiative: 0,
               inventory: [],
               spellbook: [],
               spellSlots: Array.from({length:9}, (_,i)=>({ level:i+1, max:0, used:0 })),
+              familiar: null,
+              skills: {},
               worldProgress: {}
             };
             chars.value.push(newChar);
