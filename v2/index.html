@@ -178,7 +178,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0717.16)
+          v2.0.0 (Build 0717.17)
         </div>
       </div>
     </transition>
@@ -1110,19 +1110,19 @@
               <div class="space-y-4">
                 <div class="bg-gray-50 p-3 rounded-lg border border-gray-100">
                   <div class="text-xs text-gray-400 mb-1 flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>  當前位置</div>
-                  <div v-if="!isWorldEditMode" class="font-bold text-gray-800">{{ selectedWorldObj.location || '未設定' }}</div>
+                  <div v-if="!isWorldEditMode" class="font-bold text-gray-800">{{ activeWorldProgress.location || '未設定' }}</div>
                   <input v-else v-model="worldEditTemp.location" class="border border-gray-300 p-1 w-full rounded text-sm bg-white" placeholder="未設定" />
                 </div>
                 <div class="bg-gray-50 p-3 rounded-lg border border-gray-100">
                   <div class="text-xs text-gray-400 mb-1 flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>  遊戲時間</div>
-                  <div v-if="!isWorldEditMode" class="font-bold text-gray-800">{{ selectedWorldObj.time || '未設定' }}</div>
+                  <div v-if="!isWorldEditMode" class="font-bold text-gray-800">{{ activeWorldProgress.time || '未設定' }}</div>
                   <input v-else v-model="worldEditTemp.time" class="border border-gray-300 p-1 w-full rounded text-sm bg-white" placeholder="未設定" />
                 </div>
               </div>
               <div class="space-y-4">
                 <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 h-full flex flex-col">
                   <div class="text-xs text-gray-400 mb-1 flex items-center gap-1 shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>  當前主要任務</div>
-                  <div v-if="!isWorldEditMode" class="text-gray-700 leading-relaxed flex-1 whitespace-pre-wrap">{{ selectedWorldObj.quest || '自由探索' }}</div>
+                  <div v-if="!isWorldEditMode" class="text-gray-700 leading-relaxed flex-1 whitespace-pre-wrap">{{ activeWorldProgress.quest || '自由探索' }}</div>
                   <textarea v-else v-model="worldEditTemp.quest" class="border border-gray-300 p-2 w-full rounded text-sm bg-white flex-1 min-h-[60px]" placeholder="自由探索"></textarea>
                 </div>
               </div>
@@ -1150,12 +1150,12 @@
               </div>
 
               <!-- 列表區 -->
-              <div v-if="!selectedWorldObj.records || !selectedWorldObj.records[activeRecordTab] || selectedWorldObj.records[activeRecordTab].length === 0" class="text-center p-6 bg-gray-50 border border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
+              <div v-if="!activeWorldProgress.records || !activeWorldProgress.records[activeRecordTab] || activeWorldProgress.records[activeRecordTab].length === 0" class="text-center p-6 bg-gray-50 border border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
                 此分類目前還沒有任何紀錄。
               </div>
               
               <div v-else class="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                <div v-for="rec in selectedWorldObj.records[activeRecordTab]" :key="rec.id" class="p-3 bg-white border border-gray-100 rounded-lg shadow-sm flex gap-3 group relative">
+                <div v-for="rec in activeWorldProgress.records[activeRecordTab]" :key="rec.id" class="p-3 bg-white border border-gray-100 rounded-lg shadow-sm flex gap-3 group relative">
                   <div class="text-lg">{{ recordTabs.find(t=>t.id===activeRecordTab)?.icon }}</div>
                   <div class="flex-1">
                     <div class="text-xs text-gray-400 mb-1">{{ rec.time }}</div>
@@ -1432,7 +1432,8 @@
         if (instance.narrative.familiar) c.familiar = window.DND5E_CHAR.mergeChar(c.familiar, instance.narrative.familiar);
         if (instance.mechanical.familiar) c.familiar = window.DND5E_CHAR.mergeChar(c.familiar, instance.mechanical.familiar);
       }
-      c.worldProgress = {}; 
+      // 進度屬於「角色在該世界的存檔槽」，改為每個角色獨立保存，避免同世界串檔
+      c.worldProgress = instance.worldProgress ? JSON.parse(JSON.stringify(instance.worldProgress)) : {};
       return c;
     }
 
@@ -1445,19 +1446,25 @@
       let newNarI = pickInstanceNarrative(c);
       let newNarId = pickIdentityFields(c);
 
+      // worldProgress（角色各世界的進度存檔槽）也要偵測變更並持久化
+      let oldWP = JSON.stringify(instance.worldProgress || {});
+      let newWP = JSON.parse(JSON.stringify(c.worldProgress || {}));
+
       let mChanged = oldMech !== JSON.stringify(newMech);
       let nIChanged = oldNarI !== JSON.stringify(newNarI);
       let nIdChanged = oldNarId !== JSON.stringify(newNarId);
+      let wpChanged = oldWP !== JSON.stringify(newWP);
 
       if (mChanged) instance.version_m++;
       if (nIChanged) instance.version_n++;
       if (nIdChanged) identity.version_n++;
 
-      if (mChanged || nIChanged || nIdChanged) {
+      if (mChanged || nIChanged || nIdChanged || wpChanged) {
         instance.updatedAt = Date.now();
         instance.mechanical = newMech;
         instance.narrative = newNarI;
         identity.identity = newNarId;
+        instance.worldProgress = newWP;
         return true; 
       }
       return false;
@@ -1510,17 +1517,19 @@
         const isWorldEditMode = ref(false);
         const worldEditTemp = Vue.reactive({ name: '', location: '', time: '', quest: '' });
         const startWorldEdit = () => {
+          // 名稱屬於世界定義層（全域），location/time/quest 屬於角色在該世界的進度存檔槽
           worldEditTemp.name = selectedWorldObj.value.name || '';
-          worldEditTemp.location = selectedWorldObj.value.location || '';
-          worldEditTemp.time = selectedWorldObj.value.time || '';
-          worldEditTemp.quest = selectedWorldObj.value.quest || '';
+          worldEditTemp.location = activeWorldProgress.value.location || '';
+          worldEditTemp.time = activeWorldProgress.value.time || '';
+          worldEditTemp.quest = activeWorldProgress.value.quest || '';
           isWorldEditMode.value = true;
         };
         const saveWorldEdit = () => {
+          // 世界名稱 name 寫回全域世界定義；進度（location/time/quest）寫入角色層 activeWorldProgress
           selectedWorldObj.value.name = worldEditTemp.name;
-          selectedWorldObj.value.location = worldEditTemp.location;
-          selectedWorldObj.value.time = worldEditTemp.time;
-          selectedWorldObj.value.quest = worldEditTemp.quest;
+          activeWorldProgress.value.location = worldEditTemp.location;
+          activeWorldProgress.value.time = worldEditTemp.time;
+          activeWorldProgress.value.quest = worldEditTemp.quest;
           isWorldEditMode.value = false;
         };
         const activeRecordTab = ref('log');
@@ -1532,15 +1541,18 @@
           { id: 'clue', icon: '💎', label: '線索與寶物' }
         ];
         const addWorldRecord = () => {
+          // 筆記屬於角色在該世界的進度存檔槽（activeWorldProgress），不再寫入全域世界物件
           if(!newRecordText.value.trim()) return;
-          if(!selectedWorldObj.value.records) selectedWorldObj.value.records = { log:[], quest:[], npc:[], clue:[] };
-          if(!selectedWorldObj.value.records[activeRecordTab.value]) selectedWorldObj.value.records[activeRecordTab.value] = [];
-          selectedWorldObj.value.records[activeRecordTab.value].unshift({ id: Date.now(), text: newRecordText.value, time: new Date().toLocaleString() });
+          const wp = activeWorldProgress.value;
+          if(!wp.records) wp.records = { log:[], quest:[], npc:[], clue:[] };
+          if(!wp.records[activeRecordTab.value]) wp.records[activeRecordTab.value] = [];
+          wp.records[activeRecordTab.value].unshift({ id: Date.now(), text: newRecordText.value, time: new Date().toLocaleString() });
           newRecordText.value = '';
         };
         const removeWorldRecord = (id) => {
-          if(selectedWorldObj.value.records && selectedWorldObj.value.records[activeRecordTab.value]) {
-            selectedWorldObj.value.records[activeRecordTab.value] = selectedWorldObj.value.records[activeRecordTab.value].filter(n => n.id !== id);
+          const wp = activeWorldProgress.value;
+          if(wp.records && wp.records[activeRecordTab.value]) {
+            wp.records[activeRecordTab.value] = wp.records[activeRecordTab.value].filter(n => n.id !== id);
           }
         };
         const availableSpells = ref([]);
@@ -1818,6 +1830,21 @@
           return chars.value.find(c => c.id === selectedCharId.value) || null;
         });
 
+        // 你現在選中的角色在目前世界的進度存檔槽（每個角色獨立，不再共用世界物件）。
+        // 若不存在則自動初始化；若 selectedChar 為 null 則回傳一個暫存空物件避免 template 報錯。
+        const activeWorldProgress = computed(() => {
+          const char = selectedChar.value;
+          const key = selectedWorldKey.value;
+          if (!char) return { location:'', time:'', quest:'', records:{ log:[], quest:[], npc:[], clue:[] } };
+          if (!char.worldProgress) char.worldProgress = {};
+          if (!char.worldProgress[key]) {
+            char.worldProgress[key] = { location:'', time:'', quest:'', records:{ log:[], quest:[], npc:[], clue:[] } };
+          }
+          const wp = char.worldProgress[key];
+          if (!wp.records) wp.records = { log:[], quest:[], npc:[], clue:[] };
+          return wp;
+        });
+
         watch([isEditMode, activeModule, selectedChar, () => coreRules.SKILLS], ([edit, mod, char, rulesSkills]) => {
           if (mod === 'skills' && char) {
             if (!char.skills) char.skills = {};
@@ -1933,9 +1960,12 @@
             if (ch.worldProgress) {
               Object.keys(ch.worldProgress).forEach(k => {
                 if (k !== '__solo__') worldSet.add(k);
-                // 計算每個世界桶內的戰報數量
-                if (ch.worldProgress[k].campaignLog) {
-                  eventCount += ch.worldProgress[k].campaignLog.length;
+                // 計算每個世界桶內的筆記數量（新的 records 分類結構：log/quest/npc/clue）
+                const recs = ch.worldProgress[k] && ch.worldProgress[k].records;
+                if (recs) {
+                  ['log','quest','npc','clue'].forEach(cat => {
+                    if (Array.isArray(recs[cat])) eventCount += recs[cat].length;
+                  });
                 }
               });
             }
@@ -2044,6 +2074,7 @@
           stats,
           selectedCharId,
           selectedChar,
+          activeWorldProgress,
           selectedWorldKey,
           CLASSES: Vue.computed(() => coreRules.CLASSES),
           SKILLS: Vue.computed(() => coreRules.SKILLS),
