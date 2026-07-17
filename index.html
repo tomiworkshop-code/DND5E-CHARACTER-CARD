@@ -11,7 +11,7 @@
     var qs = location.search || "";
     // 帶 room 參數 → 直接進玩家版加入房間
     if (/[?&]room=/.test(qs)) {
-      location.replace("./adventurer/" + qs);
+      location.replace("./v2/" + qs);
       return;
     }
   })();
@@ -46,11 +46,11 @@
     <p>請選擇你的身分入口</p>
   </div>
   <div class="cards">
-    <a class="card" href="./adventurer/">
-      <img src="./adventurer/icons/icon-192.png" alt="冒險者之書">
+    <a class="card" href="./v2/">
+      <img src="./v2/icons/icon-192.png" alt="冒險者之書">
       <div>
-        <div class="t">📖 冒險者之書</div>
-        <div class="s">玩家版 · 角色卡 / 背包 / 法術書</div>
+        <div class="t">📖 冒險者之書 V2</div>
+        <div class="s">玩家版 · 統一儀表板 / 多角色 / 多世界</div>
       </div>
     </a>
     <a class="card" href="./worldbuilder/">

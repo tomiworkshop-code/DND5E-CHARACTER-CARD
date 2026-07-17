@@ -1,96 +1,21 @@
-/* 羊皮卷 PWA Service Worker */
-const CACHE = 'parchment-dnd5e-v19-netfirst';
-const ASSETS = [
-  './',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-maskable-192.png',
-  './icons/icon-maskable-512.png',
-  './icons/apple-touch-icon.png',
-  './icons/favicon-32.png',
-  './assets/ui/parchment-bg.jpg',
-  './assets/ui/leather-btn.webp',
-  './assets/ui/icons/hood.png',
-  './assets/ui/icons/scroll.png',
-  './assets/ui/icons/swords.png',
-  './assets/ui/icons/wand.png',
-  './assets/ui/icons/knapsack.png',
-  './assets/ui/icons/cogs.png',
-  './assets/ui/icons/world.png',
-  './assets/ui/icons/table.png',
-  './shared/firebase-config.js',
-  './shared/room.js',
-  './shared/character-schema.js',
-  './data/races.json',
-  './data/spells.json',
-  './data/items.json',
-  './data/sources.json',
-  './data/classes.json',
-  './data/SCHEMA.md',
-  'https://unpkg.com/vue@3/dist/vue.global.prod.js',
-  'https://cdn.tailwindcss.com'
-];
-
-self.addEventListener('install', (e) => {
-  self.skipWaiting();
-  e.waitUntil(
-    caches.open(CACHE).then((c) =>
-      Promise.all(
-        ASSETS.map((u) => c.add(u).catch(() => null))
-      )
-    )
-  );
-});
+/* 冒險者之書 V1 已停用：此 Service Worker 改為「自我卸載」版本。
+   任何仍註冊舊 SW 的裝置，在更新時會執行以下邏輯：清除所有快取並卸載自己，
+   讓使用者乾淨地轉往 V2，不再被舊快取困住。 */
+self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
+  e.waitUntil((async () => {
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch (err) {}
+    try { await self.registration.unregister(); } catch (err) {}
+    try {
+      const clients = await self.clients.matchAll();
+      clients.forEach((c) => c.navigate(c.url));
+    } catch (err) {}
+  })());
 });
 
-self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET') return;
-
-  const url = new URL(e.request.url);
-  const sameOrigin = url.origin === self.location.origin;
-
-  if (sameOrigin) {
-    // 同源（navigation、index、data/*.json、manifest、sources、SCHEMA 等）：
-    // network-first → 先 fetch，成功就更新快取 + 回傳網路版；網路失敗才回快取。
-    e.respondWith(
-      fetch(e.request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
-          return res;
-        })
-        .catch(() =>
-          caches.match(e.request).then((hit) => {
-            if (hit) return hit;
-            // navigate 失敗最終退回 index.html
-            if (e.request.mode === 'navigate') return caches.match('./');
-            return Response.error();
-          })
-        )
-    );
-    return;
-  }
-
-  // 跨源 CDN（unpkg Vue、cdn.tailwindcss）：cache-first（穩定且離線必需），
-  // 找不到再 network 並順手快取。
-  e.respondWith(
-    caches.match(e.request).then((hit) => {
-      if (hit) return hit;
-      return fetch(e.request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
-          return res;
-        })
-        .catch(() => Response.error());
-    })
-  );
-});
+// 不攔截任何請求，一律走網路。
+self.addEventListener('fetch', () => {});
