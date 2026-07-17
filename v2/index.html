@@ -177,7 +177,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0717.05)
+          v2.0.0 (Build 0717.06)
         </div>
       </div>
     </transition>
@@ -1121,29 +1121,40 @@
               </div>
             </div>
 
-            <!-- 輕量級戰役筆記本 -->
+            <!-- 輕量級世界紀錄板塊 -->
             <div class="mt-8 border-t border-gray-100 pt-6">
               <h3 class="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                <span>📝 世界筆記與戰報</span>
+                <span>📝 世界紀錄與筆記</span>
               </h3>
               
-              <div v-if="selectedWorldObj.type === 'local' || selectedWorldKey === '__solo__'" class="mb-4 flex gap-2">
-                <input v-model="newWorldNote" @keyup.enter="addWorldNote" type="text" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="輸入筆記 (例如: 拿到 500 金幣、打敗哥布林王...)">
-                <button @click="addWorldNote" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition shadow-sm whitespace-nowrap">新增</button>
+              <!-- 分類 Tabs -->
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <button v-for="rtab in recordTabs" :key="rtab.id" @click="activeRecordTab = rtab.id"
+                  :class="['border rounded-lg p-3 text-center text-sm transition', activeRecordTab === rtab.id ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold shadow-sm' : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100']">
+                  <div class="text-xl mb-1">{{ rtab.icon }}</div>
+                  {{ rtab.label }}
+                </button>
               </div>
 
-              <div v-if="!selectedWorldObj.notes || selectedWorldObj.notes.length === 0" class="text-center p-6 bg-gray-50 border border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
-                目前還沒有任何筆記，紀錄一下冒險的點滴吧！
+              <!-- 輸入區 (僅限本地或單人) -->
+              <div v-if="selectedWorldObj.type === 'local' || selectedWorldKey === '__solo__'" class="mb-4 flex gap-2">
+                <input v-model="newRecordText" @keyup.enter="addWorldRecord" type="text" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" :placeholder="'新增 ' + recordTabs.find(t=>t.id===activeRecordTab)?.label + '...'">
+                <button @click="addWorldRecord" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition shadow-sm whitespace-nowrap">新增</button>
+              </div>
+
+              <!-- 列表區 -->
+              <div v-if="!selectedWorldObj.records || !selectedWorldObj.records[activeRecordTab] || selectedWorldObj.records[activeRecordTab].length === 0" class="text-center p-6 bg-gray-50 border border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
+                此分類目前還沒有任何紀錄。
               </div>
               
               <div v-else class="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                <div v-for="note in selectedWorldObj.notes" :key="note.id" class="p-3 bg-white border border-gray-100 rounded-lg shadow-sm flex gap-3 group relative">
-                  <div class="text-lg">📜</div>
+                <div v-for="rec in selectedWorldObj.records[activeRecordTab]" :key="rec.id" class="p-3 bg-white border border-gray-100 rounded-lg shadow-sm flex gap-3 group relative">
+                  <div class="text-lg">{{ recordTabs.find(t=>t.id===activeRecordTab)?.icon }}</div>
                   <div class="flex-1">
-                    <div class="text-xs text-gray-400 mb-1">{{ note.time }}</div>
-                    <div class="text-gray-700 text-sm whitespace-pre-wrap">{{ note.text }}</div>
+                    <div class="text-xs text-gray-400 mb-1">{{ rec.time }}</div>
+                    <div class="text-gray-700 text-sm whitespace-pre-wrap">{{ rec.text }}</div>
                   </div>
-                  <button v-if="selectedWorldObj.type === 'local' || selectedWorldKey === '__solo__'" @click="removeWorldNote(note.id)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition p-1">
+                  <button v-if="selectedWorldObj.type === 'local' || selectedWorldKey === '__solo__'" @click="removeWorldRecord(rec.id)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition p-1">
                     ✕
                   </button>
                 </div>
@@ -1230,30 +1241,24 @@
         const isEditMode = ref(false);
         const isWorldEditMode = ref(false);
         const worldEditTemp = Vue.reactive({ name: '', location: '', time: '', quest: '' });
-        const newWorldNote = ref('');
-        const startWorldEdit = () => {
-          worldEditTemp.name = selectedWorldObj.value.name || '';
-          worldEditTemp.location = selectedWorldObj.value.location || '';
-          worldEditTemp.time = selectedWorldObj.value.time || '';
-          worldEditTemp.quest = selectedWorldObj.value.quest || '';
-          isWorldEditMode.value = true;
+        const activeRecordTab = ref('log');
+        const newRecordText = ref('');
+        const recordTabs = [
+          { id: 'log', icon: '📜', label: '戰報與大事紀' },
+          { id: 'quest', icon: '📚', label: '任務與遭遇' },
+          { id: 'npc', icon: '🤝', label: '陣營與NPC' },
+          { id: 'clue', icon: '💎', label: '線索與寶物' }
+        ];
+        const addWorldRecord = () => {
+          if(!newRecordText.value.trim()) return;
+          if(!selectedWorldObj.value.records) selectedWorldObj.value.records = { log:[], quest:[], npc:[], clue:[] };
+          if(!selectedWorldObj.value.records[activeRecordTab.value]) selectedWorldObj.value.records[activeRecordTab.value] = [];
+          selectedWorldObj.value.records[activeRecordTab.value].unshift({ id: Date.now(), text: newRecordText.value, time: new Date().toLocaleString() });
+          newRecordText.value = '';
         };
-        const saveWorldEdit = () => {
-          selectedWorldObj.value.name = worldEditTemp.name;
-          selectedWorldObj.value.location = worldEditTemp.location;
-          selectedWorldObj.value.time = worldEditTemp.time;
-          selectedWorldObj.value.quest = worldEditTemp.quest;
-          isWorldEditMode.value = false;
-        };
-        const addWorldNote = () => {
-          if(!newWorldNote.value.trim()) return;
-          if(!selectedWorldObj.value.notes) selectedWorldObj.value.notes = [];
-          selectedWorldObj.value.notes.unshift({ id: Date.now(), text: newWorldNote.value, time: new Date().toLocaleString() });
-          newWorldNote.value = '';
-        };
-        const removeWorldNote = (id) => {
-          if(selectedWorldObj.value.notes) {
-            selectedWorldObj.value.notes = selectedWorldObj.value.notes.filter(n => n.id !== id);
+        const removeWorldRecord = (id) => {
+          if(selectedWorldObj.value.records && selectedWorldObj.value.records[activeRecordTab.value]) {
+            selectedWorldObj.value.records[activeRecordTab.value] = selectedWorldObj.value.records[activeRecordTab.value].filter(n => n.id !== id);
           }
         };
         const availableSpells = ref([]);
@@ -1602,7 +1607,7 @@
           ALIGNMENTS: Vue.computed(() => coreRules.ALIGNMENTS),
           BACKGROUNDS: Vue.computed(() => coreRules.BACKGROUNDS),
           activeModule,
-          isEditMode, isWorldEditMode, worldEditTemp, newWorldNote, startWorldEdit, saveWorldEdit, addWorldNote, removeWorldNote, availableSpells,
+          isEditMode, isWorldEditMode, worldEditTemp, activeRecordTab, newRecordText, recordTabs, startWorldEdit, saveWorldEdit, addWorldRecord, removeWorldRecord, availableSpells,
           newSpellQuery,
           spellFilterLevel,
           filteredAvailableSpells,
