@@ -177,7 +177,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0717.07)
+          v2.0.0 (Build 0717.08)
         </div>
       </div>
     </transition>
@@ -1239,8 +1239,6 @@
         const selectedWorldKey = ref('__solo__');
         const activeModule = ref(null);
         const isEditMode = ref(false);
-        const isWorldEditMode = ref(false);
-        const worldEditTemp = Vue.reactive({ name: '', location: '', time: '', quest: '' });
         const isWorldEditMode = ref(false);
         const worldEditTemp = Vue.reactive({ name: '', location: '', time: '', quest: '' });
         const startWorldEdit = () => {
