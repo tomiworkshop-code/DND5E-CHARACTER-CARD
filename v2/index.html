@@ -171,14 +171,14 @@
               <span class="text-3xl mb-2">🎲</span>
               <span class="font-medium text-sm">出團</span>
             </a>
-            <a href="#" class="flex flex-col items-center justify-center p-4 rounded-xl shadow-sm border bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed">
+            <a href="#" @click.prevent="switchView('settings')" :class="['flex flex-col items-center justify-center p-4 rounded-xl shadow-sm border transition', currentView === 'settings' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-100 text-gray-600 hover:bg-gray-50']">
               <span class="text-3xl mb-2">⚙️</span>
               <span class="font-medium text-sm">設定</span>
             </a>
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0717.14)
+          v2.0.0 (Build 0717.15)
         </div>
       </div>
     </transition>
@@ -1171,6 +1171,55 @@
         </div>
       </template>
 
+      <!-- 模塊：設定 (Settings) -->
+      <template v-if="currentView === 'settings'">
+        <!-- 內容來源設定 -->
+        <div class="module-card">
+          <h2 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2"><span>📚</span> 內容來源設定</h2>
+          <p class="text-xs text-gray-500 mb-4">這是全域「檢視」設定（所有角色共用，不隨角色匯出）。只影響可選清單；已加入角色卡的項目仍會顯示。</p>
+
+          <label class="flex items-center gap-3 text-sm mb-4 p-3 bg-gray-50 rounded-lg border border-gray-100 cursor-pointer">
+            <input type="checkbox" v-model="settings.includeUntranslated" class="w-4 h-4">
+            <span>包含未繁中（英文）內容</span>
+          </label>
+
+          <div class="flex items-center justify-between mb-3 text-xs text-gray-500">
+            <span>已啟用 <span class="font-bold text-blue-600">{{ enabledCount }}</span> / {{ totalSourceCount }} 個來源</span>
+            <span class="flex gap-2">
+              <button class="px-2 py-0.5 bg-gray-100 rounded hover:bg-gray-200 text-gray-700" @click="selectAllSources(true)">全選</button>
+              <button class="px-2 py-0.5 bg-gray-100 rounded hover:bg-gray-200 text-gray-700" @click="selectAllSources(false)">全不選</button>
+            </span>
+          </div>
+
+          <div class="max-h-96 overflow-auto pr-1">
+            <div v-for="g in sourceGroups" :key="g.key" class="mb-3">
+              <div class="flex items-center justify-between py-1 mb-1 border-b border-gray-100">
+                <span class="text-xs font-bold text-gray-700 flex items-center gap-1"><span>{{ g.icon }}</span>{{ g.label }}</span>
+                <button class="px-2 py-0.5 text-[11px] bg-gray-100 rounded hover:bg-gray-200 text-gray-600" @click="toggleGroup(g)">
+                  {{ groupAllEnabled(g) ? '取消本組' : '選取本組' }}
+                </button>
+              </div>
+              <label v-for="s in g.sources" :key="s.code" class="flex items-start gap-2 text-xs py-1.5 px-1 hover:bg-gray-50 rounded cursor-pointer">
+                <input type="checkbox" :checked="isSourceEnabled(s.code)" @change="toggleSource(s.code)" class="w-4 h-4 mt-0.5 shrink-0">
+                <span class="min-w-0">
+                  <span class="font-bold text-gray-800">{{ sourceLabelOf(s) }}</span>
+                  <span class="text-gray-400"> · {{ s.code }}</span>
+                  <span v-if="sourceCountsText(s)" class="block text-gray-400">{{ sourceCountsText(s) }}</span>
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 關於 -->
+        <div class="module-card">
+          <h2 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2"><span>ℹ️</span> 關於</h2>
+          <p class="text-sm text-gray-700 mt-2">冒險者之書 <span class="font-bold">v2.0.0</span></p>
+          <p class="text-xs text-gray-500 mt-1">基於 Vue 3 重構的新世代 D&amp;D 5e 角色卡架構，支援多角色、多世界與 DM 協作。</p>
+          <p class="text-[10px] text-center text-gray-400 mt-4">本工具僅供個人計畫使用。</p>
+        </div>
+      </template>
+
     </main>
   </div>
 
@@ -1191,6 +1240,35 @@
     const LS_ACTIVE_INSTANCE = "dnd_active_instance_v2";
     const LS_SCHEMA_VER = "dnd_schema_ver";
     const DEFAULT_WORLD_ID = "w_local_default";
+
+    /* ===== 全域內容來源設定（非 per-character）：enabledSources / includeUntranslated / seen ===== */
+    const LS_SETTINGS = "dnd_settings";
+
+    /* 來源群組顯示定義（順序即顯示順序），改用 emoji 以符合 V2 風格 */
+    const SOURCE_GROUP_DEFS = [
+      { key:"core",      icon:"📖", label:"核心規則" },
+      { key:"adventure", icon:"🗺️", label:"冒險模組" },
+      { key:"setting",   icon:"🌍", label:"戰役設定" },
+      { key:"ua",        icon:"🧪", label:"試行內容（UA / 直播）" },
+      { key:"other",     icon:"❓", label:"其他 / 未分類" }
+    ];
+
+    /* 讀取全域設定 */
+    function loadSettings(){
+      const s = { enabledSources:null, includeUntranslated:true, seen:[] };
+      try{
+        const raw = localStorage.getItem(LS_SETTINGS);
+        if(raw){
+          const o = JSON.parse(raw);
+          if(o && typeof o === "object"){
+            if(Array.isArray(o.enabledSources)) s.enabledSources = o.enabledSources.slice();
+            if(typeof o.includeUntranslated === "boolean") s.includeUntranslated = o.includeUntranslated;
+            if(Array.isArray(o.seen)) s.seen = o.seen.slice();
+          }
+        }
+      }catch(e){}
+      return s;
+    }
 
     function getInt(key) { return parseInt(localStorage.getItem(key)) || 0; }
 
@@ -1544,10 +1622,126 @@
         const confirmSwitcherWorld = (worldKey) => { selectedCharId.value = switcherTempCharId.value; selectedWorldKey.value = worldKey; isGlobalSwitcherOpen.value = false; };
         const createNewWorld = () => { alert('新增/加入世界 功能開發中...'); };
 
+        /* ===== 內容來源設定：資料狀態 + 設定 reactive ===== */
+        // dataState 集中存放各類來源資料（sources/races/spells/items），供來源篩選計算使用
+        const dataState = Vue.reactive({ sources:[], races:[], spells:[], items:[] });
+        // settings：全域共用的內容檢視設定（非 per-character）
+        const settings = Vue.reactive(loadSettings());
+
+        function persistSettings(){
+          try{
+            localStorage.setItem(LS_SETTINGS, JSON.stringify({
+              enabledSources: settings.enabledSources || [],
+              includeUntranslated: settings.includeUntranslated,
+              seen: settings.seen || []
+            }));
+          }catch(e){}
+        }
+        /* 軟體中出現的所有來源代碼（manifest + 實際資料） */
+        function allSourceCodes(){
+          const set = new Set();
+          (dataState.sources || []).forEach(s => { if(s && s.code) set.add(s.code); });
+          (dataState.races  || []).forEach(r => {
+            if(r.source) set.add(r.source);
+            (r.subraces || []).forEach(sr => { set.add(sr.source || r.source); });
+          });
+          (dataState.spells || []).forEach(s => { if(s.source) set.add(s.source); });
+          (dataState.items  || []).forEach(i => { if(i.source) set.add(i.source); });
+          set.delete(undefined); set.delete(null); set.delete("");
+          return Array.from(set);
+        }
+        /* 資料載入後調和：首次預設全開；日後新增來源預設視為啟用 */
+        function reconcileSettings(){
+          const all = allSourceCodes();
+          if(!Array.isArray(settings.enabledSources)){
+            settings.enabledSources = all.slice();
+          } else {
+            all.forEach(code => {
+              if(!settings.seen.includes(code) && !settings.enabledSources.includes(code)){
+                settings.enabledSources.push(code);
+              }
+            });
+          }
+          settings.seen = all.slice();
+          persistSettings();
+        }
+        /* ===== 篩選判斷 ===== */
+        function isSourceEnabled(code){
+          if(!code) return true;                          /* 無來源（如部分物品）視為啟用 */
+          if(!Array.isArray(settings.enabledSources)) return true;
+          if(settings.enabledSources.includes(code)) return true;
+          /* 未被記錄過的來源（sources.json 漏列 / 內建簡表 / 舊存檔）預設視為啟用 */
+          if(!Array.isArray(settings.seen) || !settings.seen.includes(code)) return true;
+          return false;
+        }
+        function isUntranslated(o){
+          return !!(o && o.name_en && o.name_zh && o.name_zh === o.name_en);
+        }
+        /* 可選清單篩選：來源啟用 + （若不含未繁中則排除未繁中） */
+        function passesFilter(o){
+          if(!o) return false;
+          if(!isSourceEnabled(o.source)) return false;
+          if(!settings.includeUntranslated && isUntranslated(o)) return false;
+          return true;
+        }
+
+        /* ===== 設定面板：來源目錄與分組 ===== */
+        const sourceCatalog = computed(() => {
+          const map = {};
+          (dataState.sources || []).forEach(s => { if(s && s.code) map[s.code] = Object.assign({}, s); });
+          allSourceCodes().forEach(code => {
+            if(!map[code]) map[code] = { code, name_zh:code, name_en:code, group:"other", official:false, counts:null };
+          });
+          return Object.values(map);
+        });
+        const sourceGroups = computed(() => {
+          const cat = sourceCatalog.value;
+          return SOURCE_GROUP_DEFS.map(g => ({
+            key:g.key, label:g.label, icon:g.icon,
+            sources: cat.filter(s => (s.group || "other") === g.key).sort((a,b)=>a.code.localeCompare(b.code))
+          })).filter(g => g.sources.length);
+        });
+        const enabledCount = computed(() => (settings.enabledSources || []).filter(code => allSourceCodes().includes(code)).length);
+        const totalSourceCount = computed(() => allSourceCodes().length);
+        function sourceCountsText(s){
+          if(!s || !s.counts) return "";
+          const c0 = s.counts;
+          return "種 " + (c0.races||0) + " · 法 " + (c0.spells||0) + " · 物 " + (c0.items||0);
+        }
+        function sourceLabelOf(s){
+          if(!s) return "";
+          const zh = s.name_zh || s.code;
+          return zh + (s.name_en && s.name_en !== zh ? "（" + s.name_en + "）" : "");
+        }
+        function toggleSource(code){
+          if(!Array.isArray(settings.enabledSources)) settings.enabledSources = [];
+          const i = settings.enabledSources.indexOf(code);
+          if(i >= 0) settings.enabledSources.splice(i,1); else settings.enabledSources.push(code);
+          persistSettings();
+        }
+        function selectAllSources(on){
+          settings.enabledSources = on ? allSourceCodes() : [];
+          persistSettings();
+        }
+        function groupAllEnabled(g){ return g.sources.length > 0 && g.sources.every(s => isSourceEnabled(s.code)); }
+        function toggleGroup(g){
+          if(!Array.isArray(settings.enabledSources)) settings.enabledSources = [];
+          const on = !groupAllEnabled(g);
+          g.sources.forEach(s => {
+            const i = settings.enabledSources.indexOf(s.code);
+            if(on && i < 0) settings.enabledSources.push(s.code);
+            if(!on && i >= 0) settings.enabledSources.splice(i,1);
+          });
+          persistSettings();
+        }
+        // 設定變動時自動持久化（includeUntranslated 等）
+        watch(settings, () => { persistSettings(); }, { deep: true });
+
         const filteredAvailableSpells = computed(() => {
           let q = newSpellQuery.value.toLowerCase().trim();
           let level = spellFilterLevel.value;
           return availableSpells.value.filter(sp => {
+            if (!passesFilter(sp)) return false;
             if (level !== '' && String(sp?.level) !== String(level)) return false;
             if (q) {
               const zh = (sp?.name_zh || sp?.name || '').toLowerCase();
@@ -1566,6 +1760,7 @@
         const filteredAvailableItems = computed(() => {
           let q = itemSearch.value.toLowerCase().trim();
           return availableItems.value.filter(item => {
+            if (!passesFilter(item)) return false;
             if (!q) return true;
             const zh = (item?.name_zh || item?.name || '').toLowerCase();
             const en = (item?.name_en || '').toLowerCase();
@@ -1642,18 +1837,32 @@
         onMounted(() => {
           fetch('../data/spells.json').then(res => res.json()).then(data => {
             availableSpells.value = data.spells || data || [];
+            dataState.spells = availableSpells.value;
+            reconcileSettings();
           }).catch(() => {
             availableSpells.value = [
               { id: 'fireball', name_zh: '火球術', level: 3 },
               { id: 'magic_missile', name_zh: '魔法飛彈', level: 1 }
             ];
+            dataState.spells = availableSpells.value;
           });
           fetch('../data/items.json').then(res => res.json()).then(data => {
             availableItems.value = data.items || [];
+            dataState.items = availableItems.value;
+            reconcileSettings();
           }).catch(e => {
              console.error("無法讀取物品資料", e);
              availableItems.value = [];
           });
+          // 載入來源清單 (sources.json) 與種族 (races.json)，供內容來源設定使用
+          fetch('../data/sources.json').then(res => res.json()).then(data => {
+            dataState.sources = data.sources || data || [];
+            reconcileSettings();
+          }).catch(e => { console.error("無法讀取來源資料", e); });
+          fetch('../data/races.json').then(res => res.json()).then(data => {
+            dataState.races = data.races || data || [];
+            reconcileSettings();
+          }).catch(e => { console.error("無法讀取種族資料", e); });
           
           migrateToV2();
           let identities = JSON.parse(localStorage.getItem(LS_IDENTITIES) || "[]");
@@ -1747,6 +1956,7 @@
             case 'dashboard': return '個人儀表板';
             case 'characters': return '我的角色';
             case 'worlds': return '冒險世界';
+            case 'settings': return '設定';
             default: return '冒險者檔案';
           }
         });
@@ -1829,6 +2039,18 @@
           itemSearch,
           filteredAvailableItems,
           customItem,
+          // ===== 內容來源設定（設定頁） =====
+          settings,
+          sourceGroups,
+          enabledCount,
+          totalSourceCount,
+          sourceCountsText,
+          sourceLabelOf,
+          isSourceEnabled,
+          toggleSource,
+          selectAllSources,
+          groupAllEnabled,
+          toggleGroup,
           addItem: (it) => {
             if(!selectedChar.value.inventory) selectedChar.value.inventory = [];
             
