@@ -1,0 +1,484 @@
+DOM CRASH:
+ 
+  個人儀表板測測試英雄 (Mock)🧳 單人冒險▼冒險生涯摘要1建立角色0接觸世界0遭遇事件最近活躍的角色查看全部🧙測試英雄 (Mock)無職業進入🎲加入牌桌掃描或輸入房號✍️創建新角色展開新的冒險
+
+  
+    const { createApp, ref, computed, watch, onMounted } = Vue;
+/* ===== 內嵌職業資料（離線可用，不靠外部 fetch） ===== */
+
+
+
+
+    const app = createApp({
+      setup() {
+        const coreRules = Vue.reactive({ CLASSES:[], SKILLS:[], CONDITIONS:[], COMMON_LANGUAGES:[], ARMOR_OPTIONS:[], WEAPON_OPTIONS:[], TOOL_OPTIONS:[], RACES:[], ALIGNMENTS:[], BACKGROUNDS:[] });
+        
+        Vue.onMounted(async () => {
+          try {
+            const res = await fetch('../data/core-rules.json');
+            if(res.ok) {
+              const data = await res.json();
+              Object.assign(coreRules, data);
+            }
+            
+            // 由於 core-rules.json 裡的 CLASSES 沒有 features，我們需要補抓 classes.json 裡面的完整特性
+            const resCls = await fetch('../data/classes.json');
+            if(resCls.ok) {
+              const classData = await resCls.json();
+              if (classData && classData.classes) {
+                // 將 features 與 subclasses features 合併進 coreRules.CLASSES
+                coreRules.CLASSES.forEach(baseDef => {
+                  const fullDef = classData.classes.find(c => c?.name_en === baseDef?.name_en);
+                  if (fullDef) {
+                    baseDef.features = fullDef.features || [];
+                    (baseDef.subclasses || []).forEach(baseSc => {
+                      const fullSc = (fullDef.subclasses || []).find(sc => sc?.name_en === baseSc?.name_en);
+                      if (fullSc) {
+                        baseSc.features = fullSc.features || [];
+                      }
+                    });
+                  }
+                });
+              }
+            }
+          } catch(e) { console.error('Failed to load rules', e); }
+        });
+        const isMenuOpen = ref(false);
+        const currentView = ref('dashboard');
+        const chars = ref([]);
+        const selectedCharId = ref(null);
+        const selectedWorldKey = ref('__solo__');
+        const activeModule = ref(null);
+        const isEditMode = ref(false);
+        const availableSpells = ref([]);
+        const newSpellQuery = ref('');
+        const spellFilterLevel = ref('');
+        const customSpell = ref({ name: '', level: '1' });
+        const availableItems = ref([]);
+        const itemSearch = ref('');
+        const customItem = ref({ name: '', qty: 1, desc: '' });
+        const featOpen = ref({});
+        const hasStatEffect = (name, desc, rawItem = null) => {
+          let text = String(name || '') + ' ' + String(desc || '');
+          if (rawItem) {
+            if (rawItem.bonus) return true;
+            if (Array.isArray(rawItem.entries_zh)) text += ' ' + rawItem.entries_zh.join('');
+          }
+          const keywords = ['+1', '+2', '+3', '防禦等級', '豁免', '值變為', 'AC:'];
+          return keywords.some(k => text.includes(k));
+        };
+        const descOpen = ref({});
+        const toggleDesc = (id) => { descOpen.value[id] = !descOpen.value[id]; };
+        const needsExpand = (text) => {
+          if (!text) return false;
+          return text.length > 150 || text.split('\n').length > 4;
+        };
+
+        const computedAC = computed(() => {
+          const char = selectedChar.value;
+          if (!char) return 10;
+          const dexMod = abilityMod((Number(char.abilities?.dex) || 10) + (Number(char.abilityBonus?.dex) || 0));
+          
+          let baseAC = 10 + dexMod;
+          let armorAC = null;
+          let bonusAC = 0;
+          let shieldAC = 0;
+          
+          const equipped = (char.inventory || []).filter(i => i.equipped);
+          equipped.forEach(item => {
+            let text = String(item?.name || '') + ' ' + String(item?.desc || '');
+            
+            // 處理護甲基礎AC
+            let matchArmor = text.match(/AC:\s*(\d+)/);
+            if (matchArmor && item?.category && item?.category.includes('護甲')) {
+              let acVal = parseInt(matchArmor[1], 10);
+              // 如果是中甲，敏捷加值最多+2
+              if (item?.category.includes('中型')) acVal += Math.min(2, dexMod);
+              // 如果是重甲，不加敏捷
+              else if (item?.category.includes('重型')) acVal = acVal;
+              // 輕甲
+              else acVal += dexMod;
+              
+              if (armorAC === null || acVal > armorAC) armorAC = acVal;
+            }
+            
+            // 處理盾牌
+            if (item?.category && item?.category.includes('盾牌')) shieldAC = 2;
+            
+            // 處理額外AC加值 (例如 AC +1)
+            let matchBonus = text.match(/AC\s*\+(\d+)/i) || text.match(/防禦等級.*?\+(\d+)/);
+            if (matchBonus) {
+              bonusAC += parseInt(matchBonus[1], 10);
+            }
+          });
+          
+          return (armorAC !== null ? armorAC : baseAC) + shieldAC + bonusAC;
+        });
+
+        const abilityTotal = (key) => {
+          const char = selectedChar.value;
+          if (!char) return 10;
+          const baseSum = (Number(char.abilities?.[key]) || 10) + (Number(char.abilityBonus?.[key]) || 0);
+          
+          // 動態計算裝備影響
+          const zhMap = { str:'力量', dex:'敏捷', con:'體質', int:'智力', wis:'感知', cha:'魅力' };
+          const zh = zhMap[key];
+          const equipped = (char.inventory || []).filter(i => i.equipped);
+          
+          let override = 0;
+          equipped.forEach(item => {
+            let text = String(item?.name || '') + ' ' + String(item?.desc || '');
+            const match = text.match(new RegExp(zh + '值變為(\\d+)'));
+            if (match) {
+              const val = parseInt(match[1], 10);
+              if (val > override) override = val;
+            }
+          });
+          
+          return override > baseSum ? override : baseSum;
+        };
+        const abilityMod = (score) => Math.floor((score - 10) / 2);
+        const fmtMod = (m) => m >= 0 ? '+' + m : m;
+        const abilityDefs = [
+          {key:'str', zh:'力量'}, {key:'dex', zh:'敏捷'}, {key:'con', zh:'體質'},
+          {key:'int', zh:'智力'}, {key:'wis', zh:'感知'}, {key:'cha', zh:'魅力'}
+        ];
+
+
+        
+        const isGlobalSwitcherOpen = ref(false);
+        const switcherStep = ref('char'); // 'char' 或 'world'
+        const switcherTempCharId = ref(null);
+        const switcherTempChar = computed(() => chars.value.find(c => c.id === switcherTempCharId.value));
+        
+        const openGlobalSwitcher = () => { switcherStep.value = 'char'; isGlobalSwitcherOpen.value = true; };
+        const selectSwitcherChar = (ch) => { switcherTempCharId.value = ch.id; switcherStep.value = 'world'; };
+        const confirmSwitcherWorld = (worldKey) => { selectedCharId.value = switcherTempCharId.value; selectedWorldKey.value = worldKey; isGlobalSwitcherOpen.value = false; };
+        const createNewWorld = () => { alert('新增/加入世界 功能開發中...'); };
+
+        const filteredAvailableSpells = computed(() => {
+          let q = newSpellQuery.value.toLowerCase().trim();
+          let level = spellFilterLevel.value;
+          return availableSpells.value.filter(sp => {
+            if (level !== '' && String(sp?.level) !== String(level)) return false;
+            if (q) {
+              const zh = (sp?.name_zh || sp?.name || '').toLowerCase();
+              const en = (sp?.name_en || '').toLowerCase();
+              if (!zh.includes(q) && !en.includes(q)) return false;
+            }
+            return true;
+          }).slice(0, 30);
+        });
+        
+        const isSpellInBook = (sp) => {
+          if(!selectedChar.value || !selectedChar.value.spellbook) return false;
+          return selectedChar.value.spellbook.some(b => b?.name === sp?.name_zh || b?.name === sp?.name || b?.name === sp?.name_en);
+        };
+
+        const filteredAvailableItems = computed(() => {
+          let q = itemSearch.value.toLowerCase().trim();
+          return availableItems.value.filter(item => {
+            if (!q) return true;
+            const zh = (item?.name_zh || item?.name || '').toLowerCase();
+            const en = (item?.name_en || '').toLowerCase();
+            return zh.includes(q) || en.includes(q);
+          }).slice(0, 30);
+        });
+
+        
+        const totalLevel = computed(() => {
+          if (!selectedChar.value || !selectedChar.value.classes) return 1;
+          return selectedChar.value.classes.reduce((sum, cl) => sum + (Number(cl.level) || 0), 0) || 1;
+        });
+        const profBonus = computed(() => Math.ceil(totalLevel.value / 4) + 1);
+        const skillValue = (zh) => {
+          if (!selectedChar.value || !selectedChar.value.skills) return 0;
+          const def = coreRules.SKILLS.find(s => s.zh === zh);
+          if (!def) return 0;
+          const skData = selectedChar.value.skills[zh];
+          if (!skData) return abilityMod(abilityTotal(def.attr));
+          if (skData.override !== null && skData.override !== '' && skData.override !== undefined) return Number(skData.override);
+          return abilityMod(abilityTotal(def.attr)) + (skData.proficient ? profBonus.value : 0);
+        };
+        
+        const isDMWorld = computed(() => selectedWorldKey.value !== '__solo__');
+
+        const selectedChar = computed(() => {
+          if (!selectedCharId.value) return null;
+          return chars.value.find(c => c.id === selectedCharId.value) || null;
+        });
+
+        watch([isEditMode, activeModule, selectedChar, () => coreRules.SKILLS], ([edit, mod, char, rulesSkills]) => {
+          if (mod === 'skills' && char) {
+            if (!char.skills) char.skills = {};
+            if (rulesSkills && rulesSkills.length) {
+              rulesSkills.forEach(s => {
+                if (!char.skills[s.zh]) char.skills[s.zh] = { proficient: false, override: null };
+              });
+            }
+          }
+          if (edit && mod === 'stats' && char) {
+            if (!char.abilities) {
+              char.abilities = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+            }
+            if (!char.abilityBonus) {
+              char.abilityBonus = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
+            }
+          }
+          if (edit && mod === 'inventory' && char) {
+            if (char.inventory && char.inventory.length > 0 && typeof char.inventory[0] === 'string') {
+              char.inventory = char.inventory.map(item => ({ name: item, qty: 1, desc: '' }));
+            }
+          }
+        }, { immediate: true });
+
+        // 當選擇的角色改變時，重設世界選擇器並關閉內頁
+        watch(selectedCharId, (newId) => {
+          selectedWorldKey.value = '__solo__';
+          activeModule.value = null;
+        });
+
+        // 當世界切換時，退出內頁以防狀態混亂（可選，增加安全感）
+        watch(selectedWorldKey, () => {
+          if (activeModule.value !== 'story') {
+             // activeModule.value = null; // 暫不強制關閉，讓使用者在不同世界間快速比對數值也是一種好體驗
+          }
+        });
+
+        const requestDMApproval = () => {
+          alert(`已發送修改申請至 DM 世界：${selectedWorldKey.value}。請等待 DM 批准。`);
+          console.log(`[Action] Requesting DM approval for ${activeModule.value} in world ${selectedWorldKey.value}`);
+        };
+
+        // 啟動時讀取 V1 既有的本地存檔資料
+        onMounted(() => {
+          fetch('../data/spells.json').then(res => res.json()).then(data => {
+            availableSpells.value = data.spells || data || [];
+          }).catch(() => {
+            availableSpells.value = [
+              { id: 'fireball', name_zh: '火球術', level: 3 },
+              { id: 'magic_missile', name_zh: '魔法飛彈', level: 1 }
+            ];
+          });
+          fetch('../data/items.json').then(res => res.json()).then(data => {
+            availableItems.value = data.items || [];
+          }).catch(e => {
+             console.error("無法讀取物品資料", e);
+             availableItems.value = [];
+          });
+          // 總管大人指示：先不要接 localStorage，避免舊資料干擾，專心整理版面與流程
+          chars.value = [{
+            id: 'mock-char-001',
+            name: '測試英雄 (Mock)',
+            avatar: '',
+            race: '人類',
+            alignment: '絕對中立',
+            background: '平民',
+            notes: '這是一個為了開發 UI 版面而生成的純淨測試角色。\n我們現在只專注於接上 JSON 字典檔並優化畫面。',
+            worldProgress: {},
+            abilities: { str: 15, dex: 14, con: 13, int: 12, wis: 10, cha: 8 },
+            abilityBonus: { str: 1, dex: 1, con: 0, int: 0, wis: 0, cha: 0 },
+            coins: { cp: 10, sp: 5, gp: 100, pp: 0 },
+            inventory: [],
+            spellbook: [],
+            familiar: null,
+            skills: {},
+            classes: [
+              { name_en: 'Fighter', level: 1, subclass: '' }
+            ]
+          }];
+          
+          if (!selectedCharId.value) {
+            selectedCharId.value = chars.value[0].id;
+          }
+        });
+
+        // 統計模塊：計算所有角色、接觸過的世界與戰報數量
+        const stats = computed(() => {
+          let totalChars = chars.value.length;
+          let worldSet = new Set();
+          let eventCount = 0;
+
+          chars.value.forEach(ch => {
+            if (ch.worldProgress) {
+              Object.keys(ch.worldProgress).forEach(k => {
+                if (k !== '__solo__') worldSet.add(k);
+                // 計算每個世界桶內的戰報數量
+                if (ch.worldProgress[k].campaignLog) {
+                  eventCount += ch.worldProgress[k].campaignLog.length;
+                }
+              });
+            }
+          });
+
+          return {
+            totalChars,
+            totalWorlds: worldSet.size,
+            totalEvents: eventCount
+          };
+        });
+
+        const viewTitle = computed(() => {
+          switch(currentView.value) {
+            case 'dashboard': return '個人儀表板';
+            case 'characters': return '我的角色';
+            case 'worlds': return '冒險世界';
+            default: return '冒險者檔案';
+          }
+        });
+
+        const switchView = (view) => {
+          currentView.value = view;
+          isMenuOpen.value = false;
+          activeModule.value = null; // 切換大視圖時關閉內頁
+          
+          if (view === 'characters' && !selectedCharId.value && chars.value.length > 0) {
+            // 如果切換到角色視圖且沒有選定角色，預設選擇第一個
+            selectedCharId.value = chars.value[0].id;
+          } else if (view !== 'characters' && view !== 'dashboard') {
+            selectedCharId.value = null;
+          }
+        };
+
+        return {
+          isMenuOpen,
+          isGlobalSwitcherOpen,
+          switcherStep,
+          switcherTempCharId,
+          switcherTempChar,
+          openGlobalSwitcher,
+          selectSwitcherChar,
+          confirmSwitcherWorld,
+          createNewWorld,
+          currentView,
+          viewTitle,
+          switchView,
+          chars,
+          stats,
+          selectedCharId,
+          selectedChar,
+          selectedWorldKey,
+          CLASSES: Vue.computed(() => coreRules.CLASSES),
+          SKILLS: Vue.computed(() => coreRules.SKILLS),
+          CONDITIONS: Vue.computed(() => coreRules.CONDITIONS),
+          COMMON_LANGUAGES: Vue.computed(() => coreRules.COMMON_LANGUAGES),
+          ARMOR_OPTIONS: Vue.computed(() => coreRules.ARMOR_OPTIONS),
+          WEAPON_OPTIONS: Vue.computed(() => coreRules.WEAPON_OPTIONS),
+          TOOL_OPTIONS: Vue.computed(() => coreRules.TOOL_OPTIONS),
+          RACES: Vue.computed(() => coreRules.RACES),
+          ALIGNMENTS: Vue.computed(() => coreRules.ALIGNMENTS),
+          BACKGROUNDS: Vue.computed(() => coreRules.BACKGROUNDS),
+          activeModule,
+          isEditMode,
+          availableSpells,
+          newSpellQuery,
+          spellFilterLevel,
+          filteredAvailableSpells,
+          isSpellInBook,
+          customSpell,
+          availableItems,
+          itemSearch,
+          filteredAvailableItems,
+          equippedItems: Vue.computed(() => (selectedChar.value?.inventory || []).filter(i => i.equipped)),
+          backpackItems: Vue.computed(() => (selectedChar.value?.inventory || []).filter(i => !i.equipped)),
+          toggleEquip: (item) => {
+            if (item) item.equipped = !item.equipped;
+            
+            // 清理上一版殘留的髒數據 (防呆還原)
+            const char = selectedChar.value;
+            if (item._appliedStats && char && char.abilityBonus) {
+              for (let k in item._appliedStats) { char.abilityBonus[k] -= item._appliedStats[k]; }
+              delete item._appliedStats;
+            }
+
+            let text = String(item?.name || '') + ' ' + String(item?.desc || '');
+            let acMatch = text.match(/AC\s*\+(\d+)/i) || text.match(/防禦等級.*?\+(\d+)/);
+            let saveMatch = text.match(/豁免.*?\+(\d+)/);
+
+            if (acMatch || saveMatch) {
+              alert(`【裝備狀態切換】\n\n您${item?.equipped ? '裝備' : '卸下'}了「${item?.name}」\n` + 
+                    (acMatch ? `\n• 防禦等級 (AC) ${item?.equipped ? '+' : '-'}${acMatch[1]}` : '') +
+                    (saveMatch ? `\n• 豁免檢定 ${item?.equipped ? '+' : '-'}${saveMatch[1]}` : '') +
+                    `\n\n(註：能力值已由系統【即時動態運算】，但 AC 與豁免目前請於戰鬥時自行加減！)`);
+            }
+          },
+          removeItem: (idx) => { selectedChar.value.inventory.splice(idx, 1); },
+          addSpell: (sp) => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; selectedChar.value.spellbook.push({ id: sp.id || Date.now(), name: sp?.name_zh || sp?.name_en || sp?.name, level: sp?.level, desc: (
+  [
+    sp.school ? `學派: ${sp.school}` : null,
+    sp.time && sp.time.length ? `施法時間: ${sp.time.map(t => t.number + ' ' + t.unit).join(', ')}` : null,
+    sp.range && sp.range.distance ? `射程: ${sp.range.distance.amount || ''} ${sp.range.distance.type || ''}` : null,
+    sp.components ? `成分: ${Object.keys(sp.components).filter(k=>sp.components[k]).join(', ').toUpperCase()}` : null,
+    sp.duration && sp.duration.length ? `持續: ${sp.duration.map(d => d.type === 'instant' ? '瞬間' : (d.duration ? d.duration.amount + ' ' + d.duration.type : d.type)).join(', ')}` : null,
+    sp.ritual ? '【儀式】' : null
+  ].filter(Boolean).join(' | ') + 
+  '\n\n' +
+  (Array.isArray(sp.entries_zh) ? sp.entries_zh.join('\n') : (Array.isArray(sp.entries) ? sp.entries.join('\n') : (sp.desc_zh || sp.desc_en || sp.desc || '')))
+).trim(), custom: false }); },
+          addCustomSpell: () => { if(!selectedChar.value.spellbook) selectedChar.value.spellbook = []; if(customSpell.value.name) { selectedChar.value.spellbook.push({ id: Date.now(), name: customSpell.value.name, level: customSpell.value.level, desc: customSpell.value.desc || '', custom: true }); customSpell.value.name = ''; customSpell.value.desc = ''; } },
+          removeSpell: (idx) => { selectedChar.value.spellbook.splice(idx, 1); },
+          computedAC,
+          abilityTotal,
+          abilityMod,
+          fmtMod,
+          abilityDefs,
+          profBonus,
+          skillValue,
+          isDMWorld,
+          requestDMApproval,
+          subclassDef: (cl) => {
+            const def = (coreRules.CLASSES || []).find(k => k.name_en === (cl?.name_en || cl?.name));
+            if(!def || !def.subclasses || !def.subclasses.length) return null;
+            return { label: def.subclass_label, level: def.subclass_level, list: def.subclasses };
+          },
+          selectedSubclassDesc: (cl) => {
+            const def = (coreRules.CLASSES || []).find(k => k.name_en === (cl?.name_en || cl?.name));
+            if(!def || !def.subclasses || !cl.subclass) return "";
+            const sc = def.subclasses.find(x => x?.name_en === cl.subclass);
+            return sc ? (sc?.name_zh + "：" + (sc.desc_zh || '')) : "";
+          },
+          getClassName: (cl) => {
+            const def = (coreRules.CLASSES || []).find(k => k.name_en === (cl?.name_en || cl?.name));
+            return def ? def?.name_zh : (cl?.name_en || cl?.name);
+          },
+          getSubclassName: (cl) => {
+            const def = (coreRules.CLASSES || []).find(k => k.name_en === (cl?.name_en || cl?.name));
+            if(!def || !def.subclasses || !cl.subclass) return "";
+            const sc = def.subclasses.find(x => x?.name_en === cl.subclass);
+            return sc ? sc?.name_zh : cl.subclass;
+          },
+          featOpen,
+          toggleFeat: (idx) => { featOpen.value[idx] = !featOpen.value[idx]; },
+          descOpen,
+          toggleDesc,
+          needsExpand,
+          hasStatEffect,
+          classFeaturesFor: (cl) => {
+            const def = coreRules.CLASSES.find(k => k.name_en === (cl?.name_en || cl?.name));
+            const lv = Number(cl.level) || 0;
+            if(!def || !def.features) return [];
+            return def.features.filter(f => !f.level || f.level <= lv);
+          },
+          subclassFeaturesFor: (cl) => {
+            const def = coreRules.CLASSES.find(k => k.name_en === (cl?.name_en || cl?.name));
+            const lv = Number(cl.level) || 0;
+            if(!def || !def.subclasses || !cl.subclass) return [];
+            const sc = def.subclasses.find(x => x?.name_en === cl.subclass);
+            if(!sc || !sc.features) return [];
+            return sc.features.filter(f => !f.level || f.level <= lv);
+          }
+        };
+      }
+    });
+
+    
+    app.config.errorHandler = (err, vm, info) => {
+      console.error('VUE GLOBAL ERROR:', err, info);
+      document.body.innerHTML = '<div style="color:red;font-size:20px;padding:20px;"><h1>VUE ERROR</h1><pre>' + err.stack + '</pre><p>Info: ' + info + '</p></div>';
+    };
+
+    app.mount('#app');
+  
+
+
+

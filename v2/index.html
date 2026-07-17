@@ -208,7 +208,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0717.21)
+          v2.0.0 (Build 0717.22)
         </div>
       </div>
     </transition>
@@ -1249,6 +1249,22 @@
           </div>
         </div>
 
+        <!-- 資料備份與還原 -->
+        <div class="module-card">
+          <h2 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2"><span>💾</span> 資料備份與還原</h2>
+          <p class="text-xs text-gray-500 mb-4">將所有角色、世界與冒險進度打包成 JSON 檔案保存，或從備份檔還原。還原會<span class="text-red-500 font-bold">覆寫</span>目前資料。</p>
+          <div class="flex flex-col gap-2">
+            <button @click="exportData" class="px-4 py-2 text-sm flex items-center justify-center gap-2 text-white rounded-lg w-full font-medium shadow-sm hover:opacity-90 transition" style="background-color:#2563eb;">
+              ⬇️ 匯出備份（下載 JSON）
+            </button>
+            <label class="px-4 py-2 text-sm flex items-center justify-center gap-2 text-gray-700 bg-gray-100 border border-gray-200 rounded-lg w-full font-medium shadow-sm hover:bg-gray-200 transition cursor-pointer">
+              ⬆️ 匯入備份（選擇 JSON）
+              <input type="file" accept="application/json,.json" @change="importData" class="hidden">
+            </label>
+          </div>
+          <p class="text-[11px] text-gray-400 mt-3 leading-relaxed">提示：匯入前建議先匯出一份現有資料以備不時之需。</p>
+        </div>
+
         <!-- 關於 / 鳴謝 -->
         <div class="module-card">
           <div class="flex flex-col items-center mb-4 mt-1 text-center">
@@ -2117,6 +2133,68 @@
           }
         };
 
+        /* ===== 資料備份與還原（JSON 匯出 / 匯入） ===== */
+        const exportData = () => {
+          try {
+            const payload = {
+              __type: 'dnd5e_character_card_backup',
+              __version: 2,
+              exportedAt: new Date().toISOString(),
+              data: {
+                dnd_identities_v2:   localStorage.getItem(LS_IDENTITIES),
+                dnd_instances_v2:    localStorage.getItem(LS_INSTANCES),
+                dnd_worlds_v2:       localStorage.getItem(LS_WORLDS),
+                dnd_active_world_v2: localStorage.getItem(LS_ACTIVE_WORLD)
+              }
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const d = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const stamp = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dnd5e-backup-${stamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          } catch (e) {
+            alert('匯出失敗：' + (e && e.message ? e.message : e));
+          }
+        };
+
+        const importData = (ev) => {
+          const f = ev.target && ev.target.files && ev.target.files[0];
+          if (!f) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const obj = JSON.parse(reader.result);
+              const d = (obj && obj.data && typeof obj.data === 'object') ? obj.data : obj;
+              if (!d || typeof d !== 'object') throw new Error('檔案格式無效');
+              if (!('dnd_identities_v2' in d) && !('dnd_instances_v2' in d) && !('dnd_worlds_v2' in d)) {
+                throw new Error('找不到可還原的備份欄位');
+              }
+              if (!confirm('確定要還原備份嗎？這會覆寫目前所有角色、世界與進度資料，且無法復原。')) { ev.target.value = ''; return; }
+              const setOrSkip = (key, val) => {
+                if (val === null || val === undefined) return;
+                localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
+              };
+              setOrSkip(LS_IDENTITIES,   d.dnd_identities_v2);
+              setOrSkip(LS_INSTANCES,    d.dnd_instances_v2);
+              setOrSkip(LS_WORLDS,       d.dnd_worlds_v2);
+              setOrSkip(LS_ACTIVE_WORLD, d.dnd_active_world_v2);
+              alert('還原成功！即將重新載入。');
+              location.reload();
+            } catch (e) {
+              alert('匯入失敗：' + (e && e.message ? e.message : e));
+            }
+          };
+          reader.readAsText(f);
+          ev.target.value = '';
+        };
+
         return {
           isMenuOpen,
           isGlobalSwitcherOpen,
@@ -2193,6 +2271,8 @@
           sourceCountsText,
           sourceLabelOf,
           isSourceEnabled, raceOptions,
+          exportData,
+          importData,
           toggleSource,
           selectAllSources,
           groupAllEnabled,
