@@ -178,7 +178,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0717.12)
+          v2.0.0 (Build 0717.13)
         </div>
       </div>
     </transition>
@@ -1753,11 +1753,10 @@
           isMenuOpen.value = false;
           activeModule.value = null; // 切換大視圖時關閉內頁
           
+          // 全域選定的角色應跨分頁保留（右上角切換器為唯一來源），不再於切換視圖時清空
           if (view === 'characters' && !selectedCharId.value && chars.value.length > 0) {
             // 如果切換到角色視圖且沒有選定角色，預設選擇第一個
             selectedCharId.value = chars.value[0].id;
-          } else if (view !== 'characters' && view !== 'dashboard') {
-            selectedCharId.value = null;
           }
         };
 
