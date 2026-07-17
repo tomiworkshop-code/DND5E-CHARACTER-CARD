@@ -208,7 +208,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0717.20)
+          v2.0.0 (Build 0717.21)
         </div>
       </div>
     </transition>
@@ -442,7 +442,8 @@
                   <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">種族</label>
                     <select v-model="selectedChar.race" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
-                      <option v-for="r in RACES" :key="r?.name" :value="r?.name">{{ r?.name }}</option>
+                      <option v-if="selectedChar.race && !raceOptions.some(r=>r.name===selectedChar.race)" :value="selectedChar.race">{{ selectedChar.race }}（現有）</option>
+                      <option v-for="r in raceOptions" :key="r?.name" :value="r?.name">{{ r?.name }}{{ r?.name_en ? '（'+r.name_en+'）' : '' }}</option>
                     </select>
                   </div>
                   <div>
@@ -1813,6 +1814,22 @@
         // 設定變動時自動持久化（includeUntranslated 等）
         watch(settings, () => { persistSettings(); }, { deep: true });
 
+        /* 種族選單：採用完整 races.json（86 種）並依【內容來源設定】篩選；無資料時回退到基礎 10 種 */
+        const raceOptions = computed(() => {
+          const full = (dataState.races || []).filter(r => r && (r.name_zh || r.name) && passesFilter(r));
+          if (!full.length) return (coreRules.RACES || []);
+          const seen = new Set();
+          const list = [];
+          full.forEach(r => {
+            const label = r.name_zh || r.name;
+            if (seen.has(label)) return;
+            seen.add(label);
+            list.push({ name: label, name_en: r.name_en || '', source: r.source || '' });
+          });
+          list.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'));
+          return list;
+        });
+
         const filteredAvailableSpells = computed(() => {
           let q = newSpellQuery.value.toLowerCase().trim();
           let level = spellFilterLevel.value;
@@ -2175,7 +2192,7 @@
           totalSourceCount,
           sourceCountsText,
           sourceLabelOf,
-          isSourceEnabled,
+          isSourceEnabled, raceOptions,
           toggleSource,
           selectAllSources,
           groupAllEnabled,
