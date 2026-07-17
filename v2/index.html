@@ -25,6 +25,23 @@
       --border: #e5e7eb;
     }
     body { background-color: var(--bg-base); color: var(--text-main); font-family: sans-serif; }
+    /* Vue 挂載前先隱藏 app，避免未編譯模板閃現 */
+    [v-cloak] { display: none !important; }
+    /* PWA / 開場 Loading Screen */
+    #app-boot {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px; background: var(--bg-base);
+      transition: opacity .35s ease; opacity: 1;
+    }
+    #app-boot.boot-hide { opacity: 0; pointer-events: none; }
+    #app-boot img { width: 88px; height: 88px; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,.12); }
+    #app-boot .boot-title { font-weight: 700; font-size: 17px; color: #374151; letter-spacing: .05em; }
+    #app-boot .boot-spinner {
+      width: 26px; height: 26px; border: 3px solid #d1d5db; border-top-color: #3b82f6;
+      border-radius: 50%; animation: boot-spin .8s linear infinite;
+    }
+    @keyframes boot-spin { to { transform: rotate(360deg); } }
     
     /* 隱藏式側邊欄過渡動畫 */
     .sidebar-enter-active, .sidebar-leave-active { transition: transform 0.3s ease; }
@@ -42,6 +59,12 @@
   </style>
 </head>
 <body>
+  <!-- 開場 Loading Screen（Vue 挂載完成後淡出） -->
+  <div id="app-boot">
+    <img src="./icons/icon-192.png" alt="冒險者之書">
+    <div class="boot-title">冒險者之書</div>
+    <div class="boot-spinner"></div>
+  </div>
   <div id="app" class="min-h-screen flex flex-col relative" v-cloak>
     
     <!-- 頂部導覽列 (Top Header) -->
@@ -185,7 +208,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0717.18)
+          v2.0.0 (Build 0717.19)
         </div>
       </div>
     </transition>
@@ -2259,6 +2282,18 @@
     };
 
     app.mount('#app');
+
+    /* ===== 挂載完成：淡出開場 Loading Screen ===== */
+    (function () {
+      const boot = document.getElementById('app-boot');
+      if (!boot) return;
+      const hide = () => {
+        boot.classList.add('boot-hide');
+        setTimeout(() => { boot.remove(); }, 400);
+      };
+      // 至少顯示一瞬間，避免閃一下就消失
+      setTimeout(hide, 300);
+    })();
 
     /* ===== PWA：註册 Service Worker ===== */
     if ("serviceWorker" in navigator) {
