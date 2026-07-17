@@ -208,7 +208,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0717.19)
+          v2.0.0 (Build 0717.20)
         </div>
       </div>
     </transition>
@@ -418,8 +418,15 @@
                 <div class="flex gap-4 items-start">
                   <div class="flex-1 space-y-3">
                     <div>
-                      <label class="block text-xs font-bold text-gray-500 mb-1">頭像 URL</label>
-                      <input v-model="selectedChar.avatar" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none" placeholder="輸入圖片網址...">
+                      <label class="block text-xs font-bold text-gray-500 mb-1">頭像</label>
+                      <input v-model="selectedChar.avatar" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none" placeholder="輸入圖片網址，或下方上傳...">
+                      <div class="flex items-center gap-2 mt-2">
+                        <label class="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 text-xs font-medium rounded-lg hover:bg-purple-200 transition">
+                          📷 上傳圖片
+                          <input type="file" accept="image/*" class="hidden" @change="onAvatarPick">
+                        </label>
+                        <button v-if="selectedChar.avatar" @click="selectedChar.avatar = ''" class="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 transition">清除</button>
+                      </div>
                     </div>
                     <div>
                       <label class="block text-xs font-bold text-gray-500 mb-1">名稱</label>
@@ -2048,6 +2055,39 @@
           }
         });
 
+        /* ===== 頭像上傳：讀檔 → canvas 縮圖 → 寫入 selectedChar.avatar（控制體積避免擐爆 localStorage） ===== */
+        const onAvatarPick = (ev) => {
+          const f = ev.target && ev.target.files && ev.target.files[0];
+          if (!f) return;
+          if (!/^image\//.test(f.type)) { alert('請選擇圖片檔案喔~'); return; }
+          if (f.size > 8 * 1024 * 1024) { alert('圖片請小於 8MB喔~'); return; }
+          const reader = new FileReader();
+          reader.onload = () => {
+            const img = new Image();
+            img.onload = () => {
+              try {
+                const MAX = 512; // 長邊最大 512px
+                let w = img.width, h = img.height;
+                if (w > h && w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+                else if (h >= w && h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                // 輸出 jpeg（品質 0.85），大幅縮小 dataURL 體積
+                if (selectedChar.value) selectedChar.value.avatar = canvas.toDataURL('image/jpeg', 0.85);
+              } catch (e) {
+                // 縮圖失敗則直接用原始 dataURL 備援
+                if (selectedChar.value) selectedChar.value.avatar = reader.result;
+              }
+            };
+            img.onerror = () => { if (selectedChar.value) selectedChar.value.avatar = reader.result; };
+            img.src = reader.result;
+          };
+          reader.readAsDataURL(f);
+          // 清空 input，讓同一張圖可連續重選
+          ev.target.value = '';
+        };
+
         const switchView = (view) => {
           currentView.value = view;
           isMenuOpen.value = false;
@@ -2117,6 +2157,7 @@
           ALIGNMENTS: Vue.computed(() => coreRules.ALIGNMENTS),
           BACKGROUNDS: Vue.computed(() => coreRules.BACKGROUNDS),
           activeModule,
+          onAvatarPick,
           isEditMode, isWorldEditMode, worldEditTemp, activeRecordTab, newRecordText, recordTabs, startWorldEdit, saveWorldEdit, addWorldRecord, removeWorldRecord, availableSpells,
           newSpellQuery,
           spellFilterLevel,
