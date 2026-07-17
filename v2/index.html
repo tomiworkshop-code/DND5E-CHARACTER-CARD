@@ -177,7 +177,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0717.01)
+          v2.0.0 (Build 0717.02)
         </div>
       </div>
     </transition>
@@ -1072,34 +1072,8 @@
       <!-- 模塊：世界列表 (Worlds Placeholder) -->
       <template v-if="currentView === 'worlds'">
         <div class="space-y-4">
-          <!-- 世界切換與列表 -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div v-for="w in worlds" :key="w.id" 
-                 @click="selectedWorldKey = w.id"
-                 :class="['module-card cursor-pointer transition flex items-start gap-4', selectedWorldKey === w.id ? 'ring-2 ring-blue-500 bg-blue-50/50' : 'hover:bg-gray-50']">
-              <div class="text-4xl mt-1">
-                {{ w.type === 'dm' ? '🌌' : '🧳' }}
-              </div>
-              <div class="flex-1">
-                <div class="flex items-center gap-2 mb-1">
-                  <h3 class="font-bold text-gray-800 text-lg">{{ w.name }}</h3>
-                  <span v-if="w.type === 'local'" class="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700">本地單人</span>
-                  <span v-else class="px-2 py-0.5 rounded text-xs bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.078 2.027-.231 3.021M15.328 14.304c.52.87 1.01 1.776 1.467 2.715m-4.577-4.577l.035.012M12 21a9.003 9.003 0 008.354-5.646"></path></svg>
-                    DM 連線
-                  </span>
-                </div>
-                <div class="text-sm text-gray-500 mb-1">主持: {{ w.dm }}</div>
-                <div class="text-xs text-gray-400 line-clamp-1">{{ w.desc }}</div>
-              </div>
-              <div v-if="selectedWorldKey === w.id" class="text-blue-500">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-              </div>
-            </div>
-          </div>
-
           <!-- 當前世界詳細資訊 (第一階段：世界概況) -->
-          <div class="module-card mt-6" v-if="selectedWorldObj">
+          <div class="module-card" v-if="selectedWorldObj">
             <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
               <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <span>{{ selectedWorldObj.name }}</span>
