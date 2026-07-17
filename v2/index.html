@@ -6,6 +6,7 @@
   <title>Adventurer V2 - Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="../shared/character-schema.js"></script>
   <style>
     /* 基礎模塊化變數，不預設立場，先用乾淨的灰階與安全色 */
     :root {
@@ -177,7 +178,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0717.09)
+          v2.0.0 (Build 0717.10)
         </div>
       </div>
     </transition>
@@ -1174,6 +1175,183 @@
 
 
 
+
+    window.uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+    const LS_IDENTITIES = "dnd_identities_v2";
+    const LS_INSTANCES  = "dnd_instances_v2";
+    const LS_WORLDS     = "dnd_worlds_v2";
+    const LS_ACTIVE_WORLD = "dnd_active_world_v2";
+    const LS_ACTIVE_INSTANCE = "dnd_active_instance_v2";
+    const LS_SCHEMA_VER = "dnd_schema_ver";
+    const DEFAULT_WORLD_ID = "w_local_default";
+
+    function getInt(key) { return parseInt(localStorage.getItem(key)) || 0; }
+
+    function pickIdentityFields(ch) {
+      return {
+        name: ch.name || "",
+        race: ch.race || "",
+        subrace: ch.subrace || "",
+        alignment: ch.alignment || "",
+        background: ch.background || "",
+        baseAbilities: JSON.parse(JSON.stringify(ch.abilities || {str:10,dex:10,con:10,int:10,wis:10,cha:10})),
+        story: JSON.parse(JSON.stringify(ch.story || {appearance:"",personality:"",ideals:"",bonds:"",flaws:"",allies:"",backstory:""})),
+        avatar: ch.avatar || ""
+      };
+    }
+
+    function pickMechanicalFields(ch) {
+      return {
+        speed: ch.speed || "30 呎",
+        languages: JSON.parse(JSON.stringify(ch.languages || [])),
+        proficiencies: ch.proficiencies || "",
+        grantedProficiencies: [],
+        profArmor: JSON.parse(JSON.stringify(ch.profArmor || [])),
+        profWeapon: JSON.parse(JSON.stringify(ch.profWeapon || [])),
+        profTool: JSON.parse(JSON.stringify(ch.profTool || [])),
+        profSaves: JSON.parse(JSON.stringify(ch.profSaves || {})),
+        ac: ch.ac || 10,
+        initiative: ch.initiative || 0,
+        hp: JSON.parse(JSON.stringify(ch.hp || {current:10,max:10,temp:0})),
+        abilities: JSON.parse(JSON.stringify(ch.abilities || {str:10,dex:10,con:10,int:10,wis:10,cha:10})),
+        abilityBonus: JSON.parse(JSON.stringify(ch.abilityBonus || {str:0,dex:0,con:0,int:0,wis:0,cha:0})),
+        classes: JSON.parse(JSON.stringify(ch.classes || [])),
+        saves: JSON.parse(JSON.stringify(ch.saves || {str:false,dex:false,con:false,int:false,wis:false,cha:false})),
+        skills: JSON.parse(JSON.stringify(ch.skills || {})),
+        spellSlots: JSON.parse(JSON.stringify(ch.spellSlots || [])),
+        spellsText: ch.spellsText || "",
+        spellbook: JSON.parse(JSON.stringify(ch.spellbook || [])),
+        inventory: JSON.parse(JSON.stringify(ch.inventory || [])),
+        coins: JSON.parse(JSON.stringify(ch.coins || {cp:0,sp:0,gp:0,pp:0})),
+        conditions: JSON.parse(JSON.stringify(ch.conditions || {})),
+        exhaustion: ch.exhaustion || 0,
+        deathSaves: JSON.parse(JSON.stringify(ch.deathSaves || {success:0,fail:0})),
+        inspiration: ch.inspiration || false,
+        concentration: JSON.parse(JSON.stringify(ch.concentration || {on:false,spell:""})),
+        hitDiceUsed: ch.hitDiceUsed || 0,
+        acHelper: JSON.parse(JSON.stringify(ch.acHelper || {base:10,dexCap:"",shield:0,misc:0})),
+        resources: JSON.parse(JSON.stringify(ch.resources || [])),
+        attacks: JSON.parse(JSON.stringify(ch.attacks || [])),
+        feats: JSON.parse(JSON.stringify(ch.feats || [])),
+        familiar: ch.familiar ? {
+          speed: ch.familiar.speed,
+          ac: ch.familiar.ac,
+          hp: ch.familiar.hp,
+          abilities: ch.familiar.abilities,
+          attacks: ch.familiar.attacks
+        } : null
+      };
+    }
+
+    function pickInstanceNarrative(ch) {
+      return {
+        notes: ch.notes || "",
+        familiar: ch.familiar ? {
+          name: ch.familiar.name,
+          type: ch.familiar.type,
+          notes: ch.familiar.notes
+        } : null
+      };
+    }
+
+    function migrateToV2() {
+      if (getInt(LS_SCHEMA_VER) >= 2) return;
+      let oldChars = [];
+      const raw = localStorage.getItem("dnd_chars");
+      if (raw) {
+        try {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) {
+            oldChars = arr.map(x => window.DND5E_CHAR.mergeChar(window.DND5E_CHAR.defaultChar(), x));
+          }
+        } catch(e) {}
+      }
+      if (!oldChars.length) {
+        const legacy = localStorage.getItem("parchment_dnd5e_char_v1");
+        if (legacy) {
+          try { oldChars = [ window.DND5E_CHAR.mergeChar(window.DND5E_CHAR.defaultChar(), JSON.parse(legacy)) ]; } catch(e) {}
+        }
+      }
+      if (!oldChars.length) {
+        let dc = window.DND5E_CHAR.defaultChar();
+        dc.id = window.uid();
+        oldChars = [ dc ];
+      }
+
+      let worlds = JSON.parse(localStorage.getItem(LS_WORLDS) || "null") || [{id: DEFAULT_WORLD_ID, name: "本地世界", note: "未連線 DM 前的預設世界", type: "local"}];
+      if (!worlds.find(w => w.id === DEFAULT_WORLD_ID)) worlds.push({id: DEFAULT_WORLD_ID, name: "本地世界", note: "未連線 DM 前的預設世界", type: "local"});
+
+      let identities = [];
+      let instances = {};
+      for (const ch of oldChars) {
+        const cid = ch.id || window.uid();
+        identities.push({ characterId: cid, identity: pickIdentityFields(ch), version_n: 1 });
+        const iid = cid + "@" + DEFAULT_WORLD_ID;
+        instances[iid] = {
+          instanceId: iid, characterId: cid, worldId: DEFAULT_WORLD_ID,
+          mechanical: pickMechanicalFields(ch),
+          narrative: pickInstanceNarrative(ch),
+          version_m: 1, version_n: 1, updatedAt: Date.now()
+        };
+      }
+      
+      localStorage.setItem(LS_IDENTITIES, JSON.stringify(identities));
+      localStorage.setItem(LS_INSTANCES, JSON.stringify(instances));
+      localStorage.setItem(LS_WORLDS, JSON.stringify(worlds));
+      
+      const activeCid = localStorage.getItem("dnd_active") && identities.find(i=>i.characterId===localStorage.getItem("dnd_active")) 
+        ? localStorage.getItem("dnd_active") 
+        : identities[0].characterId;
+        
+      localStorage.setItem("dnd_active", activeCid);
+      localStorage.setItem(LS_ACTIVE_WORLD, DEFAULT_WORLD_ID);
+      localStorage.setItem(LS_ACTIVE_INSTANCE, activeCid + "@" + DEFAULT_WORLD_ID);
+      localStorage.setItem(LS_SCHEMA_VER, "2");
+    }
+
+    function composeC(identity, instance) {
+      let c = window.DND5E_CHAR.defaultChar();
+      c.id = identity.characterId;
+      c = window.DND5E_CHAR.mergeChar(c, identity.identity);
+      c = window.DND5E_CHAR.mergeChar(c, instance.mechanical);
+      c = window.DND5E_CHAR.mergeChar(c, instance.narrative);
+      if (identity.identity.familiar || instance.mechanical.familiar || instance.narrative.familiar) {
+        c.familiar = window.DND5E_CHAR.defaultFamiliar();
+        if (instance.narrative.familiar) c.familiar = window.DND5E_CHAR.mergeChar(c.familiar, instance.narrative.familiar);
+        if (instance.mechanical.familiar) c.familiar = window.DND5E_CHAR.mergeChar(c.familiar, instance.mechanical.familiar);
+      }
+      c.worldProgress = {}; 
+      return c;
+    }
+
+    function decomposeC(c, identity, instance) {
+      let oldMech = JSON.stringify(instance.mechanical);
+      let oldNarI = JSON.stringify(instance.narrative);
+      let oldNarId = JSON.stringify(identity.identity);
+
+      let newMech = pickMechanicalFields(c);
+      let newNarI = pickInstanceNarrative(c);
+      let newNarId = pickIdentityFields(c);
+
+      let mChanged = oldMech !== JSON.stringify(newMech);
+      let nIChanged = oldNarI !== JSON.stringify(newNarI);
+      let nIdChanged = oldNarId !== JSON.stringify(newNarId);
+
+      if (mChanged) instance.version_m++;
+      if (nIChanged) instance.version_n++;
+      if (nIdChanged) identity.version_n++;
+
+      if (mChanged || nIChanged || nIdChanged) {
+        instance.updatedAt = Date.now();
+        instance.mechanical = newMech;
+        instance.narrative = newNarI;
+        identity.identity = newNarId;
+        return true; 
+      }
+      return false;
+    }
+
     const app = createApp({
       setup() {
         const coreRules = Vue.reactive({ CLASSES:[], SKILLS:[], CONDITIONS:[], COMMON_LANGUAGES:[], ARMOR_OPTIONS:[], WEAPON_OPTIONS:[], TOOL_OPTIONS:[], RACES:[], ALIGNMENTS:[], BACKGROUNDS:[] });
@@ -1211,28 +1389,7 @@
         const isMenuOpen = ref(false);
         const currentView = ref('dashboard');
         const chars = ref([]);
-        const worlds = ref([
-          {
-            id: '__solo__',
-            name: '單人漫遊',
-            type: 'local',
-            dm: '自己 (Local)',
-            time: '未知',
-            location: '未定',
-            quest: '自由探索',
-            desc: '本地沙盒世界。在此處的所有數值變更會直接保存，無需等待 DM 批准。'
-          },
-          {
-            id: 'w-demo123',
-            name: '阿斯卡利亞的隕落',
-            type: 'dm',
-            dm: '敘事者 (Narrator)',
-            time: '第三紀元 1442 年，初秋',
-            location: '迷霧森林邊緣 - 斷劍旅店',
-            quest: '尋找失蹤的商隊，並調查森林深處的魔法異變。',
-            desc: '已連接敘事者之書的多人戰役。重大數值與物品變更需要 DM 審核。'
-          }
-        ]);
+        const worlds = ref(JSON.parse(localStorage.getItem(LS_WORLDS)) || [{ id: '__solo__', name: '單人漫遊', type: 'local', desc: '本地沙盒世界。在此處的所有數值變更會直接保存，無需等待 DM 批准。' }]);
         const selectedWorldObj = computed(() => worlds.value.find(w => w.id === selectedWorldKey.value) || worlds.value[0]);
 
         const selectedCharId = ref(null);
@@ -1491,31 +1648,37 @@
              console.error("無法讀取物品資料", e);
              availableItems.value = [];
           });
-          // 總管大人指示：先不要接 localStorage，避免舊資料干擾，專心整理版面與流程
-          chars.value = [{
-            id: 'mock-char-001',
-            name: '測試英雄 (Mock)',
-            avatar: '',
-            race: '人類',
-            alignment: '絕對中立',
-            background: '平民',
-            notes: '這是一個為了開發 UI 版面而生成的純淨測試角色。\n我們現在只專注於接上 JSON 字典檔並優化畫面。',
-            worldProgress: {},
-            abilities: { str: 15, dex: 14, con: 13, int: 12, wis: 10, cha: 8 },
-            abilityBonus: { str: 1, dex: 1, con: 0, int: 0, wis: 0, cha: 0 },
-            coins: { cp: 10, sp: 5, gp: 100, pp: 0 },
-            inventory: [],
-            spellbook: [],
-            familiar: null,
-            skills: {},
-            classes: [
-              { name_en: 'Fighter', level: 1, subclass: '' }
-            ]
-          }];
+          
+          migrateToV2();
+          let identities = JSON.parse(localStorage.getItem(LS_IDENTITIES) || "[]");
+          let instances = JSON.parse(localStorage.getItem(LS_INSTANCES) || "{}");
+          
+          if (identities.length === 0) {
+            // Failsafe
+            let dc = window.DND5E_CHAR.defaultChar();
+            dc.id = window.uid();
+            let iid = dc.id + "@" + DEFAULT_WORLD_ID;
+            identities.push({ characterId: dc.id, identity: pickIdentityFields(dc), version_n: 1 });
+            instances[iid] = {
+              instanceId: iid, characterId: dc.id, worldId: DEFAULT_WORLD_ID,
+              mechanical: pickMechanicalFields(dc), narrative: pickInstanceNarrative(dc),
+              version_m: 1, version_n: 1, updatedAt: Date.now()
+            };
+            localStorage.setItem(LS_IDENTITIES, JSON.stringify(identities));
+            localStorage.setItem(LS_INSTANCES, JSON.stringify(instances));
+          }
+
+          const composed = [];
+          for (let ident of identities) {
+             let inst = instances[ident.characterId + "@" + DEFAULT_WORLD_ID]; // fallback to default world for now
+             if (inst) composed.push(composeC(ident, inst));
+          }
+          chars.value = composed;
           
           if (!selectedCharId.value) {
-            selectedCharId.value = chars.value[0].id;
+            selectedCharId.value = localStorage.getItem("dnd_active") || chars.value[0].id;
           }
+
         });
 
         // 統計模塊：計算所有角色、接觸過的世界與戰報數量
@@ -1536,7 +1699,37 @@
             }
           });
 
-          return {
+  
+        watch(chars, (newVal) => {
+          let identities = JSON.parse(localStorage.getItem(LS_IDENTITIES) || "[]");
+          let instances = JSON.parse(localStorage.getItem(LS_INSTANCES) || "{}");
+          let changed = false;
+
+          newVal.forEach(c => {
+             let ident = identities.find(i => i.characterId === c.id);
+             let inst = instances[c.id + "@" + DEFAULT_WORLD_ID];
+             if (ident && inst) {
+               if (decomposeC(c, ident, inst)) {
+                 changed = true;
+               }
+             }
+          });
+
+          if (changed) {
+            localStorage.setItem(LS_IDENTITIES, JSON.stringify(identities));
+            localStorage.setItem(LS_INSTANCES, JSON.stringify(instances));
+          }
+        }, { deep: true });
+
+        watch(worlds, (newVal) => {
+          localStorage.setItem(LS_WORLDS, JSON.stringify(newVal));
+        }, { deep: true });
+
+        watch(selectedCharId, (newVal) => {
+          if (newVal) localStorage.setItem("dnd_active", newVal);
+        });
+
+        return {
             totalChars,
             totalWorlds: worldSet.size,
             totalEvents: eventCount
