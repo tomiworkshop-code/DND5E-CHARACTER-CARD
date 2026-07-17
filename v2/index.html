@@ -173,7 +173,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0716.3)
+          v2.0.0 (Build 0716.4)
         </div>
       </div>
     </transition>
@@ -1106,7 +1106,7 @@
               if (!zh.includes(q) && !en.includes(q)) return false;
             }
             return true;
-          }).slice(0, 30);
+          }).slice(0, 100);
         });
         
         const isSpellInBook = (sp) => {
@@ -1121,7 +1121,7 @@
             const zh = (item?.name_zh || item?.name || '').toLowerCase();
             const en = (item?.name_en || '').toLowerCase();
             return zh.includes(q) || en.includes(q);
-          }).slice(0, 30);
+          }).slice(0, 100);
         });
 
         
@@ -1321,10 +1321,24 @@
           customItem,
           addItem: (it) => {
             if(!selectedChar.value.inventory) selectedChar.value.inventory = [];
+            
+            // Fix: Find existing item and increment qty to prevent "missing/reduced quantities" feeling
+            let existingItem = selectedChar.value.inventory.find(x => x.name === (it?.name_zh || it?.name_en || it?.name));
+            if (existingItem) {
+              existingItem.qty = (existingItem.qty || 1) + 1;
+              return;
+            }
+
+            // Fix: Extract description properly from entries_zh array
+            let itemDesc = '';
+            if (Array.isArray(it.entries_zh)) itemDesc = it.entries_zh.join('\n');
+            else if (Array.isArray(it.entries)) itemDesc = it.entries.join('\n');
+            else itemDesc = it.desc || '';
+
             selectedChar.value.inventory.push({ 
               name: it?.name_zh || it?.name_en || it?.name, 
               qty: 1, 
-              desc: it?.desc_zh || it?.desc_en || it?.desc || '',
+              desc: itemDesc,
               category: it?.type || it?.category || '',
               equipped: false,
               id: Date.now() + Math.random()
