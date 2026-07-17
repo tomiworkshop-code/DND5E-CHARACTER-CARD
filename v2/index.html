@@ -178,7 +178,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.0.0 (Build 0717.15)
+          v2.0.0 (Build 0717.16)
         </div>
       </div>
     </transition>
@@ -1211,12 +1211,39 @@
           </div>
         </div>
 
-        <!-- 關於 -->
+        <!-- 關於 / 鳴謝 -->
         <div class="module-card">
-          <h2 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2"><span>ℹ️</span> 關於</h2>
-          <p class="text-sm text-gray-700 mt-2">冒險者之書 <span class="font-bold">v2.0.0</span></p>
-          <p class="text-xs text-gray-500 mt-1">基於 Vue 3 重構的新世代 D&amp;D 5e 角色卡架構，支援多角色、多世界與 DM 協作。</p>
-          <p class="text-[10px] text-center text-gray-400 mt-4">本工具僅供個人計畫使用。</p>
+          <div class="flex flex-col items-center mb-4 mt-1 text-center">
+            <img src="../adventurer/tomi-avatar.jpg" alt="Tomi" class="w-20 h-20 rounded-full shadow-sm mb-2" style="border:2px solid #b8860b; padding:2px; background:white;" onerror="this.style.display='none'">
+            <h2 class="text-lg font-bold text-yellow-700">Tomi's Workshop</h2>
+            <p class="text-[11px] mt-1 leading-relaxed px-2 text-gray-500">
+              Building small, useful AI-powered tools — for work and play.<br>Always free.
+            </p>
+            <a href="https://ko-fi.com/tomiworkshop" target="_blank" rel="noopener noreferrer" class="mt-3 px-4 py-2 text-sm flex items-center justify-center gap-2 text-white rounded-lg w-full font-medium shadow-sm hover:opacity-90 transition" style="background-color:#29abe0;">
+              ☕ 請 Tomi 喝杯咖啡
+            </a>
+          </div>
+
+          <h3 class="text-base font-bold text-gray-800 mb-2 mt-4 border-t pt-4 flex items-center gap-2"><span>📖</span> 冒險者之書（5E）<span class="text-xs font-normal text-gray-400">v2.0.0</span></h3>
+
+          <div class="text-sm text-gray-700 mb-3">
+            <div class="font-bold text-gray-800 mb-1">💡 功能許願 / 意見回饋</div>
+            <p class="text-xs text-gray-600">加我 Line：<span class="font-mono bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5">tomilam</span></p>
+          </div>
+
+          <div class="text-sm text-gray-700 mb-3">
+            <div class="font-bold text-gray-800 mb-1">📚 資料來源</div>
+            <ul class="list-disc pl-5 text-xs text-gray-600 space-y-0.5">
+              <li>5etools 繁中鏡像（<span class="font-mono bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5">5etools.wayneh.tw</span>）</li>
+              <li>原始 5etools</li>
+              <li>WotC SRD</li>
+            </ul>
+          </div>
+
+          <div class="text-sm text-gray-700">
+            <div class="font-bold text-gray-800 mb-1">⚖️ 聲明</div>
+            <p class="text-[11px] text-gray-500 leading-relaxed">本工具為非官方愛好者作品。遊戲規則資料取自 <b>System Reference Document 5.1（SRD 5.1）</b>，&copy; Wizards of the Coast LLC，依 <b>CC-BY-4.0</b> 授權。<br><i>This work includes material from the System Reference Document 5.1 by Wizards of the Coast LLC, licensed under CC BY 4.0.</i><br>繁中資料整理自 5etools 繁中鏡像與原始 5etools。未使用亦不散布 SRD 以外之受版權內容。</p>
+          </div>
         </div>
       </template>
 
