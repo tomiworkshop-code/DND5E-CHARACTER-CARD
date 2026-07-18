@@ -692,18 +692,37 @@
           const reader = new FileReader();
           reader.onload = () => {
             try {
-              // 解析+驗證抽至 shared/services/backup.js（window.DND5E_BACKUP）；行為與原來一致
-              const d = window.DND5E_BACKUP.parseBackupPayload(reader.result);
-              if (!confirm('確定要還原備份嗎？這會覆寫目前所有角色、世界與進度資料，且無法復原。')) { ev.target.value = ''; return; }
-              const setOrSkip = (key, val) => {
+              // 解析+驗證抽至 shared/services/backup.js（window.DND5E_BACKUP）
+              const BK = window.DND5E_BACKUP;
+              const d = BK.parseBackupPayload(reader.result);
+
+              // TC-04：不再無腦全覆蓋，改為 version-aware merge（備份視為另一來源/遠端）
+              const imported = BK.extractCollections(d);
+              const local = BK.readLocalCollections((k) => localStorage.getItem(k));
+
+              // 偵測衝突（本機已存在且版本號有差異的角色）
+              const conflicts = BK.detectConflicts(local, imported);
+              const resolutions = {};
+              for (const c of conflicts) {
+                const keep = !confirm('角色【' + (c.name || c.characterId) + '】已存在本機，且備份進度不同。\n\n按「確定」：用備份檔覆蓋本機；按「取消」：保留本機進度（仍會依版本自動合併）。');
+                // 確定 = 覆蓋；取消 = 保留本機（交由版本感知合併處理，不強制保留）
+                if (!keep) resolutions[c.characterId] = 'overwrite';
+              }
+
+              // 合併：verison-aware（同 instanceId → DND5E_CHAR.mergeInstance），另附使用者裁決
+              const merged = BK.mergeBackup(local, imported, { resolutions });
+
+              const setJSON = (key, val) => {
                 if (val === null || val === undefined) return;
-                localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
+                localStorage.setItem(key, JSON.stringify(val));
               };
-              setOrSkip(LS_IDENTITIES,   d.dnd_identities_v2);
-              setOrSkip(LS_INSTANCES,    d.dnd_instances_v2);
-              setOrSkip(LS_WORLDS,       d.dnd_worlds_v2);
-              setOrSkip(LS_ACTIVE_WORLD, d.dnd_active_world_v2);
-              alert('還原成功！即將重新載入。');
+              setJSON(LS_IDENTITIES, merged.identities);
+              setJSON(LS_INSTANCES,  merged.instances);
+              if (merged.worlds) setJSON(LS_WORLDS, merged.worlds);
+              if (merged.activeWorld) localStorage.setItem(LS_ACTIVE_WORLD, merged.activeWorld);
+
+              const importedCount = (imported.identities || []).length;
+              alert('匯入完成（已合併 ' + importedCount + ' 個角色，衝突 ' + conflicts.length + ' 個）！即將重新載入。');
               location.reload();
             } catch (e) {
               alert('匯入失敗：' + (e && e.message ? e.message : e));
