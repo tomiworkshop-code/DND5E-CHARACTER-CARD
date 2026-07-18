@@ -782,7 +782,100 @@
           activeModule.value = null;
         };
 
+        /* ===== P2-A：Firebase 房間（連線基建 + 加入 + 唯讀收訊） =====
+         * ⚠️ 延遲初始化：頁面載入不連線；只有按「加入房間」才 init()+signInAnon()。
+         * fbApp 為純閉包變數（不可放進 ref：Vue Proxy 包裹 firebase db 會壞掉）。
+         */
+        const ROOM = (typeof window !== 'undefined') ? window.DND5E_ROOM : null;
+        let fbApp = null;
+        let roomUnsubs = [];
+        const room = Vue.reactive({
+          status: 'idle',      // idle | connecting | connected | error
+          roomId: '',
+          playerId: '',
+          meta: null,
+          error: '',
+          inputRoomId: '',
+          players: {},
+          messages: []         // {type:'broadcast'|'inbox', from, text, ts, _key}
+        });
+
+        /* 讀網址 ?room= 自動帶入房號（根入口會帶此參數轉來） */
+        try {
+          const _qs = new URLSearchParams(location.search);
+          const _r = _qs.get('room');
+          if (_r && ROOM) room.inputRoomId = ROOM.normRoomId(_r);
+        } catch (e) {}
+
+        /* players 快照：當前選定角色的 name/level/characterId + Tier1 關鍵數值（HP/AC） */
+        const buildPlayerSnapshot = () => {
+          const c = selectedChar.value;
+          if (!c) return { name: '(未選角色)', level: 1 };
+          const level = (c.classes || []).reduce((s, cl) => s + (Number(cl.level) || 0), 0) || 1;
+          const snap = {
+            name: c.name || '冒險者',
+            level: level,
+            characterId: c.id || '',
+            hp: { current: (c.hp && Number(c.hp.current)) || 0, max: (c.hp && Number(c.hp.max)) || 0 },
+            ac: (computedAC && computedAC.value) || c.ac || 10
+          };
+          return snap;
+        };
+
+        /* §5.6 首入座綁 worldId：於本機建立/更新 DM 世界條目 + 綁 active instance（不覆蓋既有本地世界） */
+        const bindDmWorld = (meta, rid) => {
+          if (!meta || !meta.worldId) return;
+          try {
+            STORE.upsertWorld({ worldId: meta.worldId, name: meta.worldId, type: 'dm', roomId: rid, dmId: meta.dmId || null });
+            worlds.value = STORE.loadWorlds() || worlds.value;
+            if (selectedChar.value && selectedChar.value.id) {
+              STORE.bindActiveWorld(selectedChar.value.id, meta.worldId);
+            }
+          } catch (e) { console.error('bindDmWorld failed', e); }
+        };
+
+        const joinRoom = async () => {
+          if (!ROOM || !window.DND5E_FIREBASE) { room.status = 'error'; room.error = '連線模組未載入'; return; }
+          const rid = ROOM.normRoomId(room.inputRoomId);
+          if (!rid) { room.error = '請輸入房號'; return; }
+          if (room.status === 'connecting') return;
+          room.status = 'connecting'; room.error = '';
+          try {
+            if (!fbApp) fbApp = ROOM.init(window.DND5E_FIREBASE.firebaseConfig);
+            const uid = await ROOM.signInAnon(fbApp.auth);
+            room.playerId = uid;
+            const meta = await ROOM.roomMeta(fbApp.db, rid);
+            if (!meta) { room.status = 'error'; room.error = '找不到房間「' + rid + '」，請確認房號是否正確。'; return; }
+            room.meta = meta;
+            room.roomId = rid;
+            await ROOM.joinRoom(fbApp.db, rid, uid, buildPlayerSnapshot());
+            bindDmWorld(meta, rid);
+            /* 唯讀訂閱：廣播 + 自己的密報 + 隊伍名單 */
+            roomUnsubs.push(ROOM.onBroadcast(fbApp.db, rid, (m) => { room.messages.push(Object.assign({ type: 'broadcast' }, m)); }));
+            roomUnsubs.push(ROOM.onInbox(fbApp.db, rid, uid, (m) => { room.messages.push(Object.assign({ type: 'inbox' }, m)); }));
+            roomUnsubs.push(ROOM.onPlayers(fbApp.db, rid, (ps) => { room.players = ps || {}; }));
+            room.status = 'connected';
+          } catch (e) {
+            room.status = 'error';
+            room.error = '加入失敗：' + (e && e.message ? e.message : e);
+          }
+        };
+
+        const leaveRoom = () => {
+          roomUnsubs.forEach((fn) => { try { fn(); } catch (e) {} });
+          roomUnsubs = [];
+          room.status = 'idle';
+          room.roomId = '';
+          room.meta = null;
+          room.error = '';
+          room.players = {};
+          room.messages = [];
+        };
+
         return {
+          room,
+          joinRoom,
+          leaveRoom,
           deleteCharacter,
           removeCurrentWorldRecord,
           isDmWorldObj,

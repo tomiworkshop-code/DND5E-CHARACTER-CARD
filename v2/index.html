@@ -16,6 +16,13 @@
   <script src="../shared/character-schema.js"></script>
   <script src="../shared/store.js"></script>
   <script src="../shared/services/backup.js"></script>
+  <!-- Firebase compat 10.12.5（Room 連線）。⚠️ 延遲初始化：此處僅載入 SDK，
+       只有使用者按「加入房間」時才 DND5E_ROOM.init()+signInAnon()，載入時不連線。 -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+  <script src="../shared/firebase-config.js"></script>
+  <script src="../shared/room.js"></script>
   <style>
     /* 基礎模塊化變數，不預設立場，先用乾淨的灰階與安全色 */
     :root {
@@ -1106,17 +1113,104 @@
         </div>
       </template>
 
-      <!-- 模塊：出團 (Session Placeholder) -->
+      <!-- 模塊：出團牌桌 (Session / Room) -->
       <template v-if="currentView === 'session'">
         <div class="space-y-4">
-          <div class="module-card text-center p-8">
-            <div class="text-6xl mb-4">🎲</div>
-            <h2 class="text-2xl font-bold text-gray-800 mb-2">出團牌桌</h2>
-            <p class="text-gray-500 mb-6">掃描 DM 提供的 QR Code 以加入連線房間，或開始本地單人紀錄。</p>
-            <button class="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition shadow-sm">
-              📷 掃描 QR Code 入座
-            </button>
+
+          <!-- 未連線：加入房間 UI -->
+          <div v-if="room.status !== 'connected'" class="module-card p-6">
+            <div class="text-center mb-5">
+              <div class="text-5xl mb-3">🎲</div>
+              <h2 class="text-2xl font-bold text-gray-800 mb-1">加入牌桌</h2>
+              <p class="text-gray-500 text-sm">輸入 DM 提供的房號即可入座。</p>
+            </div>
+
+            <div class="max-w-sm mx-auto space-y-3">
+              <label class="block text-xs text-gray-400 font-medium">房號</label>
+              <input
+                v-model="room.inputRoomId"
+                @keyup.enter="joinRoom"
+                :disabled="room.status === 'connecting'"
+                type="text" placeholder="例：ABCDE" maxlength="12"
+                class="w-full text-center tracking-[0.3em] uppercase text-lg font-bold border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+
+              <button
+                @click="joinRoom"
+                :disabled="room.status === 'connecting' || !room.inputRoomId"
+                class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                <span v-if="room.status === 'connecting'">連線中…</span>
+                <span v-else>🚪 加入房間</span>
+              </button>
+
+              <p v-if="room.error" class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-2 text-center">{{ room.error }}</p>
+
+              <div class="text-center pt-1">
+                <button disabled class="text-xs text-gray-400 border border-dashed border-gray-300 rounded-lg px-3 py-1.5 cursor-not-allowed" title="之後支援相機掃描">
+                  📷 掃描 QR（之後支援）
+                </button>
+              </div>
+            </div>
           </div>
+
+          <!-- 已連線：房間狀態 + 名單 + 訊息 -->
+          <div v-else class="space-y-4">
+            <div class="module-card p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-xs text-gray-400">已入座房間</div>
+                  <div class="text-2xl font-black tracking-widest text-gray-800">{{ room.roomId }}</div>
+                  <div class="text-xs text-green-600 flex items-center gap-1 mt-0.5">
+                    <span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span> 連線中
+                    <span v-if="room.meta && room.meta.worldId" class="text-gray-400">· 世界 {{ room.meta.worldId }}</span>
+                  </div>
+                </div>
+                <button @click="leaveRoom" class="text-sm px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition">離開房間</button>
+              </div>
+            </div>
+
+            <!-- 同房玩家名單 -->
+            <div class="module-card p-4">
+              <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1">👥 隊伍名單
+                <span class="text-xs text-gray-400 font-normal">({{ Object.keys(room.players || {}).length }})</span>
+              </h3>
+              <div v-if="!Object.keys(room.players || {}).length" class="text-xs text-gray-400">尚無其他玩家資料…</div>
+              <div v-else class="space-y-2">
+                <div v-for="(p, pid) in room.players" :key="pid"
+                     class="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium text-gray-800">{{ p.name || '冒險者' }}</span>
+                    <span v-if="pid === room.playerId" class="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded">你</span>
+                  </div>
+                  <div class="text-xs text-gray-500 flex items-center gap-2">
+                    <span v-if="p.level">Lv.{{ p.level }}</span>
+                    <span v-if="p.hp">❤️ {{ p.hp.current }}/{{ p.hp.max }}</span>
+                    <span v-if="p.ac">🛡️ {{ p.ac }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 訊息列（廣播 vs 密報） -->
+            <div class="module-card p-4">
+              <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1">📨 桌面訊息</h3>
+              <div v-if="!room.messages.length" class="text-xs text-gray-400">等待 DM 訊息…</div>
+              <div v-else class="space-y-2 max-h-80 overflow-y-auto">
+                <div v-for="m in room.messages" :key="m._key"
+                     class="rounded-lg px-3 py-2 border text-sm"
+                     :class="m.type === 'inbox' ? 'bg-purple-50 border-purple-200' : 'bg-blue-50 border-blue-100'">
+                  <div class="flex items-center gap-2 mb-0.5">
+                    <span class="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                          :class="m.type === 'inbox' ? 'bg-purple-200 text-purple-800' : 'bg-blue-200 text-blue-800'">
+                      {{ m.type === 'inbox' ? '🔒 密報' : '📢 廣播' }}
+                    </span>
+                    <span class="text-xs text-gray-500">{{ m.from || 'DM' }}</span>
+                  </div>
+                  <div class="text-gray-800 whitespace-pre-wrap">{{ m.text }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </template>
 

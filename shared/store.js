@@ -341,9 +341,76 @@
     };
   }
 
+  /* ===== 房間世界綁定（P2-A §5.6，純函式） =====
+   * 玩家首入座某 DM 房間時，於本機 dnd_worlds_v2 建立/更新一個 DM 世界條目，
+   * 並把當前角色的 active instance 綁到該 worldId。全程「不覆蓋既有本地世界資料」：
+   *   - upsertWorld 只更新符合 id/worldId 的那一筆或 append 新的一筆，其他世界原封不動。
+   *   - bindActiveWorld 若該角色在該世界尚無 instance 才建立（以既有 instance 為模板複製，
+   *     不動任何既有 instance），最後只改 active 指標。
+   */
+
+  /* 建立/更新單一世界條目（依 id 或 worldId 比對）。回傳更新後的 worlds 陣列。 */
+  function upsertWorld(world){
+    var worlds = loadWorlds();
+    if(!Array.isArray(worlds)) worlds = [];
+    if(!world) return worlds;
+    var wid = world.worldId || world.id;
+    if(!wid) return worlds;
+    var idx = -1;
+    for(var i = 0; i < worlds.length; i++){
+      var w = worlds[i];
+      if(w && (w.worldId === wid || w.id === wid)){ idx = i; break; }
+    }
+    var merged = Object.assign({}, idx >= 0 ? worlds[idx] : {}, pruneUndef(world));
+    /* id 與 worldId 對齊：既有 UI 以 id 尋找世界，§5.6 以 worldId 記錄 */
+    if(!merged.id) merged.id = wid;
+    if(!merged.worldId) merged.worldId = wid;
+    if(idx >= 0) worlds[idx] = merged; else worlds.push(merged);
+    saveWorlds(worlds);
+    return worlds;
+  }
+
+  /* 把某角色的 active instance 綁到指定 worldId。
+   * 若該角色在該世界尚無 instance，則以角色任一既有 instance 為模板複製一份（不覆蓋既有），
+   * 再把 ACTIVE_WORLD / ACTIVE_INSTANCE 指向它。回傳 instanceId 或 null。 */
+  function bindActiveWorld(characterId, worldId){
+    if(!characterId || !worldId) return null;
+    var instances = loadInstances();
+    var iid = characterId + "@" + worldId;
+    if(!instances[iid]){
+      var base = null;
+      for(var k in instances){
+        if(instances[k] && instances[k].characterId === characterId){ base = instances[k]; break; }
+      }
+      instances[iid] = {
+        instanceId: iid, characterId: characterId, worldId: worldId,
+        mechanical: base ? JSON.parse(JSON.stringify(base.mechanical || {})) : {},
+        narrative:  base ? JSON.parse(JSON.stringify(base.narrative  || {})) : {},
+        worldProgress: {},
+        version_m: 1, version_n: 1, updatedAt: Date.now()
+      };
+      saveInstances(instances);
+    }
+    setActiveWorld(worldId);
+    setActiveInstance(iid);
+    return iid;
+  }
+
+  /* pruneUndef 供 upsertWorld 使用（避免把 undefined 欄位寫進世界物件） */
+  function pruneUndef(v){
+    if(v && typeof v === "object" && !Array.isArray(v)){
+      var o = {};
+      for(var k in v){ if(Object.prototype.hasOwnProperty.call(v,k) && v[k] !== undefined) o[k] = v[k]; }
+      return o;
+    }
+    return v;
+  }
+
   global.DND5E_STORE = {
     LS: LS,
     DEFAULT_WORLD_ID: DEFAULT_WORLD_ID,
+    upsertWorld: upsertWorld,
+    bindActiveWorld: bindActiveWorld,
     setStorage: setStorage,
     getStorage: getStorage,
     getInt: getInt,
