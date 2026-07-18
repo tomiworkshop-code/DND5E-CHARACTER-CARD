@@ -105,6 +105,7 @@
       coins: JSON.parse(JSON.stringify(ch.coins || {cp:0,sp:0,gp:0,pp:0})),
       conditions: JSON.parse(JSON.stringify(ch.conditions || {})),
       exhaustion: ch.exhaustion || 0,
+      xp: Number(ch.xp) || 0,
       deathSaves: JSON.parse(JSON.stringify(ch.deathSaves || {success:0,fail:0})),
       inspiration: ch.inspiration || false,
       concentration: JSON.parse(JSON.stringify(ch.concentration || {on:false,spell:""})),
@@ -183,6 +184,58 @@
       return true;
     }
     return false;
+  }
+
+  /* ===== onSave 合流形狀轉換（P2-B 修復） =====
+   * store 的 instance 是「巢狀」形狀：{mechanical:{...}, narrative:{notes,familiar}, version_m, version_n}。
+   * schema 的 mergeInstance/extractZone/applyZone 期望「攤平」的 char 形狀：
+   *   機制/敘事欄位在頂層 + _sync:{version_m,version_n}。
+   * 下列兩個 helper 提供雙向轉換，讓 onSave 合流一律委派 DND5E_CHAR.mergeInstance，
+   * 不自寫合併規則（硬約束）。
+   */
+
+  /* 巢狀 store instance → 攤平 char 形狀（供 mergeInstance 當 local）。
+   * 機制區欄位攤到頂層；narrative.notes 攤到頂層；_sync 取自頂層 version_m/version_n。 */
+  function instanceToFlat(inst){
+    var flat = {};
+    var m = (inst && inst.mechanical) || {};
+    for(var k in m){ if(Object.prototype.hasOwnProperty.call(m, k)) flat[k] = JSON.parse(JSON.stringify(m[k])); }
+    var n = (inst && inst.narrative) || {};
+    if(n && Object.prototype.hasOwnProperty.call(n, "notes")) flat.notes = JSON.parse(JSON.stringify(n.notes));
+    flat._sync = {
+      version_m: (inst && inst.version_m) || 0,
+      version_n: (inst && inst.version_n) || 0
+    };
+    return flat;
+  }
+
+  /* 把一個 live char 的機制/敘事欄位寫回其 store instance（指定世界），
+   * 並「明確設定」version_m/version_n（不做自動遞增）。
+   * 用於 DM 權威採用路徑（onSave / 衝突「採用 DM」/ DM 指令落帳），
+   * 這些路徑不得觸發玩家端 version_m 假性遞增（紅線 R4）。
+   * versions 省略時保留既有 instance 版本（無 instance 則為 0）。 */
+  function writeInstanceFromChar(char, worldId, versions){
+    if(!char || !char.id || !worldId) return null;
+    var instances = loadInstances();
+    var iid = char.id + "@" + worldId;
+    var inst = instances[iid];
+    if(!inst){
+      inst = {
+        instanceId: iid, characterId: char.id, worldId: worldId,
+        worldProgress: JSON.parse(JSON.stringify(char.worldProgress || {})),
+        version_m: 0, version_n: 0
+      };
+      instances[iid] = inst;
+    }
+    inst.mechanical = pickMechanicalFields(char);
+    inst.narrative = pickInstanceNarrative(char);
+    if(versions){
+      if(typeof versions.version_m === "number") inst.version_m = versions.version_m;
+      if(typeof versions.version_n === "number") inst.version_n = versions.version_n;
+    }
+    inst.updatedAt = Date.now();
+    saveInstances(instances);
+    return inst;
   }
 
   /* ===== 遷移（V1 → V2 存檔槽結構） ===== */
@@ -418,6 +471,8 @@
     pickIdentityFields: pickIdentityFields,
     pickMechanicalFields: pickMechanicalFields,
     pickInstanceNarrative: pickInstanceNarrative,
+    instanceToFlat: instanceToFlat,
+    writeInstanceFromChar: writeInstanceFromChar,
     composeC: composeC,
     decomposeC: decomposeC,
     migrateToV2: migrateToV2,

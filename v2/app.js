@@ -562,9 +562,14 @@
           let instances = JSON.parse(localStorage.getItem(LS_INSTANCES) || "{}");
           let changed = false;
 
+          /* worldId 一致性：已連線 DM 房間時，「當前選定角色」的落帳 instance 跟隨 DM 世界，
+           * 與 applyCommand/handleRemoteSave 用同一個 instance；其他角色仍落帳本地預設世界。 */
+          const _syncWid = (c) => (room.status === 'connected' && room.meta && room.meta.worldId &&
+            selectedChar.value && c.id === selectedChar.value.id) ? room.meta.worldId : DEFAULT_WORLD_ID;
           newVal.forEach(c => {
+             const wid = _syncWid(c);
              let ident = identities.find(i => i.characterId === c.id);
-             let inst = instances[c.id + "@" + DEFAULT_WORLD_ID];
+             let inst = instances[c.id + "@" + wid];
              // 新增角色尚無 identity/instance 種子紀錄 → 先建立，避免存檔被略過（新角色不見 bug）
              if (!ident) {
                ident = { characterId: c.id, identity: pickIdentityFields(c), version_n: 1 };
@@ -572,7 +577,7 @@
                changed = true;
              }
              if (!inst) {
-               const iid = c.id + "@" + DEFAULT_WORLD_ID;
+               const iid = c.id + "@" + wid;
                inst = {
                  instanceId: iid, characterId: c.id, worldId: DEFAULT_WORLD_ID,
                  mechanical: pickMechanicalFields(c),
@@ -824,54 +829,87 @@
 
         /* §5.6 首入座綁 worldId：於本機建立/更新 DM 世界條目 + 綁 active instance（不覆蓋既有本地世界） */
         
+        /* 當前同步世界 id：已連線 DM 房間→ room.meta.worldId；否則 DEFAULT_WORLD_ID。
+         * applyCommand 落帳、handleRemoteSave 讀取必須用同一個 instance（worldId 一致性）。 */
+        const currentWorldId = () => (room.meta && room.meta.worldId) ? room.meta.worldId : DEFAULT_WORLD_ID;
+
+        /* 指令去重持久化：per room+player 存已套用的 push key，
+         * 避免重連 onCommand child_added 重放歷史指令而重複重算。 */
+        const appliedStorageKey = () => 'dnd_applied_cmds_' + (room.roomId || '') + '_' + (room.playerId || '');
+        const loadAppliedCommands = () => {
+          try {
+            const raw = localStorage.getItem(appliedStorageKey());
+            const arr = raw ? JSON.parse(raw) : [];
+            return new Set(Array.isArray(arr) ? arr : []);
+          } catch (e) { return new Set(); }
+        };
+        const persistAppliedCommands = () => {
+          try { localStorage.setItem(appliedStorageKey(), JSON.stringify([...room.appliedCommands])); } catch (e) {}
+        };
+
         const applyCommand = (cmd) => {
           const char = selectedChar.value;
           if (!char) return;
           let text = '';
           const cName = char.name || '角色';
-          let oldHp = char.hp?.current || 0;
           let changed = false;
 
           switch(cmd.type) {
-            case 'damage':
+            case 'damage': {
               if(!char.hp) char.hp = {current:10, max:10};
-              char.hp.current = Math.max(0, char.hp.current - (Number(cmd.amount)||0));
-              text = `${cName} 受到 ${cmd.amount} 點傷害 (${cmd.damageType||'一般'})`;
-              if (cmd.note) text += ' - ' + cmd.note;
+              const before = Number(char.hp.current) || 0;
+              char.hp.current = Math.max(0, before - (Number(cmd.amount)||0));
+              text = `DM 已調整 HP：${before}→${char.hp.current}（${cmd.damageType || cmd.note || '傷害'}）`;
               changed = true;
               break;
-            case 'heal':
+            }
+            case 'heal': {
               if(!char.hp) char.hp = {current:10, max:10};
-              char.hp.current = Math.min(char.hp.max, char.hp.current + (Number(cmd.amount)||0));
-              text = `${cName} 恢復 ${cmd.amount} 點 HP`;
-              if (cmd.note) text += ' - ' + cmd.note;
+              const before = Number(char.hp.current) || 0;
+              char.hp.current = Math.min(char.hp.max, before + (Number(cmd.amount)||0));
+              text = `DM 已調整 HP：${before}→${char.hp.current}（${cmd.note || '治療'}）`;
               changed = true;
               break;
-            case 'gold':
+            }
+            case 'gold': {
               if(!char.coins) char.coins = {cp:0, sp:0, gp:0, pp:0};
               char.coins.gp = Math.max(0, (Number(char.coins.gp)||0) + (Number(cmd.amount)||0));
               text = `${cName} 金錢變更 ${cmd.amount} gp`;
+              if (cmd.note) text += '（' + cmd.note + '）';
               changed = true;
               break;
-            case 'xp':
-              // assume xp added to char? wait, xp is not directly in root, but let's add it if not exists.
-              // We'll just log it since we don't have a direct XP field in defaultChar.
-              text = `${cName} 獲得 ${cmd.amount} XP`;
+            }
+            case 'xp': {
+              char.xp = (Number(char.xp)||0) + (Number(cmd.amount)||0);
+              text = `${cName} 獲得 ${cmd.amount} XP（目前 ${char.xp}）`;
+              if (cmd.note) text += '（' + cmd.note + '）';
+              changed = true;
               break;
-            case 'give-item':
+            }
+            case 'give-item': {
               if(!char.inventory) char.inventory = [];
-              char.inventory.push({ name: cmd.itemName || '未知物品', qty: Number(cmd.qty)||1, desc: cmd.note || '' });
-              text = `${cName} 獲得物品: ${cmd.itemName}`;
+              const qty = Number(cmd.qty)||1;
+              char.inventory.push({ name: cmd.itemName || '未知物品', qty: qty, desc: cmd.note || '' });
+              text = `${cName} 獲得物品：${cmd.itemName || '未知物品'}${qty > 1 ? ' ×' + qty : ''}`;
               changed = true;
               break;
+            }
             default:
               text = `未知指令: ${cmd.type}`;
           }
 
+          /* 紅線 R4：DM 指令造成的機制變更「不得」bump 玩家端 version_m，
+           * 否則玩家假性領先→之後拒絕 DM 權威存檔。
+           * 做法：把變更「直接落帳到 store instance 且保留既有版本」，
+           * 如此稍後 reactive watch 的 decomposeC 比對 old==new → 偵測不到差異 → 不 bump。
+           * 玩家 version_m 只在「玩家自己主動編輯」時遷增（watch 偵測到 char 與 instance 有差異）。 */
           if (changed && window.DND5E_STORE && char.id) {
-            // bump version_m via store decompose
-            // In v2, changes to reactive 'char' are automatically picked up by the watch(chars) in app.js
-            // which calls decomposeC. decomposeC detects changes and bumps version_m/n automatically!
+            const wid = currentWorldId();
+            const inst = STORE.loadInstances()[char.id + '@' + wid];
+            STORE.writeInstanceFromChar(char, wid, {
+              version_m: inst ? (inst.version_m || 0) : 0,
+              version_n: inst ? (inst.version_n || 0) : 0
+            });
           }
 
           room.messages.push({
@@ -883,34 +921,58 @@
           });
         };
 
+        /* 把 DM 權威存檔（remote = 攤平 char 形狀：機制欄位在頂層 + _sync）
+         * 真正套用到 live char 與 store instance。
+         * 合流一律委派 DND5E_CHAR.mergeInstance；用 extractZone/applyZone 把 merged 結果
+         * 明確套回 char（不用 Object.assign(char, merged.mechanical)——mergeInstance 回傳的
+         * 是攤平 char，根本沒有 .mechanical，舊寫法會套到 undefined / stale 子物件）。 */
+        const adoptRemoteSave = (save) => {
+          const char = selectedChar.value;
+          const C = window.DND5E_CHAR;
+          if (!char || !save || !C) return;
+          const wid = (room.meta && room.meta.worldId) || DEFAULT_WORLD_ID;
+          const localInst = STORE.loadInstances()[char.id + '@' + wid];
+          // local flat：優先取權威 store instance（巢狀→攤平）；缺 instance（首次入世界）
+          // → 由 char 現值攤平且版本歸 0，讓 DM save 必定被採用（rm >= 0）。
+          let localFlat;
+          if (localInst) {
+            localFlat = STORE.instanceToFlat(localInst);
+          } else {
+            localFlat = C.extractZone(char, 'mechanical');
+            Object.assign(localFlat, C.extractZone(char, 'narrative'));
+            localFlat._sync = { version_m: 0, version_n: 0 };
+          }
+          const merged = C.mergeInstance(localFlat, save);   // 回傳「攤平 char 形狀」
+          // 用 applyZone 把 merged 的機制/敘事欄位真正套回 live char（HP/金錢/物品/等級/xp…→ DM 值）
+          C.applyZone(char, 'mechanical', C.extractZone(merged, 'mechanical'));
+          C.applyZone(char, 'narrative', C.extractZone(merged, 'narrative'));
+          C.ensureSync(char);
+          char._sync.version_m = (merged._sync && merged._sync.version_m) || 0;
+          char._sync.version_n = (merged._sync && merged._sync.version_n) || 0;
+          // 落回 store instance：採 DM 版本，不 bump（DM 權威）
+          STORE.writeInstanceFromChar(char, wid, {
+            version_m: char._sync.version_m,
+            version_n: char._sync.version_n
+          });
+        };
+
         const handleRemoteSave = (save) => {
           const char = selectedChar.value;
-          if (!char) return;
-          const instId = char.id + '@' + room.meta.worldId;
-          const localInst = STORE.loadInstances()[instId];
-          
-          if (!localInst) {
-            // First time in this world, restore from save
-            if (save.mechanical) {
-               Object.assign(char, save.mechanical);
-            }
-            return;
-          }
+          if (!char || !save) return;
+          const wid = (room.meta && room.meta.worldId) || DEFAULT_WORLD_ID;
+          const localInst = STORE.loadInstances()[char.id + '@' + wid];
 
-          const localVm = localInst.version_m || 0;
+          const localVm = localInst ? (localInst.version_m || 0) : 0;
           const remoteVm = (save._sync && save._sync.version_m) || 0;
 
           if (localVm > remoteVm) {
-             // Conflict: local is ahead. Need UI.
-             room.conflictSave = save;
-             room.showConflict = true;
-          } else {
-             // DM is ahead or equal -> auto merge
-             const merged = window.DND5E_CHAR.mergeInstance(localInst, save);
-             // apply merged mechanical & narrative back to selectedChar
-             if (merged.mechanical) Object.assign(char, merged.mechanical);
-             if (merged.narrative) Object.assign(char, merged.narrative);
+            // 玩家機制版本真的領先（來自玩家自己的編輯）→ 不靜默覆寫，跳衝突 UI 轉提案。
+            room.conflictSave = save;
+            room.showConflict = true;
+            return;
           }
+          // DM 較新或相等（含「恢復」情境）→ 採用 DM 權威。
+          adoptRemoteSave(save);
         };
 
         const bindDmWorld = (meta, rid) => {
@@ -938,6 +1000,8 @@
             if (!meta) { room.status = 'error'; room.error = '找不到房間「' + rid + '」，請確認房號是否正確。'; return; }
             room.meta = meta;
             room.roomId = rid;
+            /* 指令去重持久化：重連時先載回已套用的 push key，避免 onCommand 重放歷史指令重算。 */
+            room.appliedCommands = loadAppliedCommands();
             await ROOM.joinRoom(fbApp.db, rid, uid, buildPlayerSnapshot());
             bindDmWorld(meta, rid);
             /* 唯讀訂閱：廣播 + 自己的密報 + 隊伍名單 */
@@ -947,6 +1011,7 @@
             roomUnsubs.push(ROOM.onCommand(fbApp.db, rid, uid, (cmd) => {
               if (room.appliedCommands.has(cmd._key)) return;
               room.appliedCommands.add(cmd._key);
+              persistAppliedCommands();
               applyCommand(cmd);
             }));
             const cId = selectedChar.value ? selectedChar.value.id : null;
@@ -972,21 +1037,20 @@
           }
         };
         const resolveConflict = (action) => {
-           if (action === 'keep_local') {
-             // prompt as request?
-             alert('保留本機進度。請向 DM 發送提案請求。');
-           } else if (action === 'adopt_dm') {
-             const save = room.conflictSave;
-             const instId = selectedChar.value.id + '@' + room.meta.worldId;
-             const localInst = STORE.loadInstances()[instId];
-             if (localInst && save) {
-                const merged = window.DND5E_CHAR.mergeInstance(localInst, save);
-                if (merged.mechanical) Object.assign(selectedChar.value, merged.mechanical);
-                if (merged.narrative) Object.assign(selectedChar.value, merged.narrative);
-             }
-           }
-           room.showConflict = false;
-           room.conflictSave = null;
+          if (action === 'adopt_dm') {
+            // shape 修好後真正生效：走與 onSave 相同的 adoptRemoteSave（mergeInstance + applyZone）。
+            if (room.conflictSave) adoptRemoteSave(room.conflictSave);
+          } else if (action === 'keep_local') {
+            // 保留本機 → 不靜默覆寫 DM 權威，轉為提案送 DM 審核（請求通道）。
+            const c = selectedChar.value;
+            const localHp = (c && c.hp) ? c.hp.current : '?';
+            const lvl = ((c && c.classes) || []).reduce((a, cl) => a + (Number(cl.level) || 0), 0);
+            try {
+              sendRoomRequest({ kind: 'ask', text: `【存檔提案】玩家本機進度較新（HP=${localHp}、等級=${lvl}），請 DM 審核是否採用本機版本。` });
+            } catch (e) {}
+          }
+          room.showConflict = false;
+          room.conflictSave = null;
         };
         const leaveRoom = () => {
 
@@ -1001,8 +1065,42 @@
           room.messages = [];
         };
 
+        /* 衝突面板實際列出本機 vs DM 的關鍵欄位差異（不是固定文案）。
+         * conflictSave = 攤平 char 形狀（機制欄位在頂層）。 */
+        const conflictDiff = Vue.computed(() => {
+          const c = selectedChar.value;
+          const s = room.conflictSave;
+          if (!c || !s) return [];
+          const rows = [];
+          const push = (label, local, dm) => { if (String(local) !== String(dm)) rows.push({ label, local, dm }); };
+          const lvl = (arr) => (arr || []).reduce((a, cl) => a + (Number(cl.level) || 0), 0);
+          push('HP', (c.hp && c.hp.current != null) ? c.hp.current : '-', (s.hp && s.hp.current != null) ? s.hp.current : '-');
+          push('等級', lvl(c.classes), lvl(s.classes));
+          push('金錢(gp)', (c.coins && c.coins.gp) || 0, (s.coins && s.coins.gp) || 0);
+          push('物品數', (c.inventory || []).length, (s.inventory || []).length);
+          push('XP', c.xp || 0, s.xp || 0);
+          return rows;
+        });
+
+        /* 請求新增物品表單（kind:'add'），與現有 ask 並存。 */
+        const addRequestForm = Vue.reactive({ itemName: '', qty: 1, reason: '' });
+        const submitAddRequest = () => {
+          const name = String(addRequestForm.itemName || '').trim();
+          if (!name) { alert('請輸入物品名稱'); return; }
+          sendRoomRequest({
+            kind: 'add',
+            itemName: name,
+            qty: Number(addRequestForm.qty) || 1,
+            reason: String(addRequestForm.reason || '').trim()
+          });
+          addRequestForm.itemName = ''; addRequestForm.qty = 1; addRequestForm.reason = '';
+        };
+
         return {
           room,
+          conflictDiff,
+          addRequestForm,
+          submitAddRequest,
           joinRoom,
           leaveRoom,
 resolveConflict,

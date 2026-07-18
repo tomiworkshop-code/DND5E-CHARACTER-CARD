@@ -25,7 +25,7 @@
       "profArmor","profWeapon","profTool","profSaves",
       "ac","initiative","hp","abilities","abilityBonus","classes",
       "saves","skills","spellSlots","spellsText","spellbook",
-      "inventory","coins","conditions","exhaustion",
+      "inventory","coins","conditions","exhaustion","xp",
       "deathSaves","inspiration","concentration","hitDiceUsed",
       "acHelper","resources","attacks","feats","familiar"
     ],
@@ -84,6 +84,8 @@
       coins:{ cp:0, sp:0, gp:0, pp:0 },
       conditions:{},
       exhaustion:0,
+      /* 經驗值（機制區 / DM 權威）。舊存檔無此欄位時由 mergeChar 以此預設回填（向後相容）。 */
+      xp:0,
       /* 新增：跑團輔助與角色深度欄位 */
       deathSaves:{ success:0, fail:0 },
       inspiration:false,
