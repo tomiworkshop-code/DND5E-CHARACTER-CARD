@@ -704,8 +704,8 @@
               const conflicts = BK.detectConflicts(local, imported);
               const resolutions = {};
               for (const c of conflicts) {
-                const keep = !confirm('角色【' + (c.name || c.characterId) + '】已存在本機，且備份進度不同。\n\n按「確定」：用備份檔覆蓋本機；按「取消」：保留本機進度（仍會依版本自動合併）。');
-                // 確定 = 覆蓋；取消 = 保留本機（交由版本感知合併處理，不強制保留）
+                const keep = !confirm('角色【' + (c.name || c.characterId) + '】已存在本機，且備份進度不同。\n\n按「確定」：用此備份覆蓋本機這個角色；\n按「取消」：不覆蓋，改依版本自動合併（DM／較新的機制進度仍受保護）。');
+                // 確定 = 覆蓋；取消 = 不覆蓋，交由版本感知合併決定（文案已與實際行為對齊，TC-04.5）
                 if (!keep) resolutions[c.characterId] = 'overwrite';
               }
 
@@ -732,7 +732,60 @@
           ev.target.value = '';
         };
 
+        /* ===== 刪除：角色（Identity）/ 世界存檔（instance）TC-04.5 ===== */
+        // 判斷某世界是否為 DM 世界：只認「實際存在的來源標記」（type:'dm' / roomId / dmId）。
+        // 目前單機流程尚未寫入任何 DM 標記（見§7.4/§7.12，DM 世界須經 joinRoom 建立），
+        // 故目前實際均會回到「本地世界」（較安全的不可復原警告）。不假造欄位。
+        const isDmWorldObj = (w) => !!(w && (w.type === 'dm' || w.roomId || w.dmId));
+
+        const deleteCharacter = (charId) => {
+          const id = charId || (selectedChar.value && selectedChar.value.id);
+          if (!id) return;
+          const ch = chars.value.find(c => c.id === id);
+          const nm = (ch && ch.name) || id;
+          if (!confirm('確定刪除角色【' + nm + '】？\n\n這會一併清除該角色在「所有世界」的存檔紀錄，且無法復原。')) return;
+          if (!confirm('再次確認：永久刪除【' + nm + '】及其所有世界進度？')) return;
+          STORE.deleteIdentity(id);
+          chars.value = chars.value.filter(c => c.id !== id);
+          if (selectedCharId.value === id) {
+            selectedCharId.value = chars.value.length ? chars.value[0].id : null;
+            selectedWorldKey.value = '__solo__';
+            activeModule.value = null;
+          }
+          if (switcherTempCharId.value === id) { switcherTempCharId.value = null; switcherStep.value = 'char'; }
+          isGlobalSwitcherOpen.value = false;
+        };
+
+        // 移除目前角色在目前世界的紀錄（單一 instance）。同世界其他角色不受影響。
+        const removeCurrentWorldRecord = () => {
+          const char = selectedChar.value;
+          const wid = selectedWorldKey.value;
+          if (!char) return;
+          if (wid === '__solo__') { alert('「單人漫遊」為預設沙盒存檔，無法移除。'); return; }
+          const w = worlds.value.find(x => x.id === wid);
+          const isDM = isDmWorldObj(w);
+          const wp = char.worldProgress && char.worldProgress[wid];
+          const wname = (w && w.name) || (wp && wp.name) || wid;
+          let msg;
+          if (isDM) {
+            msg = '移除角色【' + char.name + '】在世界【' + wname + '】的本機紀錄？\n\n此世界存檔由 DM 端託管，日後重新入座（掃 QR／握手）可從 DM 版恢復進度。\n\n同世界的其他角色不受影響。';
+          } else {
+            msg = '移除角色【' + char.name + '】在世界【' + wname + '】的紀錄？\n\n⚠️ 本地世界紀錄刪除後無法復原，建議先到設定頁匯出備份。\n\n同世界的其他角色不受影響。';
+          }
+          if (!confirm(msg)) return;
+          STORE.deleteInstance(char.id + '@' + wid);
+          // 同步反應式狀態（目前 per-world 進度存於 char.worldProgress，watcher 會再持久化）
+          if (char.worldProgress && Object.prototype.hasOwnProperty.call(char.worldProgress, wid)) {
+            delete char.worldProgress[wid];
+          }
+          if (selectedWorldKey.value === wid) selectedWorldKey.value = '__solo__';
+          activeModule.value = null;
+        };
+
         return {
+          deleteCharacter,
+          removeCurrentWorldRecord,
+          isDmWorldObj,
           isMenuOpen,
           isGlobalSwitcherOpen,
           switcherStep,

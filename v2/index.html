@@ -303,8 +303,12 @@
                 <div class="text-xs text-gray-500">{{ selectedChar.race || '未知種族' }}</div>
               </div>
             </div>
-            
-            
+
+            <div class="flex items-center gap-2 self-start md:self-auto">
+              <button @click="deleteCharacter(selectedChar.id)" class="text-sm px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition flex items-center gap-1" title="刪除此角色及其所有世界存檔">
+                🗑️ 刪除角色
+              </button>
+            </div>
           </div>
 
           <!-- 管理模塊網格 -->
@@ -1135,14 +1139,19 @@
                   DM 連線
                 </span>
               </h2>
-              <div v-if="selectedWorldObj.type === 'local' || selectedWorldKey === '__solo__'">
-                <button v-if="!isWorldEditMode" @click="startWorldEdit" class="text-sm px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition flex items-center gap-1">
-                  ✏️ 編輯
-                </button>
-                <div v-else class="flex items-center gap-2">
-                  <button @click="isWorldEditMode = false" class="text-sm px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition">取消</button>
-                  <button @click="saveWorldEdit" class="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition">儲存</button>
+              <div class="flex items-center gap-2">
+                <div v-if="selectedWorldObj.type === 'local' || selectedWorldKey === '__solo__'">
+                  <button v-if="!isWorldEditMode" @click="startWorldEdit" class="text-sm px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition flex items-center gap-1">
+                    ✏️ 編輯
+                  </button>
+                  <div v-else class="flex items-center gap-2">
+                    <button @click="isWorldEditMode = false" class="text-sm px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition">取消</button>
+                    <button @click="saveWorldEdit" class="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition">儲存</button>
+                  </div>
                 </div>
+                <button v-if="selectedWorldKey !== '__solo__' && selectedChar" @click="removeCurrentWorldRecord" class="text-sm px-3 py-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition flex items-center gap-1 whitespace-nowrap" title="移除目前角色在此世界的存檔（不影響其他角色）">
+                  🗑️ 移除此世界的紀錄
+                </button>
               </div>
             </div>
 

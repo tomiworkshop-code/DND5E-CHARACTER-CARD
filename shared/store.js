@@ -257,6 +257,90 @@
   function getActiveInstance(){ return _get(LS.ACTIVE_INSTANCE); }
   function setActiveInstance(id){ _set(LS.ACTIVE_INSTANCE, id); }
 
+  /* ===== 刪除（純函式，TC-04.5） =====
+   * instanceId 慣例 = characterId + "@" + worldId。以最後一個 "@" 切分，
+   * 兼容 characterId 內含 "@" 的極端情況。
+   */
+  function parseInstanceId(instanceId){
+    var s = String(instanceId || "");
+    var at = s.lastIndexOf("@");
+    if(at < 0) return { characterId: s, worldId: null };
+    return { characterId: s.slice(0, at), worldId: s.slice(at + 1) };
+  }
+
+  /* 刪除單一存檔槽（某角色在某世界的紀錄）。
+   * 只影響 characterId@worldId：
+   *   1) 移除 instances[instanceId]（若未來有真正 per-world instance）。
+   *   2) 清掉該角色任何 instance 內的 worldProgress[worldId]（目前實作 per-world
+   *      進度存於此，見 app.js activeWorldProgress）。
+   * 絕不動同世界其他角色的存檔（各 instance / 各 worldProgress 桶獨立）。
+   * 刪後修正 active world / active instance 指標，避免空指標。
+   * 回傳 { removed, activeWorld, activeInstance }。
+   */
+  function deleteInstance(instanceId){
+    var parsed = parseInstanceId(instanceId);
+    var cid = parsed.characterId, wid = parsed.worldId;
+    var instances = loadInstances();
+    var removed = false;
+
+    if(instances[instanceId]){ delete instances[instanceId]; removed = true; }
+
+    if(wid){
+      Object.keys(instances).forEach(function(key){
+        var inst = instances[key];
+        if(inst && inst.characterId === cid && inst.worldProgress &&
+           Object.prototype.hasOwnProperty.call(inst.worldProgress, wid)){
+          delete inst.worldProgress[wid];
+          removed = true;
+        }
+      });
+    }
+    saveInstances(instances);
+
+    /* 修正 active 指標：刪掉目前選定的世界／存檔槽時 fallback 到安全狀態 */
+    if(wid && getActiveWorld() === wid){ setActiveWorld(DEFAULT_WORLD_ID); }
+    if(getActiveInstance() === instanceId){
+      var fallbackIid = cid + "@" + DEFAULT_WORLD_ID;
+      setActiveInstance(instances[fallbackIid] ? fallbackIid : "");
+    }
+    return { removed: removed, activeWorld: getActiveWorld(), activeInstance: getActiveInstance() };
+  }
+
+  /* 刪除整個角色（Identity）+ 連帶清掉它在所有世界的 instances。
+   * 刪後修正 active 角色／世界／存檔槽指標：fallback 到剩餘第一個角色，
+   * 若已無角色則清為未選定的安全狀態（避免空指標）。
+   * 回傳 { removed, remaining, activeCharId, activeWorld, activeInstance }。
+   */
+  function deleteIdentity(characterId){
+    var identities = loadIdentities();
+    var kept = identities.filter(function(x){ return x.characterId !== characterId; });
+    var removed = kept.length !== identities.length;
+    saveIdentities(kept);
+
+    var instances = loadInstances();
+    Object.keys(instances).forEach(function(key){
+      var inst = instances[key];
+      if(inst && inst.characterId === characterId){ delete instances[key]; removed = true; }
+    });
+    saveInstances(instances);
+
+    if(getActiveCharId() === characterId){
+      var fallbackCid = kept.length ? kept[0].characterId : "";
+      setActiveCharId(fallbackCid);
+      if(fallbackCid){
+        setActiveWorld(DEFAULT_WORLD_ID);
+        setActiveInstance(fallbackCid + "@" + DEFAULT_WORLD_ID);
+      } else {
+        setActiveWorld("");
+        setActiveInstance("");
+      }
+    }
+    return {
+      removed: removed, remaining: kept.length,
+      activeCharId: getActiveCharId(), activeWorld: getActiveWorld(), activeInstance: getActiveInstance()
+    };
+  }
+
   global.DND5E_STORE = {
     LS: LS,
     DEFAULT_WORLD_ID: DEFAULT_WORLD_ID,
@@ -281,6 +365,9 @@
     getActiveWorld: getActiveWorld,
     setActiveWorld: setActiveWorld,
     getActiveInstance: getActiveInstance,
-    setActiveInstance: setActiveInstance
+    setActiveInstance: setActiveInstance,
+    parseInstanceId: parseInstanceId,
+    deleteInstance: deleteInstance,
+    deleteIdentity: deleteIdentity
   };
 })(typeof window !== "undefined" ? window : this);
