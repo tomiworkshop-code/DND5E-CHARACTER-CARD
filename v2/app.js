@@ -791,13 +791,13 @@
         let roomUnsubs = [];
         const room = Vue.reactive({
           status: 'idle',      // idle | connecting | connected | error
-          roomId: '',
+          roomId: '', showConflict: false, conflictSave: null,
           playerId: '',
           meta: null,
           error: '',
           inputRoomId: '',
           players: {},
-          messages: []         // {type:'broadcast'|'inbox', from, text, ts, _key}
+          messages: [], appliedCommands: new Set() // {type:'broadcast'|'inbox', from, text, ts, _key}
         });
 
         /* 讀網址 ?room= 自動帶入房號（根入口會帶此參數轉來） */
@@ -823,6 +823,96 @@
         };
 
         /* §5.6 首入座綁 worldId：於本機建立/更新 DM 世界條目 + 綁 active instance（不覆蓋既有本地世界） */
+        
+        const applyCommand = (cmd) => {
+          const char = selectedChar.value;
+          if (!char) return;
+          let text = '';
+          const cName = char.name || '角色';
+          let oldHp = char.hp?.current || 0;
+          let changed = false;
+
+          switch(cmd.type) {
+            case 'damage':
+              if(!char.hp) char.hp = {current:10, max:10};
+              char.hp.current = Math.max(0, char.hp.current - (Number(cmd.amount)||0));
+              text = `${cName} 受到 ${cmd.amount} 點傷害 (${cmd.damageType||'一般'})`;
+              if (cmd.note) text += ' - ' + cmd.note;
+              changed = true;
+              break;
+            case 'heal':
+              if(!char.hp) char.hp = {current:10, max:10};
+              char.hp.current = Math.min(char.hp.max, char.hp.current + (Number(cmd.amount)||0));
+              text = `${cName} 恢復 ${cmd.amount} 點 HP`;
+              if (cmd.note) text += ' - ' + cmd.note;
+              changed = true;
+              break;
+            case 'gold':
+              if(!char.coins) char.coins = {cp:0, sp:0, gp:0, pp:0};
+              char.coins.gp = Math.max(0, (Number(char.coins.gp)||0) + (Number(cmd.amount)||0));
+              text = `${cName} 金錢變更 ${cmd.amount} gp`;
+              changed = true;
+              break;
+            case 'xp':
+              // assume xp added to char? wait, xp is not directly in root, but let's add it if not exists.
+              // We'll just log it since we don't have a direct XP field in defaultChar.
+              text = `${cName} 獲得 ${cmd.amount} XP`;
+              break;
+            case 'give-item':
+              if(!char.inventory) char.inventory = [];
+              char.inventory.push({ name: cmd.itemName || '未知物品', qty: Number(cmd.qty)||1, desc: cmd.note || '' });
+              text = `${cName} 獲得物品: ${cmd.itemName}`;
+              changed = true;
+              break;
+            default:
+              text = `未知指令: ${cmd.type}`;
+          }
+
+          if (changed && window.DND5E_STORE && char.id) {
+            // bump version_m via store decompose
+            // In v2, changes to reactive 'char' are automatically picked up by the watch(chars) in app.js
+            // which calls decomposeC. decomposeC detects changes and bumps version_m/n automatically!
+          }
+
+          room.messages.push({
+            type: 'inbox',
+            from: '系統 (指令套用)',
+            text: text,
+            ts: cmd.ts || Date.now(),
+            _key: cmd._key + '_log'
+          });
+        };
+
+        const handleRemoteSave = (save) => {
+          const char = selectedChar.value;
+          if (!char) return;
+          const instId = char.id + '@' + room.meta.worldId;
+          const localInst = STORE.loadInstances()[instId];
+          
+          if (!localInst) {
+            // First time in this world, restore from save
+            if (save.mechanical) {
+               Object.assign(char, save.mechanical);
+            }
+            return;
+          }
+
+          const localVm = localInst.version_m || 0;
+          const remoteVm = (save._sync && save._sync.version_m) || 0;
+
+          if (localVm > remoteVm) {
+             // Conflict: local is ahead. Need UI.
+             room.conflictSave = save;
+             room.showConflict = true;
+          } else {
+             // DM is ahead or equal -> auto merge
+             const merged = window.DND5E_CHAR.mergeInstance(localInst, save);
+             // apply merged mechanical & narrative back to selectedChar
+             if (merged.mechanical) Object.assign(char, merged.mechanical);
+             if (merged.narrative) Object.assign(char, merged.narrative);
+          }
+        };
+
         const bindDmWorld = (meta, rid) => {
           if (!meta || !meta.worldId) return;
           try {
@@ -854,6 +944,17 @@
             roomUnsubs.push(ROOM.onBroadcast(fbApp.db, rid, (m) => { room.messages.push(Object.assign({ type: 'broadcast' }, m)); }));
             roomUnsubs.push(ROOM.onInbox(fbApp.db, rid, uid, (m) => { room.messages.push(Object.assign({ type: 'inbox' }, m)); }));
             roomUnsubs.push(ROOM.onPlayers(fbApp.db, rid, (ps) => { room.players = ps || {}; }));
+            roomUnsubs.push(ROOM.onCommand(fbApp.db, rid, uid, (cmd) => {
+              if (room.appliedCommands.has(cmd._key)) return;
+              room.appliedCommands.add(cmd._key);
+              applyCommand(cmd);
+            }));
+            const cId = selectedChar.value ? selectedChar.value.id : null;
+            if (cId) {
+              roomUnsubs.push(ROOM.onSave(fbApp.db, rid, cId, (save) => {
+                if (save) handleRemoteSave(save);
+              }));
+            }
             room.status = 'connected';
           } catch (e) {
             room.status = 'error';
@@ -861,7 +962,35 @@
           }
         };
 
+        const sendRoomRequest = async (req) => {
+          if (!ROOM || !fbApp || room.status !== 'connected') return;
+          try {
+            await ROOM.sendRequest(fbApp.db, room.roomId, room.playerId, req);
+            alert('請求已送出');
+          } catch(e) {
+            alert('送出失敗: ' + e.message);
+          }
+        };
+        const resolveConflict = (action) => {
+           if (action === 'keep_local') {
+             // prompt as request?
+             alert('保留本機進度。請向 DM 發送提案請求。');
+           } else if (action === 'adopt_dm') {
+             const save = room.conflictSave;
+             const instId = selectedChar.value.id + '@' + room.meta.worldId;
+             const localInst = STORE.loadInstances()[instId];
+             if (localInst && save) {
+                const merged = window.DND5E_CHAR.mergeInstance(localInst, save);
+                if (merged.mechanical) Object.assign(selectedChar.value, merged.mechanical);
+                if (merged.narrative) Object.assign(selectedChar.value, merged.narrative);
+             }
+           }
+           room.showConflict = false;
+           room.conflictSave = null;
+        };
         const leaveRoom = () => {
+
+
           roomUnsubs.forEach((fn) => { try { fn(); } catch (e) {} });
           roomUnsubs = [];
           room.status = 'idle';
@@ -876,6 +1005,9 @@
           room,
           joinRoom,
           leaveRoom,
+resolveConflict,
+sendRoomRequest,
+          sortedMessages: Vue.computed(() => room.messages.slice().sort((a, b) => (a.ts || 0) - (b.ts || 0))),
           deleteCharacter,
           removeCurrentWorldRecord,
           isDmWorldObj,
