@@ -926,11 +926,28 @@
          * 合流一律委派 DND5E_CHAR.mergeInstance；用 extractZone/applyZone 把 merged 結果
          * 明確套回 char（不用 Object.assign(char, merged.mechanical)——mergeInstance 回傳的
          * 是攤平 char，根本沒有 .mechanical，舊寫法會套到 undefined / stale 子物件）。 */
-        const adoptRemoteSave = (save) => {
+        const adoptRemoteSave = (save, opts) => {
           const char = selectedChar.value;
           const C = window.DND5E_CHAR;
           if (!char || !save || !C) return;
           const wid = (room.meta && room.meta.worldId) || DEFAULT_WORLD_ID;
+          /* force：衝突「採用 DM（覆寫本機）」路徑。此時本機 version_m 恆 > DM，
+           * 若走 mergeInstance 的版本閘（rm >= local 才套機制區）→ 機制/敘事區永不套 → no-op。
+           * 故繞閘：直接以 DM save 為準，用 schema helper（extractZone/applyZone）明確套 DM 的
+           * 機制/敘事區（不自寫合併規則），並把 _sync 對齊 DM 版本（避免下次又被判本機領先→假衝突）。 */
+          if (opts && opts.force) {
+            C.applyZone(char, 'mechanical', C.extractZone(save, 'mechanical'));
+            C.applyZone(char, 'narrative', C.extractZone(save, 'narrative'));
+            C.ensureSync(char);
+            const rs = save._sync || {};
+            char._sync.version_m = rs.version_m || 0;
+            char._sync.version_n = rs.version_n || 0;
+            STORE.writeInstanceFromChar(char, wid, {
+              version_m: char._sync.version_m,
+              version_n: char._sync.version_n
+            });
+            return;
+          }
           const localInst = STORE.loadInstances()[char.id + '@' + wid];
           // local flat：優先取權威 store instance（巢狀→攤平）；缺 instance（首次入世界）
           // → 由 char 現值攤平且版本歸 0，讓 DM save 必定被採用（rm >= 0）。
@@ -1038,8 +1055,9 @@
         };
         const resolveConflict = (action) => {
           if (action === 'adopt_dm') {
-            // shape 修好後真正生效：走與 onSave 相同的 adoptRemoteSave（mergeInstance + applyZone）。
-            if (room.conflictSave) adoptRemoteSave(room.conflictSave);
+            // 採用 DM（覆寫本機）：衝突情境下本機 version_m 領先，必須繞過 mergeInstance 版本閘，
+            // 強制以 DM 存檔為準（force），否則機制/敘事區永不套用→按鈕靜默無效。
+            if (room.conflictSave) adoptRemoteSave(room.conflictSave, { force: true });
           } else if (action === 'keep_local') {
             // 保留本機 → 不靜默覆寫 DM 權威，轉為提案送 DM 審核（請求通道）。
             const c = selectedChar.value;

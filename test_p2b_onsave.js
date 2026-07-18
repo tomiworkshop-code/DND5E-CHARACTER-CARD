@@ -143,6 +143,42 @@ console.log('\n[onSave-B] 玩家真領先（玩家自編輯 bump）→ 不覆蓋
 }
 
 // ============================================================
+console.log('\n[衝突] 採用 DM（adopt_dm）真的覆寫本機（繞過版本閘）');
+{
+  _mem_clear();
+  const char = mkChar();
+  // 玩家自編輯造成 version_m 領先（localVm=5 > remoteVm=3）→ 觸發衝突
+  char.hp = { current: 18, max: 20, temp: 0 };
+  char.xp = 0;
+  char.coins = { cp:0, sp:0, gp:10, pp:0 };
+  STORE.writeInstanceFromChar(char, 'w_dm1', { version_m: 5, version_n: 1 });
+  const { selectedChar, room, fns } = makeHarness(char);
+  // DM 存檔（remoteVm=3 < localVm=5）：hp=1 / xp=7 / gp=99 / 等級 5
+  const save = mkSave({ hp:{current:1,max:20,temp:0}, xp:7, coins:{cp:0,sp:0,gp:99,pp:0},
+    classes:[{ name_en:'Fighter', level:5 }] }, 3, 1);
+  fns.handleRemoteSave(save);
+  ok('先觸發衝突 UI（localVm>remoteVm）', room.showConflict === true);
+  ok('衝突時 char 尚未變動（hp 仍 18）', char.hp.current === 18);
+  // 按「採用 DM（覆寫本機）」
+  fns.resolveConflict('adopt_dm');
+  ok('adopt_dm 後 char.hp 真的變 DM 值 1（非舊 18）', char.hp.current === 1);
+  ok('adopt_dm 後 char.xp 真的變 DM 值 7（非舊 0）', char.xp === 7);
+  ok('adopt_dm 後 char.coins.gp 變 99', char.coins.gp === 99);
+  const lvl = (char.classes||[]).reduce((a,cl)=>a+(Number(cl.level)||0),0);
+  ok('adopt_dm 後 等級 變 DM 值 5', lvl === 5);
+  ok('衝突面板關閉', room.showConflict === false);
+  ok('conflictSave 清空', room.conflictSave === null);
+  const inst = STORE.loadInstances()['cHero@w_dm1'];
+  ok('store instance hp 落回 DM 值 1', inst.mechanical.hp.current === 1);
+  ok('store instance xp 落回 DM 值 7', inst.mechanical.xp === 7);
+  ok('store instance version_m 對齊 DM（=3，不再領先）', inst.version_m === 3);
+  // 對齊後：DM 再推相同 version_m 的 save → 不再誤判假衝突
+  const save2 = mkSave({ hp:{current:2,max:20,temp:0} }, 3, 1);
+  fns.handleRemoteSave(save2);
+  ok('對齊後不觸發假衝突（相等版本採用 DM，hp=2）', char.hp.current === 2 && room.showConflict === false);
+}
+
+// ============================================================
 console.log('\n[onSave-C] 版本相等 → 恢復（採用 DM，含 =）');
 {
   _mem_clear();
