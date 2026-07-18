@@ -747,10 +747,26 @@
           newVal.forEach(c => {
              let ident = identities.find(i => i.characterId === c.id);
              let inst = instances[c.id + "@" + DEFAULT_WORLD_ID];
-             if (ident && inst) {
-               if (decomposeC(c, ident, inst)) {
-                 changed = true;
-               }
+             // 新增角色尚無 identity/instance 種子紀錄 → 先建立，避免存檔被略過（新角色不見 bug）
+             if (!ident) {
+               ident = { characterId: c.id, identity: pickIdentityFields(c), version_n: 1 };
+               identities.push(ident);
+               changed = true;
+             }
+             if (!inst) {
+               const iid = c.id + "@" + DEFAULT_WORLD_ID;
+               inst = {
+                 instanceId: iid, characterId: c.id, worldId: DEFAULT_WORLD_ID,
+                 mechanical: pickMechanicalFields(c),
+                 narrative: pickInstanceNarrative(c),
+                 worldProgress: JSON.parse(JSON.stringify(c.worldProgress || {})),
+                 version_m: 1, version_n: 1, updatedAt: Date.now()
+               };
+               instances[iid] = inst;
+               changed = true;
+             }
+             if (decomposeC(c, ident, inst)) {
+               changed = true;
              }
           });
 
