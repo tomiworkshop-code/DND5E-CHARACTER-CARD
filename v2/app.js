@@ -5,22 +5,31 @@
     const { createApp, ref, computed, watch, onMounted } = Vue;
 /* ===== 內嵌職業資料（離線可用，不靠外部 fetch） ===== */
 
-
-
-
-
     window.uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
-    const LS_IDENTITIES = "dnd_identities_v2";
-    const LS_INSTANCES  = "dnd_instances_v2";
-    const LS_WORLDS     = "dnd_worlds_v2";
-    const LS_ACTIVE_WORLD = "dnd_active_world_v2";
-    const LS_ACTIVE_INSTANCE = "dnd_active_instance_v2";
-    const LS_SCHEMA_VER = "dnd_schema_ver";
-    const DEFAULT_WORLD_ID = "w_local_default";
+    /* ===== 存檔邏輯已抽至 shared/store.js（window.DND5E_STORE）；下方為委派綁定 ===== */
+    const STORE = window.DND5E_STORE;
+    const LS_IDENTITIES      = STORE.LS.IDENTITIES;
+    const LS_INSTANCES       = STORE.LS.INSTANCES;
+    const LS_WORLDS          = STORE.LS.WORLDS;
+    const LS_ACTIVE_WORLD    = STORE.LS.ACTIVE_WORLD;
+    const LS_ACTIVE_INSTANCE = STORE.LS.ACTIVE_INSTANCE;
+    const LS_SCHEMA_VER      = STORE.LS.SCHEMA_VER;
+    const LS_SETTINGS        = STORE.LS.SETTINGS;
+    const DEFAULT_WORLD_ID   = STORE.DEFAULT_WORLD_ID;
+    const loadSettings          = STORE.loadSettings;
+    const pickIdentityFields    = STORE.pickIdentityFields;
+    const pickMechanicalFields  = STORE.pickMechanicalFields;
+    const pickInstanceNarrative = STORE.pickInstanceNarrative;
+    const composeC              = STORE.composeC;
+    const decomposeC            = STORE.decomposeC;
+    const migrateToV2           = STORE.migrateToV2;
 
-    /* ===== 全域內容來源設定（非 per-character）：enabledSources / includeUntranslated / seen ===== */
-    const LS_SETTINGS = "dnd_settings";
+
+
+
+
+
 
     /* 來源群組顯示定義（順序即顯示順序），改用 emoji 以符合 V2 風格 */
     const SOURCE_GROUP_DEFS = [
@@ -30,197 +39,6 @@
       { key:"ua",        icon:"🧪", label:"試行內容（UA / 直播）" },
       { key:"other",     icon:"❓", label:"其他 / 未分類" }
     ];
-
-    /* 讀取全域設定 */
-    function loadSettings(){
-      const s = { enabledSources:null, includeUntranslated:true, seen:[] };
-      try{
-        const raw = localStorage.getItem(LS_SETTINGS);
-        if(raw){
-          const o = JSON.parse(raw);
-          if(o && typeof o === "object"){
-            if(Array.isArray(o.enabledSources)) s.enabledSources = o.enabledSources.slice();
-            if(typeof o.includeUntranslated === "boolean") s.includeUntranslated = o.includeUntranslated;
-            if(Array.isArray(o.seen)) s.seen = o.seen.slice();
-          }
-        }
-      }catch(e){}
-      return s;
-    }
-
-    function getInt(key) { return parseInt(localStorage.getItem(key)) || 0; }
-
-    function pickIdentityFields(ch) {
-      return {
-        name: ch.name || "",
-        race: ch.race || "",
-        subrace: ch.subrace || "",
-        alignment: ch.alignment || "",
-        background: ch.background || "",
-        baseAbilities: JSON.parse(JSON.stringify(ch.abilities || {str:10,dex:10,con:10,int:10,wis:10,cha:10})),
-        story: JSON.parse(JSON.stringify(ch.story || {appearance:"",personality:"",ideals:"",bonds:"",flaws:"",allies:"",backstory:""})),
-        avatar: ch.avatar || ""
-      };
-    }
-
-    function pickMechanicalFields(ch) {
-      return {
-        speed: ch.speed || "30 呎",
-        languages: JSON.parse(JSON.stringify(ch.languages || [])),
-        proficiencies: ch.proficiencies || "",
-        grantedProficiencies: [],
-        profArmor: JSON.parse(JSON.stringify(ch.profArmor || [])),
-        profWeapon: JSON.parse(JSON.stringify(ch.profWeapon || [])),
-        profTool: JSON.parse(JSON.stringify(ch.profTool || [])),
-        profSaves: JSON.parse(JSON.stringify(ch.profSaves || {})),
-        ac: ch.ac || 10,
-        initiative: ch.initiative || 0,
-        hp: JSON.parse(JSON.stringify(ch.hp || {current:10,max:10,temp:0})),
-        abilities: JSON.parse(JSON.stringify(ch.abilities || {str:10,dex:10,con:10,int:10,wis:10,cha:10})),
-        abilityBonus: JSON.parse(JSON.stringify(ch.abilityBonus || {str:0,dex:0,con:0,int:0,wis:0,cha:0})),
-        classes: JSON.parse(JSON.stringify(ch.classes || [])),
-        saves: JSON.parse(JSON.stringify(ch.saves || {str:false,dex:false,con:false,int:false,wis:false,cha:false})),
-        skills: JSON.parse(JSON.stringify(ch.skills || {})),
-        spellSlots: JSON.parse(JSON.stringify(ch.spellSlots || [])),
-        spellsText: ch.spellsText || "",
-        spellbook: JSON.parse(JSON.stringify(ch.spellbook || [])),
-        inventory: JSON.parse(JSON.stringify(ch.inventory || [])),
-        coins: JSON.parse(JSON.stringify(ch.coins || {cp:0,sp:0,gp:0,pp:0})),
-        conditions: JSON.parse(JSON.stringify(ch.conditions || {})),
-        exhaustion: ch.exhaustion || 0,
-        deathSaves: JSON.parse(JSON.stringify(ch.deathSaves || {success:0,fail:0})),
-        inspiration: ch.inspiration || false,
-        concentration: JSON.parse(JSON.stringify(ch.concentration || {on:false,spell:""})),
-        hitDiceUsed: ch.hitDiceUsed || 0,
-        acHelper: JSON.parse(JSON.stringify(ch.acHelper || {base:10,dexCap:"",shield:0,misc:0})),
-        resources: JSON.parse(JSON.stringify(ch.resources || [])),
-        attacks: JSON.parse(JSON.stringify(ch.attacks || [])),
-        feats: JSON.parse(JSON.stringify(ch.feats || [])),
-        familiar: ch.familiar ? {
-          speed: ch.familiar.speed,
-          ac: ch.familiar.ac,
-          hp: ch.familiar.hp,
-          abilities: ch.familiar.abilities,
-          attacks: ch.familiar.attacks
-        } : null
-      };
-    }
-
-    function pickInstanceNarrative(ch) {
-      return {
-        notes: ch.notes || "",
-        familiar: ch.familiar ? {
-          name: ch.familiar.name,
-          type: ch.familiar.type,
-          notes: ch.familiar.notes
-        } : null
-      };
-    }
-
-    function migrateToV2() {
-      if (getInt(LS_SCHEMA_VER) >= 2) return;
-      let oldChars = [];
-      const raw = localStorage.getItem("dnd_chars");
-      if (raw) {
-        try {
-          const arr = JSON.parse(raw);
-          if (Array.isArray(arr)) {
-            oldChars = arr.map(x => window.DND5E_CHAR.mergeChar(window.DND5E_CHAR.defaultChar(), x));
-          }
-        } catch(e) {}
-      }
-      if (!oldChars.length) {
-        const legacy = localStorage.getItem("parchment_dnd5e_char_v1");
-        if (legacy) {
-          try { oldChars = [ window.DND5E_CHAR.mergeChar(window.DND5E_CHAR.defaultChar(), JSON.parse(legacy)) ]; } catch(e) {}
-        }
-      }
-      if (!oldChars.length) {
-        let dc = window.DND5E_CHAR.defaultChar();
-        dc.id = window.uid();
-        oldChars = [ dc ];
-      }
-
-      let worlds = JSON.parse(localStorage.getItem(LS_WORLDS) || "null") || [{id: DEFAULT_WORLD_ID, name: "本地世界", note: "未連線 DM 前的預設世界", type: "local"}];
-      if (!worlds.find(w => w.id === DEFAULT_WORLD_ID)) worlds.push({id: DEFAULT_WORLD_ID, name: "本地世界", note: "未連線 DM 前的預設世界", type: "local"});
-
-      let identities = [];
-      let instances = {};
-      for (const ch of oldChars) {
-        const cid = ch.id || window.uid();
-        identities.push({ characterId: cid, identity: pickIdentityFields(ch), version_n: 1 });
-        const iid = cid + "@" + DEFAULT_WORLD_ID;
-        instances[iid] = {
-          instanceId: iid, characterId: cid, worldId: DEFAULT_WORLD_ID,
-          mechanical: pickMechanicalFields(ch),
-          narrative: pickInstanceNarrative(ch),
-          version_m: 1, version_n: 1, updatedAt: Date.now()
-        };
-      }
-      
-      localStorage.setItem(LS_IDENTITIES, JSON.stringify(identities));
-      localStorage.setItem(LS_INSTANCES, JSON.stringify(instances));
-      localStorage.setItem(LS_WORLDS, JSON.stringify(worlds));
-      
-      const activeCid = localStorage.getItem("dnd_active") && identities.find(i=>i.characterId===localStorage.getItem("dnd_active")) 
-        ? localStorage.getItem("dnd_active") 
-        : identities[0].characterId;
-        
-      localStorage.setItem("dnd_active", activeCid);
-      localStorage.setItem(LS_ACTIVE_WORLD, DEFAULT_WORLD_ID);
-      localStorage.setItem(LS_ACTIVE_INSTANCE, activeCid + "@" + DEFAULT_WORLD_ID);
-      localStorage.setItem(LS_SCHEMA_VER, "2");
-    }
-
-    function composeC(identity, instance) {
-      let c = window.DND5E_CHAR.defaultChar();
-      c.id = identity.characterId;
-      c = window.DND5E_CHAR.mergeChar(c, identity.identity);
-      c = window.DND5E_CHAR.mergeChar(c, instance.mechanical);
-      c = window.DND5E_CHAR.mergeChar(c, instance.narrative);
-      if (identity.identity.familiar || instance.mechanical.familiar || instance.narrative.familiar) {
-        c.familiar = window.DND5E_CHAR.defaultFamiliar();
-        if (instance.narrative.familiar) c.familiar = window.DND5E_CHAR.mergeChar(c.familiar, instance.narrative.familiar);
-        if (instance.mechanical.familiar) c.familiar = window.DND5E_CHAR.mergeChar(c.familiar, instance.mechanical.familiar);
-      }
-      // 進度屬於「角色在該世界的存檔槽」，改為每個角色獨立保存，避免同世界串檔
-      c.worldProgress = instance.worldProgress ? JSON.parse(JSON.stringify(instance.worldProgress)) : {};
-      return c;
-    }
-
-    function decomposeC(c, identity, instance) {
-      let oldMech = JSON.stringify(instance.mechanical);
-      let oldNarI = JSON.stringify(instance.narrative);
-      let oldNarId = JSON.stringify(identity.identity);
-
-      let newMech = pickMechanicalFields(c);
-      let newNarI = pickInstanceNarrative(c);
-      let newNarId = pickIdentityFields(c);
-
-      // worldProgress（角色各世界的進度存檔槽）也要偵測變更並持久化
-      let oldWP = JSON.stringify(instance.worldProgress || {});
-      let newWP = JSON.parse(JSON.stringify(c.worldProgress || {}));
-
-      let mChanged = oldMech !== JSON.stringify(newMech);
-      let nIChanged = oldNarI !== JSON.stringify(newNarI);
-      let nIdChanged = oldNarId !== JSON.stringify(newNarId);
-      let wpChanged = oldWP !== JSON.stringify(newWP);
-
-      if (mChanged) instance.version_m++;
-      if (nIChanged) instance.version_n++;
-      if (nIdChanged) identity.version_n++;
-
-      if (mChanged || nIChanged || nIdChanged || wpChanged) {
-        instance.updatedAt = Date.now();
-        instance.mechanical = newMech;
-        instance.narrative = newNarI;
-        identity.identity = newNarId;
-        instance.worldProgress = newWP;
-        return true; 
-      }
-      return false;
-    }
-
     const app = createApp({
       setup() {
         const coreRules = Vue.reactive({ CLASSES:[], SKILLS:[], CONDITIONS:[], COMMON_LANGUAGES:[], ARMOR_OPTIONS:[], WEAPON_OPTIONS:[], TOOL_OPTIONS:[], RACES:[], ALIGNMENTS:[], BACKGROUNDS:[] });
@@ -849,17 +667,8 @@
         /* ===== 資料備份與還原（JSON 匯出 / 匯入） ===== */
         const exportData = () => {
           try {
-            const payload = {
-              __type: 'dnd5e_character_card_backup',
-              __version: 2,
-              exportedAt: new Date().toISOString(),
-              data: {
-                dnd_identities_v2:   localStorage.getItem(LS_IDENTITIES),
-                dnd_instances_v2:    localStorage.getItem(LS_INSTANCES),
-                dnd_worlds_v2:       localStorage.getItem(LS_WORLDS),
-                dnd_active_world_v2: localStorage.getItem(LS_ACTIVE_WORLD)
-              }
-            };
+            // 純資料組裝抽至 shared/services/backup.js（window.DND5E_BACKUP）；UI 保留 Blob/anchor 下載
+            const payload = window.DND5E_BACKUP.buildBackupPayload((k) => localStorage.getItem(k));
             const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const d = new Date();
@@ -883,12 +692,8 @@
           const reader = new FileReader();
           reader.onload = () => {
             try {
-              const obj = JSON.parse(reader.result);
-              const d = (obj && obj.data && typeof obj.data === 'object') ? obj.data : obj;
-              if (!d || typeof d !== 'object') throw new Error('檔案格式無效');
-              if (!('dnd_identities_v2' in d) && !('dnd_instances_v2' in d) && !('dnd_worlds_v2' in d)) {
-                throw new Error('找不到可還原的備份欄位');
-              }
+              // 解析+驗證抽至 shared/services/backup.js（window.DND5E_BACKUP）；行為與原來一致
+              const d = window.DND5E_BACKUP.parseBackupPayload(reader.result);
               if (!confirm('確定要還原備份嗎？這會覆寫目前所有角色、世界與進度資料，且無法復原。')) { ev.target.value = ''; return; }
               const setOrSkip = (key, val) => {
                 if (val === null || val === undefined) return;
