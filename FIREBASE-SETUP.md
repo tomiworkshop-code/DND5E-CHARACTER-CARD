@@ -66,6 +66,16 @@
             ".write": "auth != null && root.child('rooms').child($roomId).child('meta/dmId').val() === auth.uid"
           }
         },
+        "saves": {
+          "$cid": {
+            ".write": "auth != null && root.child('rooms').child($roomId).child('meta/dmId').val() === auth.uid"
+          }
+        },
+        "requests": {
+          "$pid": {
+            ".write": "auth != null && (auth.uid === $pid || root.child('rooms').child($roomId).child('meta/dmId').val() === auth.uid)"
+          }
+        },
         "players": {
           "$pid": {
             ".write": "auth != null && auth.uid === $pid"
@@ -77,7 +87,8 @@
 }
 ```
 
-> 說明：`meta/dmId` 記錄開房 DM 的 uid；只有 DM 能寫房間狀態/廣播/私訊/指令/特效，玩家只能寫自己的 `players/{自己uid}` 快照，也讀不到別人的 inbox/commands。這是 §3.1 權限隔離的最小安全版，之後可再收緊。
+> 說明：`meta/dmId` 記錄開房 DM 的 uid；只有 DM 能寫房間狀態/廣播/私訊/指令/特效/中央存檔(saves)，玩家只能寫自己的 `players/{自己uid}` 快照與 `requests/{自己uid}` 請求。這是 §3.1 權限隔離的最小安全版，之後可再收緊。
+> **【已補齊 2026-07-18】** 新增 `saves/{characterId}`（DM 權威中央存檔，僅 DM 寫）與 `requests/{playerId}`（玩家 push 自己請求、DM 讀/刪）兩節 write 規則（先前版本漏掉 → 會擋住存檔同步與請求通道）。
 
 ---
 
