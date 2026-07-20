@@ -1233,7 +1233,7 @@ sendRoomRequest,
               inventory: [],
               spellbook: [],
               spellSlots: Array.from({length:9}, (_,i)=>({ level:i+1, max:0, used:0 })),
-              familiar: null,
+              familiars: [],
               skills: {},
               profSaves: {},
               worldProgress: {}

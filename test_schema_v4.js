@@ -1,5 +1,5 @@
 /* test_schema_v4.js — SCHEMA v4 遷移最小測試（純 node）
- *   - SCHEMA_VERSION === 4
+ *   - SCHEMA_VERSION >= 4
  *   - defaultChar 技能含 expertise:false；profSaves 為 {}
  *   - mergeChar 相容舊存檔（skills 無 expertise → 補 false；無 profSaves → 補 {}）
  *   - migrateSkillsSaves 冪等
@@ -13,7 +13,7 @@ const C = (mod && mod.DND5E_CHAR) || global.DND5E_CHAR;
 let fail = 0;
 function ok(cond, msg) { console.log((cond ? '✅ ' : '❌ ') + msg); if (!cond) fail++; }
 
-ok(C.SCHEMA_VERSION === 4, 'SCHEMA_VERSION 為 4 (實得 ' + C.SCHEMA_VERSION + ')');
+ok(C.SCHEMA_VERSION >= 4, 'SCHEMA_VERSION 為 4 (實得 ' + C.SCHEMA_VERSION + ')');
 
 const dc = C.defaultChar();
 const firstSkill = core.SKILLS[0].zh;

@@ -114,24 +114,14 @@
       resources: JSON.parse(JSON.stringify(ch.resources || [])),
       attacks: JSON.parse(JSON.stringify(ch.attacks || [])),
       feats: JSON.parse(JSON.stringify(ch.feats || [])),
-      familiar: ch.familiar ? {
-        speed: ch.familiar.speed,
-        ac: ch.familiar.ac,
-        hp: ch.familiar.hp,
-        abilities: ch.familiar.abilities,
-        attacks: ch.familiar.attacks
-      } : null
+      familiars: (ch.familiars || []).map(function(f) { return { speed: f.speed, ac: f.ac, hp: f.hp, abilities: f.abilities, attacks: f.attacks, senses: f.senses, resistances: f.resistances, skills: f.skills }; })
     };
   }
 
   function pickInstanceNarrative(ch){
     return {
       notes: ch.notes || "",
-      familiar: ch.familiar ? {
-        name: ch.familiar.name,
-        type: ch.familiar.type,
-        notes: ch.familiar.notes
-      } : null
+      familiars: (ch.familiars || []).map(function(f) { return { name: f.name, type: f.type, notes: f.notes, story: f.story }; })
     };
   }
 
@@ -143,10 +133,13 @@
     c = C.mergeChar(c, identity.identity);
     c = C.mergeChar(c, instance.mechanical);
     c = C.mergeChar(c, instance.narrative);
-    if (identity.identity.familiar || instance.mechanical.familiar || instance.narrative.familiar) {
-      c.familiar = C.defaultFamiliar();
-      if (instance.narrative.familiar) c.familiar = C.mergeChar(c.familiar, instance.narrative.familiar);
-      if (instance.mechanical.familiar) c.familiar = C.mergeChar(c.familiar, instance.mechanical.familiar);
+    c.familiars = [];
+    var maxLen = Math.max((identity.identity.familiars || []).length, (instance.mechanical.familiars || []).length, (instance.narrative.familiars || []).length);
+    for (var i=0; i<maxLen; i++) {
+       var f = C.defaultFamiliar();
+       if (instance.narrative.familiars && instance.narrative.familiars[i]) f = C.mergeChar(f, instance.narrative.familiars[i]);
+       if (instance.mechanical.familiars && instance.mechanical.familiars[i]) f = C.mergeChar(f, instance.mechanical.familiars[i]);
+       c.familiars.push(f);
     }
     // 進度屬於「角色在該世界的存檔槽」，改為每個角色獨立保存，避免同世界串檔
     c.worldProgress = instance.worldProgress ? JSON.parse(JSON.stringify(instance.worldProgress)) : {};

@@ -1,0 +1,403 @@
+393:                <span v-else-if="activeModule === 'familiar'">🦉 魔寵</span>
+394-                <span v-else-if="activeModule === 'spells'">✨ 法術</span>
+395-                <span v-else-if="activeModule === 'skills'">🎯 技能</span>
+396-              </h3>
+397-              <div class="flex gap-2">
+398-                <button @click="isEditMode = !isEditMode" :class="isEditMode ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'" class="px-3 py-1 text-sm rounded-lg hover:bg-gray-200 font-medium transition">
+399-                  {{ isEditMode ? '✏️ 編輯中' : '👁️ 檢視模式' }}
+400-                </button>
+401-                <button @click="activeModule = null; isEditMode = false;" class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 font-medium transition">
+402-                  ← 返回
+403-                </button>
+404-              </div>
+405-            </div>
+406-
+407-            <!-- 全域模塊內頁：故事背景 -->
+408-            <div v-if="activeModule === 'story'" class="space-y-4">
+409-              <div class="bg-purple-50 text-purple-700 text-xs p-2 rounded-md mb-2 flex items-center gap-2 border border-purple-100">
+410-                <span class="text-base">🌐</span> 此為全域跨世界設定，修改會自動套用到所有世界。
+411-              </div>
+412-              
+413-              <div v-if="!isEditMode" class="space-y-4">
+414-                <div class="flex gap-4 items-start">
+415-                  <div class="flex-1 space-y-3">
+416-                    <div><span class="text-xs text-gray-500 block">名稱</span><div class="font-bold text-lg">{{ selectedChar?.name || '未命名' }}</div></div>
+417-                  </div>
+418-                  <div class="w-20 h-20 shrink-0 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
+419-                    <img v-if="selectedChar.avatar" :src="selectedChar.avatar" class="w-full h-full object-cover">
+420-                    <span v-else class="text-3xl">🧙</span>
+421-                  </div>
+422-                </div>
+423-                <div class="grid grid-cols-3 gap-3">
+424-                  <div><span class="text-xs text-gray-500 block">種族</span><div class="font-medium">{{ selectedChar.race || '未設定' }}</div></div>
+425-                  <div><span class="text-xs text-gray-500 block">陣營</span><div class="font-medium">{{ selectedChar.alignment || '未設定' }}</div></div>
+426-                  <div><span class="text-xs text-gray-500 block">背景</span><div class="font-medium">{{ selectedChar.background || '未設定' }}</div></div>
+427-                </div>
+428-                <div><span class="text-xs text-gray-500 block">背景故事</span><div class="text-sm whitespace-pre-wrap">{{ selectedChar.notes || '無' }}</div></div>
+429-              </div>
+430-
+431-              <div v-else class="space-y-4">
+432-                <div class="flex gap-4 items-start">
+433-                  <div class="flex-1 space-y-3">
+434-                    <div>
+435-                      <label class="block text-xs font-bold text-gray-500 mb-1">頭像</label>
+436-                      <input v-model="selectedChar.avatar" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none" placeholder="輸入圖片網址，或下方上傳...">
+437-                      <div class="flex items-center gap-2 mt-2">
+438-                        <label class="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 text-xs font-medium rounded-lg hover:bg-purple-200 transition">
+439-                          📷 上傳圖片
+440-                          <input type="file" accept="image/*" class="hidden" @change="onAvatarPick">
+441-                        </label>
+442-                        <button v-if="selectedChar.avatar" @click="selectedChar.avatar = ''" class="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 transition">清除</button>
+443-                      </div>
+444-                    </div>
+445-                    <div>
+446-                      <label class="block text-xs font-bold text-gray-500 mb-1">名稱</label>
+447-                      <input v-if="selectedChar" v-model="selectedChar.name" type="text" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none">
+448-                    </div>
+449-                  </div>
+450-                  <div class="w-20 h-20 shrink-0 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
+451-                    <img v-if="selectedChar.avatar" :src="selectedChar.avatar" class="w-full h-full object-cover">
+452-                    <span v-else class="text-3xl">🧙</span>
+453-                  </div>
+454-                </div>
+455-                <div class="grid grid-cols-3 gap-3">
+456-                  <div>
+457-                    <label class="block text-xs font-bold text-gray-500 mb-1">種族</label>
+458-                    <select v-model="selectedChar.race" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
+459-                      <option v-if="selectedChar.race && !raceOptions.some(r=>r.name===selectedChar.race)" :value="selectedChar.race">{{ selectedChar.race }}（現有）</option>
+460-                      <option v-for="r in raceOptions" :key="r?.name" :value="r?.name">{{ r?.name }}{{ r?.name_en ? '（'+r.name_en+'）' : '' }}</option>
+461-                    </select>
+462-                  </div>
+463-                  <div>
+464-                    <label class="block text-xs font-bold text-gray-500 mb-1">陣營</label>
+465-                    <select v-model="selectedChar.alignment" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
+466-                      <option v-for="a in ALIGNMENTS" :key="a" :value="a">{{ a }}</option>
+467-                    </select>
+468-                  </div>
+469-                  <div>
+470-                    <label class="block text-xs font-bold text-gray-500 mb-1">背景</label>
+471-                    <select v-model="selectedChar.background" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none bg-white">
+472-                      <option v-for="b in BACKGROUNDS" :key="b?.name" :value="b?.name">{{ b?.name }}</option>
+473-                    </select>
+474-                  </div>
+475-                </div>
+476-                <div>
+477-                  <label class="block text-xs font-bold text-gray-500 mb-1">背景故事</label>
+478-                  <textarea v-model="selectedChar.notes" rows="4" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none resize-none placeholder-gray-300" placeholder="寫下角色的起源與羈絆..."></textarea>
+479-                </div>
+480-              </div>
+481-            </div>
+482-
+483-            <!-- 綁定世界模塊內頁：共用結構展示 -->
+484-            <div v-else class="space-y-4">
+485-              <!-- DM 提示與單人提示 -->
+486-              <div v-if="isDMWorld" class="bg-blue-50 text-blue-700 text-xs p-3 rounded-md mb-4 border border-blue-200 flex items-start gap-2">
+487-                <span class="text-lg mt-0.5">🛡️</span>
+488-                <div>
+489-                  <div class="font-bold mb-0.5">DM 世界模式</div>
+490-                  <div>當前顯示為此世界中經 DM 確認的狀態。您的修改將作為提案發送，需 DM 批准後生效。</div>
+491-                </div>
+492-              </div>
+493-              <div v-else class="bg-gray-50 text-gray-600 text-xs p-3 rounded-md mb-4 border border-gray-200 flex items-center gap-2">
+494-                <span class="text-lg">🧳</span> 單人模式：您可以自由修改並儲存這些數值。
+495-              </div>
+496-
+497-              <!-- 內容區塊 -->
+498-              <div class="space-y-4">
+499-                
+500-                <!-- CLASSES 職業 -->
+501-                <div v-if="activeModule === 'classes'" class="space-y-4">
+502-                  <div v-if="!isEditMode" class="space-y-2">
+503-                    <div v-if="!selectedChar.classes || selectedChar.classes.length === 0" class="text-gray-400 text-sm">無職業資料</div>
+504-                    <div v-for="(cls, idx) in (selectedChar.classes || [])" :key="idx" class="flex flex-col border-b border-gray-100 py-2">
+505-                      <div class="flex justify-between items-center">
+506-                        <div>
+507-                          <div class="font-bold text-gray-800">{{ getClassName(cls) || '未知職業' }}</div>
+508-                          <div class="text-xs text-gray-500">{{ getSubclassName(cls) || '無子職業' }}</div>
+509-                        </div>
+510-                        <div class="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">Lv {{ cls.level || 0 }}</div>
+511-                      </div>
+512-                      
+513-                      <!-- View 模式特性顯示 -->
+514-                      <div v-if="classFeaturesFor(cls).length > 0 || subclassFeaturesFor(cls).length > 0" class="mt-2">
+515-                        <button @click="toggleFeat(idx)" class="text-xs text-blue-500 flex items-center gap-1 font-medium">
+516-                          <span>{{ featOpen[idx] ? '▼ 收合特性' : '▶ 展開特性' }}</span>
+517-                        </button>
+518-                        <div v-if="featOpen[idx]" class="mt-2 space-y-2 text-sm bg-white p-2 rounded border border-gray-100 shadow-sm">
+519-                          <div v-for="(f, i) in classFeaturesFor(cls)" :key="'cf-'+i">
+520-                            <div class="font-bold text-gray-700">{{ f?.name_zh || f?.name_en }} <span class="text-[10px] text-gray-400 font-normal ml-1">Lv {{ f.level }}</span></div>
+521-                            <div class="text-xs text-gray-500 whitespace-pre-wrap">{{ f.desc || f.desc_zh || f.desc_en }}</div>
+522-                          </div>
+523-                          <div v-for="(f, i) in subclassFeaturesFor(cls)" :key="'sf-'+i">
+524-                            <div class="font-bold text-gray-700 text-purple-700">{{ f?.name_zh || f?.name_en }} <span class="text-[10px] text-purple-400 font-normal ml-1">Lv {{ f.level }} (子職業)</span></div>
+525-                            <div class="text-xs text-gray-500 whitespace-pre-wrap">{{ f.desc || f.desc_zh || f.desc_en }}</div>
+526-                          </div>
+527-                        </div>
+528-                      </div>
+529-                    </div>
+530-                  </div>
+531-                  <div v-else class="space-y-4">
+532-                    <div v-for="(cls, idx) in (selectedChar.classes || [])" :key="idx" class="border border-gray-200 p-4 rounded-lg bg-gray-50 relative">
+533-                      <button @click="selectedChar.classes.splice(idx, 1)" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 p-1">
+534-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+535-                      </button>
+536-                      <div class="grid grid-cols-2 gap-3 mb-2 pr-6">
+537-                        <div>
+538-                          <label class="block text-xs font-bold text-gray-500 mb-1">職業</label>
+539-                          <select v-if="cls" v-model="cls.name_en" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
+540-                            <option v-for="c in CLASSES" :key="c?.name_en" :value="c?.name_en">{{ c?.name_zh }} ({{ c?.name_en }})</option>
+541-                          </select>
+542-                        </div>
+543-                        <div>
+544-                          <label class="block text-xs font-bold text-gray-500 mb-1">等級</label>
+545-                          <input type="number" v-model.number="cls.level" min="1" max="20" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
+546-                        </div>
+547-                      </div>
+548-                      
+549-                      <div class="mt-3 pt-3 border-t border-gray-200 border-dashed" v-if="subclassDef(cls)">
+550-                        <div class="flex items-center gap-2 mb-1">
+551-                          <label class="block text-xs font-bold text-gray-500">{{ subclassDef(cls).label }}</label>
+552-                          <span v-if="(Number(cls.level)||0) < subclassDef(cls).level" class="text-[10px] text-gray-400 font-normal">達 {{ subclassDef(cls).level }} 級後可選擇</span>
+553-                        </div>
+554-                        <select v-model="cls.subclass" :disabled="(Number(cls.level)||0) < subclassDef(cls).level" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none bg-white disabled:bg-gray-100 disabled:text-gray-400">
+555-                          <option value="">— 未選擇 —</option>
+556-                          <option v-for="sc in subclassDef(cls).list" :key="sc?.name_en" :value="sc?.name_en">{{ sc?.name_zh }}</option>
+557-                        </select>
+558-                        <div v-if="selectedSubclassDesc(cls)" class="text-[11px] text-gray-500 mt-1.5 leading-snug bg-white p-2 rounded border border-gray-100">
+559-                          {{ selectedSubclassDesc(cls) }}
+560-                        </div>
+561-                      </div>
+562-
+563-                      <!-- Edit 模式特性顯示 -->
+564-                      <div v-if="classFeaturesFor(cls).length > 0 || subclassFeaturesFor(cls).length > 0" class="mt-3 pt-3 border-t border-gray-200 border-dashed">
+565-                        <button @click="toggleFeat(idx)" class="text-xs text-blue-500 flex items-center gap-1 font-medium">
+566-                          <span>{{ featOpen[idx] ? '▼ 收合特性' : '▶ 展開特性' }}</span>
+567-                        </button>
+568-                        <div v-if="featOpen[idx]" class="mt-2 space-y-2 text-sm bg-white p-2 rounded border border-gray-100 shadow-sm">
+569-                          <div v-for="(f, i) in classFeaturesFor(cls)" :key="'cf-'+i">
+570-                            <div class="font-bold text-gray-700">{{ f?.name_zh || f?.name_en }} <span class="text-[10px] text-gray-400 font-normal ml-1">Lv {{ f.level }}</span></div>
+571-                            <div class="text-xs text-gray-500 whitespace-pre-wrap">{{ f.desc || f.desc_zh || f.desc_en }}</div>
+572-                          </div>
+573-                          <div v-for="(f, i) in subclassFeaturesFor(cls)" :key="'sf-'+i">
+574-                            <div class="font-bold text-gray-700 text-purple-700">{{ f?.name_zh || f?.name_en }} <span class="text-[10px] text-purple-400 font-normal ml-1">Lv {{ f.level }} (子職業)</span></div>
+575-                            <div class="text-xs text-gray-500 whitespace-pre-wrap">{{ f.desc || f.desc_zh || f.desc_en }}</div>
+576-                          </div>
+577-                        </div>
+578-                      </div>
+579-                    </div>
+580-                    <button @click="if(!selectedChar.classes) selectedChar.classes=[]; selectedChar.classes.push({name_en:'Fighter', level:1, subclass:''})" class="w-full py-2 border border-dashed border-gray-300 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition">+ 新增兼職</button>
+581-                  </div>
+582-                </div>
+583-
+584-                <!-- STATS 能力值 -->
+585-                <div v-if="activeModule === 'stats'">
+586-                  <!-- Combat Stats -->
+587-                  <div class="mb-4 grid grid-cols-2 gap-3">
+588-                    <div class="border border-blue-200 p-3 rounded-lg bg-blue-50 flex items-center justify-between shadow-sm">
+589-                      <div class="text-xs font-bold text-blue-800">防禦等級 (AC)</div>
+590-                      <div class="text-2xl font-black text-blue-900">{{ computedAC }}</div>
+591-                    </div>
+592-                    <div class="border border-green-200 p-3 rounded-lg bg-green-50 flex items-center justify-between shadow-sm">
+593-                      <div class="text-xs font-bold text-green-800">先攻加值</div>
+--
+782:                <div v-if="activeModule === 'familiar'" class="space-y-3">
+783-                  <!-- 從範本中匯入 (Familiar Preset Import) -->
+784-                  <div class="flex items-center justify-between gap-2">
+785-                    <button @click="openFamiliarPresetPicker" class="px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-sm font-bold hover:bg-indigo-100 transition">🐾 從範本中匯入</button>
+786-                    <span v-if="familiarImportCtx.mode==='dm' && familiarImportCtx.started" class="text-[11px] text-amber-600">已開團 · 機制面需 DM 調整</span>
+787-                  </div>
+788-                  <!-- 範本選單（依 tier 分組） -->
+789-                  <div v-if="familiarImport.pickerOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="closeFamiliarPresetPicker">
+790-                    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[80vh] overflow-y-auto">
+791-                      <div class="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-white z-10">
+792-                        <div class="font-bold text-gray-800">從範本中匯入魔寵</div>
+793-                        <button @click="closeFamiliarPresetPicker" class="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+794-                      </div>
+795-                      <div class="p-4 space-y-4">
+796-                        <div v-for="grp in familiarPresetGroups" :key="grp.tier">
+797-                          <div class="text-xs font-bold text-gray-500 mb-2">{{ grp.label }}</div>
+798-                          <div class="grid grid-cols-1 gap-2">
+799-                            <button v-for="entry in grp.items" :key="entry.preset.id" @click="askImportFamiliarPreset(entry)" :disabled="!entry.allowed"
+800-                              class="text-left border rounded-lg p-2 transition"
+801-                              :class="entry.allowed ? 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40' : 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'">
+802-                              <div class="flex justify-between items-center gap-2">
+803-                                <span class="font-bold text-sm text-gray-800">{{ entry.preset.type }}</span>
+804-                                <span class="text-[10px] text-gray-500 shrink-0">AC {{ entry.preset.ac }} · HP {{ entry.preset.hp.max }}</span>
+805-                              </div>
+806-                              <div class="text-[11px] text-gray-500 mt-0.5">{{ entry.preset.speed }}</div>
+807-                              <div v-if="!entry.allowed && entry.reason" class="text-[10px] text-amber-600 mt-1">🔒 {{ entry.reason }}</div>
+808-                            </button>
+809-                          </div>
+810-                        </div>
+811-                      </div>
+812-                    </div>
+813-                  </div>
+814-                  <!-- 確認覆蓋 dialog -->
+815-                  <div v-if="familiarImport.confirmPreset" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" @click.self="familiarImport.confirmPreset=null">
+816-                    <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5">
+817-                      <div class="font-bold text-gray-800 mb-2">匯入「{{ familiarImport.confirmPreset.type }}」範本？</div>
+818-                      <div v-if="selectedChar && selectedChar.familiar" class="text-sm text-gray-600 mb-4">此動作會<span class="font-bold text-red-600">覆蓋魔寵的機制面</span>（AC／HP／能力值／速度／感官／特性／動作），但會<span class="font-bold text-emerald-600">保留你自取的名稱與故事背景</span>。</div>
+819-                      <div v-else class="text-sm text-gray-600 mb-4">將以此範本建立魔寵的機制面，名稱與故事背景留空給你填寫。</div>
+820-                      <div class="flex justify-end gap-2">
+821-                        <button @click="familiarImport.confirmPreset=null" class="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">取消</button>
+822-                        <button @click="confirmImportFamiliarPreset" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700">確認匯入</button>
+823-                      </div>
+824-                    </div>
+825-                  </div>
+826-                  <div v-if="!isEditMode">
+827-                    <div v-if="!selectedChar.familiar" class="text-gray-400 text-sm text-center py-6">尚未設定魔寵</div>
+828-                    <div v-else class="space-y-4">
+829-                      <div class="flex justify-between items-end border-b pb-2">
+830-                        <div>
+831-                          <div class="text-lg font-bold">{{ selectedChar.familiar?.name || '未命名魔寵' }}</div>
+832-                          <div class="text-xs text-gray-500">{{ selectedChar.familiar.type || '未知種類' }}</div>
+833-                        </div>
+834-                        <div class="text-right">
+835-                          <div class="text-xs text-gray-500">HP</div>
+836-                          <div class="font-bold text-red-600">{{ selectedChar.familiar.hp?.current || 1 }} / {{ selectedChar.familiar.hp?.max || 1 }}</div>
+837-                        </div>
+838-                      </div>
+839-                      <div class="flex gap-4">
+840-                        <div><span class="text-xs text-gray-500">AC</span> <span class="font-bold">{{ selectedChar.familiar.ac || 10 }}</span></div>
+841-                        <div><span class="text-xs text-gray-500">速度</span> <span class="font-bold">{{ selectedChar.familiar.speed || '-' }}</span></div>
+842-                      </div>
+843-                      <div class="flex flex-col gap-1 mt-1">
+844-                        <div v-if="selectedChar.familiar.senses"><span class="text-xs text-gray-500">感官</span> <span class="text-sm">{{ selectedChar.familiar.senses }}</span></div>
+845-                        <div v-if="selectedChar.familiar.resistances"><span class="text-xs text-gray-500">抗性/免疫</span> <span class="text-sm">{{ selectedChar.familiar.resistances }}</span></div>
+846-                      </div>
+847-                      
+848-                      <div v-if="selectedChar.familiar.abilities" class="grid grid-cols-6 gap-1 mt-2">
+849-                        <div v-for="stat in ['str','dex','con','int','wis','cha']" :key="stat" class="bg-gray-50 border border-gray-200 rounded text-center py-1">
+850-                          <div class="text-[9px] text-gray-400 uppercase font-bold">{{ stat }}</div>
+851-                          <div class="text-sm font-bold">{{ selectedChar.familiar.abilities[stat] || 10 }}</div>
+852-                          <div class="text-[10px] text-gray-500">{{ Math.floor(((selectedChar.familiar.abilities[stat] || 10) - 10) / 2) >= 0 ? '+' : '' }}{{ Math.floor(((selectedChar.familiar.abilities[stat] || 10) - 10) / 2) }}</div>
+853-                        </div>
+854-                      </div>
+855-                      
+856-                      <div v-if="selectedChar.familiar.story" class="bg-gray-50 p-3 rounded-lg border border-gray-100 mt-2">
+857-                        <div class="text-xs font-bold text-gray-500 mb-1">📖 故事背景</div>
+858-                        <div class="text-sm text-gray-700 whitespace-pre-wrap">{{ selectedChar.familiar.story }}</div>
+859-                      </div>
+860-
+861-                      <div v-if="selectedChar.familiar.skills && selectedChar.familiar.skills.length > 0">
+862-                        <div class="text-xs font-bold text-gray-500 mb-2">✨ 技能與特性</div>
+863-                        <div class="space-y-2">
+864-                          <div v-for="(sk, i) in selectedChar.familiar.skills" :key="i" class="bg-blue-50/50 p-2 rounded border border-blue-100">
+865-                            <div class="font-bold text-sm text-blue-900">{{ sk.name }}</div>
+866-                            <div class="text-xs text-gray-600 mt-1 whitespace-pre-wrap">{{ sk.desc }}</div>
+867-                          </div>
+868-                        </div>
+869-                      </div>
+870-                      
+871-                      <div v-if="selectedChar.familiar.attacks && selectedChar.familiar.attacks.length > 0">
+872-                        <div class="text-xs font-bold text-gray-500 mt-3 mb-2">⚔️ 動作與攻擊</div>
+873-                        <div class="space-y-2">
+874-                          <div v-for="(atk, i) in selectedChar.familiar.attacks" :key="i" class="bg-red-50/50 p-2 rounded border border-red-100">
+875-                            <div class="font-bold text-sm text-red-900 flex justify-between">
+876-                              <span>{{ atk.name }}</span>
+877-                              <span v-if="atk.hit || atk.dmg" class="text-[10px] bg-red-100 px-1 py-0.5 rounded">{{ atk.hit }} {{ atk.hit && atk.dmg ? '|' : '' }} {{ atk.dmg }}</span>
+878-                            </div>
+879-                            <div v-if="atk.desc" class="text-xs text-gray-600 mt-1 whitespace-pre-wrap">{{ atk.desc }}</div>
+880-                          </div>
+881-                        </div>
+882-                      </div>
+883-                    </div>
+884-                  </div>
+885-                  <div v-else>
+886-                    <div v-if="!selectedChar.familiar" class="text-center py-6 border-2 border-dashed border-gray-200 rounded-xl">
+887-                      <div class="text-gray-400 text-sm mb-2">尚未設定魔寵</div>
+888-                      <button @click="selectedChar.familiar = {name:'', type:'', speed:'', ac:10, hp:{current:1, max:1}, abilities:{str:10, dex:10, con:10, int:10, wis:10, cha:10}, senses:'', resistances:'', story:'', skills:[], attacks:[]}" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200 transition">新增魔寵</button>
+889-                    </div>
+890-                    <div v-else class="space-y-3">
+891-                      <div class="grid grid-cols-2 gap-3">
+892-                        <div>
+893-                          <label class="block text-xs font-bold text-gray-500 mb-1">名稱</label>
+894-                          <input v-if="selectedChar && selectedChar.familiar" type="text" v-model="selectedChar.familiar.name" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+895-                        </div>
+896-                        <div>
+897-                          <label class="block text-xs font-bold text-gray-500 mb-1">類型/種類</label>
+898-                          <input type="text" v-model="selectedChar.familiar.type" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+899-                        </div>
+900-                      </div>
+901-                      <div class="grid grid-cols-3 gap-3">
+902-                        <div>
+903-                          <label class="block text-xs font-bold text-gray-500 mb-1">HP (目前)</label>
+904-                          <input type="number" v-model.number="selectedChar.familiar.hp.current" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+905-                        </div>
+906-                        <div>
+907-                          <label class="block text-xs font-bold text-gray-500 mb-1">HP (最大)</label>
+908-                          <input type="number" v-model.number="selectedChar.familiar.hp.max" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+909-                        </div>
+910-                        <div>
+911-                          <label class="block text-xs font-bold text-gray-500 mb-1">AC</label>
+912-                          <input type="number" v-model.number="selectedChar.familiar.ac" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+913-                        </div>
+914-                      </div>
+915-                      <div>
+916-                        <label class="block text-xs font-bold text-gray-500 mb-1">速度</label>
+917-                        <input type="text" v-model="selectedChar.familiar.speed" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none" placeholder="例如: 30呎, 飛行60呎">
+918-                      </div>
+919-                      
+920-                      <div class="border-t pt-3 mt-2">
+921-                        <label class="block text-xs font-bold text-gray-500 mb-2">能力值 (Ability Scores)</label>
+922-                        <div class="grid grid-cols-6 gap-1">
+923-                          <div v-for="stat in ['str','dex','con','int','wis','cha']" :key="stat">
+924-                            <div class="text-[10px] text-center text-gray-500 uppercase mb-1">{{stat}}</div>
+925-                            <input type="number" v-if="selectedChar.familiar.abilities" v-model.number="selectedChar.familiar.abilities[stat]" class="w-full border border-gray-300 rounded p-1 text-center text-sm outline-none">
+926-                          </div>
+927-                        </div>
+928-                      </div>
+929-                      
+930-                      <div class="grid grid-cols-2 gap-3 mt-2">
+931-                        <div>
+932-                          <label class="block text-xs font-bold text-gray-500 mb-1">感官能力 (Senses)</label>
+933-                          <input type="text" v-model="selectedChar.familiar.senses" placeholder="被動察覺 13..." class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+934-                        </div>
+935-                        <div>
+936-                          <label class="block text-xs font-bold text-gray-500 mb-1">抗性/免疫</label>
+937-                          <input type="text" v-model="selectedChar.familiar.resistances" placeholder="毒素免疫..." class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+938-                        </div>
+939-                      </div>
+940-
+941-                      <div class="border-t pt-3 mt-2">
+942-                        <label class="block text-xs font-bold text-gray-500 mb-1">故事背景</label>
+943-                        <textarea v-model="selectedChar.familiar.story" rows="3" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none resize-none" placeholder="魔寵的由來與個性..."></textarea>
+944-                      </div>
+945-
+946-                      <div class="border-t pt-3 mt-2">
+947-                        <div class="flex justify-between items-center mb-2">
+948-                          <label class="block text-xs font-bold text-gray-500">技能與特性</label>
+949-                          <button @click="if(!selectedChar.familiar.skills) selectedChar.familiar.skills=[]; selectedChar.familiar.skills.push({name:'', desc:''})" class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100">+ 新增技能</button>
+950-                        </div>
+951-                        <div v-if="selectedChar.familiar.skills && selectedChar.familiar.skills.length > 0" class="space-y-3">
+952-                          <div v-for="(sk, i) in selectedChar.familiar.skills" :key="i" class="p-2 border border-blue-100 bg-blue-50/30 rounded-lg flex flex-col gap-2">
+953-                            <div class="flex items-center gap-2">
+954-                              <input type="text" v-model="sk.name" placeholder="技能名稱 (例如: 敏銳聽覺)" class="flex-1 bg-transparent border-b border-blue-200 focus:border-blue-400 outline-none text-sm font-bold text-blue-900 px-1 py-0.5">
+955-                              <button @click="selectedChar.familiar.skills.splice(i, 1)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded bg-red-50 shrink-0 border border-red-100">移除</button>
+956-                            </div>
+957-                            <textarea v-model="sk.desc" rows="2" placeholder="技能描述..." class="w-full bg-white/50 border border-blue-100 rounded p-2 text-sm outline-none resize-none"></textarea>
+958-                          </div>
+959-                        </div>
+960-                        <div v-else class="text-xs text-gray-400 text-center py-2 italic">目前沒有技能</div>
+961-                      </div>
+962-                      
+963-                      <div class="border-t pt-3 mt-2">
+964-                        <div class="flex justify-between items-center mb-2">
+965-                          <label class="block text-xs font-bold text-gray-500">動作與攻擊 (Actions)</label>
+966-                          <button @click="if(!selectedChar.familiar.attacks) selectedChar.familiar.attacks=[]; selectedChar.familiar.attacks.push({name:'', hit:'', dmg:'', desc:''})" class="text-xs text-red-600 bg-red-50 px-2 py-1 rounded hover:bg-red-100">+ 新增動作</button>
+967-                        </div>
+968-                        <div v-if="selectedChar.familiar.attacks && selectedChar.familiar.attacks.length > 0" class="space-y-3">
+969-                          <div v-for="(atk, i) in selectedChar.familiar.attacks" :key="i" class="p-2 border border-red-100 bg-red-50/30 rounded-lg flex flex-col gap-2">
+970-                            <div class="flex items-center gap-2">
+971-                              <input type="text" v-model="atk.name" placeholder="動作名稱" class="w-1/3 bg-transparent border-b border-red-200 focus:border-red-400 outline-none text-sm font-bold text-red-900 px-1 py-0.5">
+972-                              <input type="text" v-model="atk.hit" placeholder="命中(例: +4)" class="w-1/4 bg-transparent border-b border-red-200 focus:border-red-400 outline-none text-sm text-red-900 px-1 py-0.5">
+973-                              <input type="text" v-model="atk.dmg" placeholder="傷害(例: 1d4+2)" class="flex-1 bg-transparent border-b border-red-200 focus:border-red-400 outline-none text-sm text-red-900 px-1 py-0.5">
+974-                              <button @click="selectedChar.familiar.attacks.splice(i, 1)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded bg-red-100 shrink-0 border border-red-200">移除</button>
+975-                            </div>
+976-                            <textarea v-model="atk.desc" rows="2" placeholder="動作描述或附帶效果..." class="w-full bg-white/50 border border-red-100 rounded p-2 text-sm outline-none resize-none"></textarea>
+977-                          </div>
+978-                        </div>
+979-                        <div v-else class="text-xs text-gray-400 text-center py-2 italic">目前沒有動作或攻擊</div>
+980-                      </div>
+981-                    </div>
+982-                  </div>

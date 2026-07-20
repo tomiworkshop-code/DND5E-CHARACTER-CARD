@@ -14,7 +14,7 @@
    *   2 = 預埋 characterId/worldId 存檔槽欄位（Phase 3 前置，§5.6）
    *   3 = 預埋 mechanical/narrative 雙區 + version_m/version_n 同步骨架（§5.10C/D）
    *   4 = 技能結構加 expertise（專精）欄位；豁免檢定沿用 profSaves（§技能頁強化） */
-  const SCHEMA_VERSION = 4;
+  const SCHEMA_VERSION = 5;
 
   /* 欄位分區表（§5.10C/D）— 決定同步時「誰說了算」。
    * 採「加法式骨架」：不物理地把欄位嵌進已深雙物件（避免翻改整份 UI），
@@ -28,7 +28,7 @@
       "saves","skills","spellSlots","spellsText","spellbook",
       "inventory","coins","conditions","exhaustion","xp",
       "deathSaves","inspiration","concentration","hitDiceUsed",
-      "acHelper","resources","attacks","feats","familiar"
+      "acHelper","resources","attacks","feats","familiars"
     ],
     /* 玩家權威（敘事/身份）— version_n */
     narrative: [
@@ -40,7 +40,7 @@
   /* 創角選擇：進世界後鎖為唯讀基準（權威仍屬玩家/narrative，但鎖定） */
   const CREATION_LOCKED = ["race","subrace","background","abilities"];
   /* 雙面欄位：敘事面歸玩家、機制面歸 DM（骨架階段先歸 mechanical 託管以防 OP） */
-  const DUAL_FACE = ["familiar","background","abilities"];
+  const DUAL_FACE = ["familiars","background","abilities"];
 
   function defaultFamiliar(){
     return {
@@ -98,7 +98,7 @@
       feats:[],
       story:{ appearance:"", personality:"", ideals:"", bonds:"", flaws:"", allies:"", backstory:"" },
       avatar:"",
-      familiar: null,
+      familiars: [],
       /* 雙版本同步骨架（§5.10C）：機制區與敘事區各自單調遞增，
        * 改敘事不會誤觸機制覆蓋。Phase 1 都為 0，Step B 上雲時才開始遞增。 */
       _sync:{ version_m:0, version_n:0 }
@@ -113,15 +113,29 @@
           if(out.skills[sk]){ out.skills[sk] = Object.assign(out.skills[sk], saved.skills[sk]); }
           else if(saved.skills[sk] && typeof saved.skills[sk] === "object"){ out.skills[sk] = Object.assign({ proficient:false, expertise:false, override:null }, saved.skills[sk]); }
         }
-      } else if(k==="familiar"){
-        if(saved.familiar && typeof saved.familiar === "object"){
-          const f = defaultFamiliar();
-          for(const fk in saved.familiar){
-            if(fk==="hp" || fk==="abilities"){ f[fk] = Object.assign(f[fk]||{}, saved.familiar[fk]); }
-            else { f[fk] = saved.familiar[fk]; }
-          }
-          out.familiar = f;
-        } else { out.familiar = null; }
+      } else if(k==="familiars"){
+        if(Array.isArray(saved.familiars)){
+          out.familiars = saved.familiars.map(fam => {
+            const f = defaultFamiliar();
+            for(const fk in fam){
+              if(fk==="hp" || fk==="abilities"){ f[fk] = Object.assign(f[fk]||{}, fam[fk]); }
+              else { f[fk] = fam[fk]; }
+            }
+            return f;
+          });
+        }
+      } else if(k==="familiar"){ // V4 migration
+        if(saved.familiar && typeof saved.familiar === "object" && Object.keys(saved.familiar).length > 0){
+           const f = defaultFamiliar();
+           for(const fk in saved.familiar){
+             if(fk==="hp" || fk==="abilities"){ f[fk] = Object.assign(f[fk]||{}, saved.familiar[fk]); }
+             else { f[fk] = saved.familiar[fk]; }
+           }
+           if (f.name || f.type || f.ac !== 10 || (f.hp && f.hp.max > 1)) {
+              if (!out.familiars) out.familiars = [];
+              out.familiars.push(f);
+           }
+        }
       } else if(typeof saved[k] === "object" && saved[k] !== null && !Array.isArray(saved[k])){
         out[k] = Object.assign(out[k]||{}, saved[k]);
       } else { out[k] = saved[k]; }

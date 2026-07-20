@@ -218,7 +218,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.1.0 (Build 0720.1)
+          v2.2.0 (Build 0720.5)
         </div>
       </div>
     </transition>
@@ -781,8 +781,9 @@
                 <!-- FAMILIAR 魔寵 -->
                 <div v-if="activeModule === 'familiar'" class="space-y-3">
                   <!-- 從範本中匯入 (Familiar Preset Import) -->
-                  <div class="flex items-center justify-between gap-2">
+                  <div v-if="isEditMode" class="flex items-center justify-between gap-2 mb-4">
                     <button @click="openFamiliarPresetPicker" class="px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-sm font-bold hover:bg-indigo-100 transition">🐾 從範本中匯入</button>
+                    <button @click="if(!selectedChar.familiars) selectedChar.familiars=[]; selectedChar.familiars.push({name:'', type:'', speed:'', ac:10, hp:{current:1, max:1}, abilities:{str:10, dex:10, con:10, int:10, wis:10, cha:10}, senses:'', resistances:'', story:'', skills:[], attacks:[]})" class="px-3 py-1.5 bg-gray-100 text-gray-600 border border-gray-200 rounded-lg text-sm font-bold hover:bg-gray-200 transition">＋ 新增魔寵</button>
                     <span v-if="familiarImportCtx.mode==='dm' && familiarImportCtx.started" class="text-[11px] text-amber-600">已開團 · 機制面需 DM 調整</span>
                   </div>
                   <!-- 範本選單（依 tier 分組） -->
@@ -815,7 +816,7 @@
                   <div v-if="familiarImport.confirmPreset" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" @click.self="familiarImport.confirmPreset=null">
                     <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5">
                       <div class="font-bold text-gray-800 mb-2">匯入「{{ familiarImport.confirmPreset.type }}」範本？</div>
-                      <div v-if="selectedChar && selectedChar.familiar" class="text-sm text-gray-600 mb-4">此動作會<span class="font-bold text-red-600">覆蓋魔寵的機制面</span>（AC／HP／能力值／速度／感官／特性／動作），但會<span class="font-bold text-emerald-600">保留你自取的名稱與故事背景</span>。</div>
+                      <div v-if="selectedChar" class="text-sm text-gray-600 mb-4">此動作會新增一隻魔寵。機制面將被覆蓋，名稱與故事背景將留空給你填寫。</div>
                       <div v-else class="text-sm text-gray-600 mb-4">將以此範本建立魔寵的機制面，名稱與故事背景留空給你填寫。</div>
                       <div class="flex justify-end gap-2">
                         <button @click="familiarImport.confirmPreset=null" class="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">取消</button>
@@ -823,55 +824,58 @@
                       </div>
                     </div>
                   </div>
+                  <div v-if="!selectedChar.familiars || selectedChar.familiars.length === 0" class="text-gray-400 text-sm text-center py-6 border-2 border-dashed border-gray-200 rounded-xl">尚未設定魔寵</div>
+                  <div v-else class="space-y-6">
+                    <div v-for="(fam, famIndex) in fams" :key="famIndex" class="border border-gray-200 rounded-xl p-4 bg-white shadow-sm relative">
+                      <button v-if="isEditMode" @click="fams.splice(famIndex, 1)" class="absolute top-2 right-2 text-red-400 hover:text-red-600 px-2 py-1 bg-red-50 rounded text-xs">刪除此魔寵</button>
                   <div v-if="!isEditMode">
-                    <div v-if="!selectedChar.familiar" class="text-gray-400 text-sm text-center py-6">尚未設定魔寵</div>
-                    <div v-else class="space-y-4">
+                    <div class="space-y-4">
                       <div class="flex justify-between items-end border-b pb-2">
                         <div>
-                          <div class="text-lg font-bold">{{ selectedChar.familiar?.name || '未命名魔寵' }}</div>
-                          <div class="text-xs text-gray-500">{{ selectedChar.familiar.type || '未知種類' }}</div>
+                          <div class="text-lg font-bold">{{ fam?.name || '未命名魔寵' }}</div>
+                          <div class="text-xs text-gray-500">{{ fam.type || '未知種類' }}</div>
                         </div>
                         <div class="text-right">
                           <div class="text-xs text-gray-500">HP</div>
-                          <div class="font-bold text-red-600">{{ selectedChar.familiar.hp?.current || 1 }} / {{ selectedChar.familiar.hp?.max || 1 }}</div>
+                          <div class="font-bold text-red-600">{{ fam.hp?.current || 1 }} / {{ fam.hp?.max || 1 }}</div>
                         </div>
                       </div>
                       <div class="flex gap-4">
-                        <div><span class="text-xs text-gray-500">AC</span> <span class="font-bold">{{ selectedChar.familiar.ac || 10 }}</span></div>
-                        <div><span class="text-xs text-gray-500">速度</span> <span class="font-bold">{{ selectedChar.familiar.speed || '-' }}</span></div>
+                        <div><span class="text-xs text-gray-500">AC</span> <span class="font-bold">{{ fam.ac || 10 }}</span></div>
+                        <div><span class="text-xs text-gray-500">速度</span> <span class="font-bold">{{ fam.speed || '-' }}</span></div>
                       </div>
                       <div class="flex flex-col gap-1 mt-1">
-                        <div v-if="selectedChar.familiar.senses"><span class="text-xs text-gray-500">感官</span> <span class="text-sm">{{ selectedChar.familiar.senses }}</span></div>
-                        <div v-if="selectedChar.familiar.resistances"><span class="text-xs text-gray-500">抗性/免疫</span> <span class="text-sm">{{ selectedChar.familiar.resistances }}</span></div>
+                        <div v-if="fam.senses"><span class="text-xs text-gray-500">感官</span> <span class="text-sm">{{ fam.senses }}</span></div>
+                        <div v-if="fam.resistances"><span class="text-xs text-gray-500">抗性/免疫</span> <span class="text-sm">{{ fam.resistances }}</span></div>
                       </div>
                       
-                      <div v-if="selectedChar.familiar.abilities" class="grid grid-cols-6 gap-1 mt-2">
+                      <div v-if="fam.abilities" class="grid grid-cols-6 gap-1 mt-2">
                         <div v-for="stat in ['str','dex','con','int','wis','cha']" :key="stat" class="bg-gray-50 border border-gray-200 rounded text-center py-1">
                           <div class="text-[9px] text-gray-400 uppercase font-bold">{{ stat }}</div>
-                          <div class="text-sm font-bold">{{ selectedChar.familiar.abilities[stat] || 10 }}</div>
-                          <div class="text-[10px] text-gray-500">{{ Math.floor(((selectedChar.familiar.abilities[stat] || 10) - 10) / 2) >= 0 ? '+' : '' }}{{ Math.floor(((selectedChar.familiar.abilities[stat] || 10) - 10) / 2) }}</div>
+                          <div class="text-sm font-bold">{{ fam.abilities[stat] || 10 }}</div>
+                          <div class="text-[10px] text-gray-500">{{ Math.floor(((fam.abilities[stat] || 10) - 10) / 2) >= 0 ? '+' : '' }}{{ Math.floor(((fam.abilities[stat] || 10) - 10) / 2) }}</div>
                         </div>
                       </div>
                       
-                      <div v-if="selectedChar.familiar.story" class="bg-gray-50 p-3 rounded-lg border border-gray-100 mt-2">
+                      <div v-if="fam.story" class="bg-gray-50 p-3 rounded-lg border border-gray-100 mt-2">
                         <div class="text-xs font-bold text-gray-500 mb-1">📖 故事背景</div>
-                        <div class="text-sm text-gray-700 whitespace-pre-wrap">{{ selectedChar.familiar.story }}</div>
+                        <div class="text-sm text-gray-700 whitespace-pre-wrap">{{ fam.story }}</div>
                       </div>
 
-                      <div v-if="selectedChar.familiar.skills && selectedChar.familiar.skills.length > 0">
+                      <div v-if="fam.skills && fam.skills.length > 0">
                         <div class="text-xs font-bold text-gray-500 mb-2">✨ 技能與特性</div>
                         <div class="space-y-2">
-                          <div v-for="(sk, i) in selectedChar.familiar.skills" :key="i" class="bg-blue-50/50 p-2 rounded border border-blue-100">
+                          <div v-for="(sk, i) in fam.skills" :key="i" class="bg-blue-50/50 p-2 rounded border border-blue-100">
                             <div class="font-bold text-sm text-blue-900">{{ sk.name }}</div>
                             <div class="text-xs text-gray-600 mt-1 whitespace-pre-wrap">{{ sk.desc }}</div>
                           </div>
                         </div>
                       </div>
                       
-                      <div v-if="selectedChar.familiar.attacks && selectedChar.familiar.attacks.length > 0">
+                      <div v-if="fam.attacks && fam.attacks.length > 0">
                         <div class="text-xs font-bold text-gray-500 mt-3 mb-2">⚔️ 動作與攻擊</div>
                         <div class="space-y-2">
-                          <div v-for="(atk, i) in selectedChar.familiar.attacks" :key="i" class="bg-red-50/50 p-2 rounded border border-red-100">
+                          <div v-for="(atk, i) in fam.attacks" :key="i" class="bg-red-50/50 p-2 rounded border border-red-100">
                             <div class="font-bold text-sm text-red-900 flex justify-between">
                               <span>{{ atk.name }}</span>
                               <span v-if="atk.hit || atk.dmg" class="text-[10px] bg-red-100 px-1 py-0.5 rounded">{{ atk.hit }} {{ atk.hit && atk.dmg ? '|' : '' }} {{ atk.dmg }}</span>
@@ -883,38 +887,34 @@
                     </div>
                   </div>
                   <div v-else>
-                    <div v-if="!selectedChar.familiar" class="text-center py-6 border-2 border-dashed border-gray-200 rounded-xl">
-                      <div class="text-gray-400 text-sm mb-2">尚未設定魔寵</div>
-                      <button @click="selectedChar.familiar = {name:'', type:'', speed:'', ac:10, hp:{current:1, max:1}, abilities:{str:10, dex:10, con:10, int:10, wis:10, cha:10}, senses:'', resistances:'', story:'', skills:[], attacks:[]}" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200 transition">新增魔寵</button>
-                    </div>
-                    <div v-else class="space-y-3">
+                    <div class="space-y-3">
                       <div class="grid grid-cols-2 gap-3">
                         <div>
                           <label class="block text-xs font-bold text-gray-500 mb-1">名稱</label>
-                          <input v-if="selectedChar && selectedChar.familiar" type="text" v-model="selectedChar.familiar.name" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                          <input v-if="selectedChar && fam" type="text" v-model="fam.name" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
                         </div>
                         <div>
                           <label class="block text-xs font-bold text-gray-500 mb-1">類型/種類</label>
-                          <input type="text" v-model="selectedChar.familiar.type" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                          <input type="text" v-model="fam.type" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
                         </div>
                       </div>
                       <div class="grid grid-cols-3 gap-3">
                         <div>
                           <label class="block text-xs font-bold text-gray-500 mb-1">HP (目前)</label>
-                          <input type="number" v-model.number="selectedChar.familiar.hp.current" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                          <input type="number" v-model.number="fam.hp.current" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
                         </div>
                         <div>
                           <label class="block text-xs font-bold text-gray-500 mb-1">HP (最大)</label>
-                          <input type="number" v-model.number="selectedChar.familiar.hp.max" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                          <input type="number" v-model.number="fam.hp.max" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
                         </div>
                         <div>
                           <label class="block text-xs font-bold text-gray-500 mb-1">AC</label>
-                          <input type="number" v-model.number="selectedChar.familiar.ac" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                          <input type="number" v-model.number="fam.ac" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
                         </div>
                       </div>
                       <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">速度</label>
-                        <input type="text" v-model="selectedChar.familiar.speed" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none" placeholder="例如: 30呎, 飛行60呎">
+                        <input type="text" v-model="fam.speed" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none" placeholder="例如: 30呎, 飛行60呎">
                       </div>
                       
                       <div class="border-t pt-3 mt-2">
@@ -922,7 +922,7 @@
                         <div class="grid grid-cols-6 gap-1">
                           <div v-for="stat in ['str','dex','con','int','wis','cha']" :key="stat">
                             <div class="text-[10px] text-center text-gray-500 uppercase mb-1">{{stat}}</div>
-                            <input type="number" v-if="selectedChar.familiar.abilities" v-model.number="selectedChar.familiar.abilities[stat]" class="w-full border border-gray-300 rounded p-1 text-center text-sm outline-none">
+                            <input type="number" v-if="fam.abilities" v-model.number="fam.abilities[stat]" class="w-full border border-gray-300 rounded p-1 text-center text-sm outline-none">
                           </div>
                         </div>
                       </div>
@@ -930,29 +930,29 @@
                       <div class="grid grid-cols-2 gap-3 mt-2">
                         <div>
                           <label class="block text-xs font-bold text-gray-500 mb-1">感官能力 (Senses)</label>
-                          <input type="text" v-model="selectedChar.familiar.senses" placeholder="被動察覺 13..." class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                          <input type="text" v-model="fam.senses" placeholder="被動察覺 13..." class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
                         </div>
                         <div>
                           <label class="block text-xs font-bold text-gray-500 mb-1">抗性/免疫</label>
-                          <input type="text" v-model="selectedChar.familiar.resistances" placeholder="毒素免疫..." class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
+                          <input type="text" v-model="fam.resistances" placeholder="毒素免疫..." class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none">
                         </div>
                       </div>
 
                       <div class="border-t pt-3 mt-2">
                         <label class="block text-xs font-bold text-gray-500 mb-1">故事背景</label>
-                        <textarea v-model="selectedChar.familiar.story" rows="3" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none resize-none" placeholder="魔寵的由來與個性..."></textarea>
+                        <textarea v-model="fam.story" rows="3" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none resize-none" placeholder="魔寵的由來與個性..."></textarea>
                       </div>
 
                       <div class="border-t pt-3 mt-2">
                         <div class="flex justify-between items-center mb-2">
                           <label class="block text-xs font-bold text-gray-500">技能與特性</label>
-                          <button @click="if(!selectedChar.familiar.skills) selectedChar.familiar.skills=[]; selectedChar.familiar.skills.push({name:'', desc:''})" class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100">+ 新增技能</button>
+                          <button @click="if(!fam.skills) fam.skills=[]; fam.skills.push({name:'', desc:''})" class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100">+ 新增技能</button>
                         </div>
-                        <div v-if="selectedChar.familiar.skills && selectedChar.familiar.skills.length > 0" class="space-y-3">
-                          <div v-for="(sk, i) in selectedChar.familiar.skills" :key="i" class="p-2 border border-blue-100 bg-blue-50/30 rounded-lg flex flex-col gap-2">
+                        <div v-if="fam.skills && fam.skills.length > 0" class="space-y-3">
+                          <div v-for="(sk, i) in fam.skills" :key="i" class="p-2 border border-blue-100 bg-blue-50/30 rounded-lg flex flex-col gap-2">
                             <div class="flex items-center gap-2">
                               <input type="text" v-model="sk.name" placeholder="技能名稱 (例如: 敏銳聽覺)" class="flex-1 bg-transparent border-b border-blue-200 focus:border-blue-400 outline-none text-sm font-bold text-blue-900 px-1 py-0.5">
-                              <button @click="selectedChar.familiar.skills.splice(i, 1)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded bg-red-50 shrink-0 border border-red-100">移除</button>
+                              <button @click="fam.skills.splice(i, 1)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded bg-red-50 shrink-0 border border-red-100">移除</button>
                             </div>
                             <textarea v-model="sk.desc" rows="2" placeholder="技能描述..." class="w-full bg-white/50 border border-blue-100 rounded p-2 text-sm outline-none resize-none"></textarea>
                           </div>
@@ -963,21 +963,23 @@
                       <div class="border-t pt-3 mt-2">
                         <div class="flex justify-between items-center mb-2">
                           <label class="block text-xs font-bold text-gray-500">動作與攻擊 (Actions)</label>
-                          <button @click="if(!selectedChar.familiar.attacks) selectedChar.familiar.attacks=[]; selectedChar.familiar.attacks.push({name:'', hit:'', dmg:'', desc:''})" class="text-xs text-red-600 bg-red-50 px-2 py-1 rounded hover:bg-red-100">+ 新增動作</button>
+                          <button @click="if(!fam.attacks) fam.attacks=[]; fam.attacks.push({name:'', hit:'', dmg:'', desc:''})" class="text-xs text-red-600 bg-red-50 px-2 py-1 rounded hover:bg-red-100">+ 新增動作</button>
                         </div>
-                        <div v-if="selectedChar.familiar.attacks && selectedChar.familiar.attacks.length > 0" class="space-y-3">
-                          <div v-for="(atk, i) in selectedChar.familiar.attacks" :key="i" class="p-2 border border-red-100 bg-red-50/30 rounded-lg flex flex-col gap-2">
+                        <div v-if="fam.attacks && fam.attacks.length > 0" class="space-y-3">
+                          <div v-for="(atk, i) in fam.attacks" :key="i" class="p-2 border border-red-100 bg-red-50/30 rounded-lg flex flex-col gap-2">
                             <div class="flex items-center gap-2">
                               <input type="text" v-model="atk.name" placeholder="動作名稱" class="w-1/3 bg-transparent border-b border-red-200 focus:border-red-400 outline-none text-sm font-bold text-red-900 px-1 py-0.5">
                               <input type="text" v-model="atk.hit" placeholder="命中(例: +4)" class="w-1/4 bg-transparent border-b border-red-200 focus:border-red-400 outline-none text-sm text-red-900 px-1 py-0.5">
                               <input type="text" v-model="atk.dmg" placeholder="傷害(例: 1d4+2)" class="flex-1 bg-transparent border-b border-red-200 focus:border-red-400 outline-none text-sm text-red-900 px-1 py-0.5">
-                              <button @click="selectedChar.familiar.attacks.splice(i, 1)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded bg-red-100 shrink-0 border border-red-200">移除</button>
+                              <button @click="fam.attacks.splice(i, 1)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded bg-red-100 shrink-0 border border-red-200">移除</button>
                             </div>
                             <textarea v-model="atk.desc" rows="2" placeholder="動作描述或附帶效果..." class="w-full bg-white/50 border border-red-100 rounded p-2 text-sm outline-none resize-none"></textarea>
                           </div>
                         </div>
                         <div v-else class="text-xs text-gray-400 text-center py-2 italic">目前沒有動作或攻擊</div>
                       </div>
+                    </div>
+                  </div>
                     </div>
                   </div>
                 </div>
@@ -1511,7 +1513,7 @@
             </a>
           </div>
 
-          <h3 class="text-base font-bold text-gray-800 mb-2 mt-4 border-t pt-4 flex items-center gap-2"><span>📖</span> 冒險者之書（5E）<span class="text-xs font-normal text-gray-400">v2.1.0</span></h3>
+          <h3 class="text-base font-bold text-gray-800 mb-2 mt-4 border-t pt-4 flex items-center gap-2"><span>📖</span> 冒險者之書（5E）<span class="text-xs font-normal text-gray-400">v2.2.0</span></h3>
 
           <div class="text-sm text-gray-700 mb-3">
             <div class="font-bold text-gray-800 mb-1">💡 功能許願 / 意見回饋</div>
