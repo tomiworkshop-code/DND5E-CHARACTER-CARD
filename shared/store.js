@@ -96,7 +96,6 @@
       abilities: JSON.parse(JSON.stringify(ch.abilities || {str:10,dex:10,con:10,int:10,wis:10,cha:10})),
       abilityBonus: JSON.parse(JSON.stringify(ch.abilityBonus || {str:0,dex:0,con:0,int:0,wis:0,cha:0})),
       classes: JSON.parse(JSON.stringify(ch.classes || [])),
-      saves: JSON.parse(JSON.stringify(ch.saves || {str:false,dex:false,con:false,int:false,wis:false,cha:false})),
       skills: JSON.parse(JSON.stringify(ch.skills || {})),
       spellSlots: JSON.parse(JSON.stringify(ch.spellSlots || [])),
       spellsText: ch.spellsText || "",

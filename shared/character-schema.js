@@ -13,8 +13,9 @@
    *   1 = Step A 起始
    *   2 = 預埋 characterId/worldId 存檔槽欄位（Phase 3 前置，§5.6）
    *   3 = 預埋 mechanical/narrative 雙區 + version_m/version_n 同步骨架（§5.10C/D）
-   *   4 = 技能結構加 expertise（專精）欄位；豁免檢定沿用 profSaves（§技能頁強化） */
-  const SCHEMA_VERSION = 5;
+   *   4 = 技能結構加 expertise（專精）欄位；豁免檢定沿用 profSaves（§技能頁強化）
+   *   6 = 淘汰死欄位 saves（統一用 profSaves）；mergeChar 安全遷移舊 saves→profSaves 後移除該欄位 */
+  const SCHEMA_VERSION = 6;
 
   /* 欄位分區表（§5.10C/D）— 決定同步時「誰說了算」。
    * 採「加法式骨架」：不物理地把欄位嵌進已深雙物件（避免翻改整份 UI），
@@ -25,7 +26,7 @@
       "speed","languages","proficiencies",
       "profArmor","profWeapon","profTool","profSaves",
       "ac","initiative","hp","abilities","abilityBonus","classes",
-      "saves","skills","spellSlots","spellsText","spellbook",
+      "skills","spellSlots","spellsText","spellbook",
       "inventory","coins","conditions","exhaustion","xp",
       "deathSaves","inspiration","concentration","hitDiceUsed",
       "acHelper","resources","attacks","feats","familiars"
@@ -76,7 +77,6 @@
       abilities:{ str:10, dex:10, con:10, int:10, wis:10, cha:10 },
       abilityBonus:{ str:0, dex:0, con:0, int:0, wis:0, cha:0 },
       classes:[],
-      saves:{ str:false, dex:false, con:false, int:false, wis:false, cha:false },
       skills,
       spellSlots: Array.from({length:9}, (_,i)=>({ level:i+1, max:0, used:0 })),
       spellsText:"",
@@ -124,6 +124,9 @@
             return f;
           });
         }
+      } else if(k==="saves"){
+        /* legacy 死欄位（SCHEMA v6 淘汰）：不複製到 out，
+         * 改由後段 migrateLegacySaves() 依「profSaves 優先」規則併入 profSaves。 */
       } else if(k==="familiar"){ // V4 migration
         if(saved.familiar && typeof saved.familiar === "object" && Object.keys(saved.familiar).length > 0){
            const f = defaultFamiliar();
@@ -150,6 +153,8 @@
     ensureSync(out);
     /* SCHEMA v4 回填：舊存檔技能無 expertise → 補 false；profSaves 缺 → 補 {}。 */
     migrateSkillsSaves(out);
+    /* SCHEMA v6 遷移：舊死欄位 saves → 併入 profSaves（profSaves 已有值優先）。 */
+    migrateLegacySaves(out, saved);
     return out;
   }
 
@@ -163,6 +168,26 @@
       }
     }
     if(!char.profSaves || typeof char.profSaves !== "object" || Array.isArray(char.profSaves)){ char.profSaves = {}; }
+    return char;
+  }
+
+  /* SCHEMA v6 遷移：把舊死欄位 saves:{str..cha:false} 併入 profSaves。
+   * 規則：profSaves[key] = profSaves[key] || !!saved.saves[key]（profSaves 已有值優先，
+   * 避免舊 saves 覆蓋較新的 profSaves 資料），確保曾寫入舊 saves 的熟練不遺失。
+   * 讀 saved.saves（原始存檔）、寫 char.profSaves（合併後結果）；char 本身不再保留 saves。
+   * 對新存檔（無 saved.saves）為 no-op；冪等，可重複呼叫。 */
+  const SAVE_KEYS = ["str","dex","con","int","wis","cha"];
+  function migrateLegacySaves(char, saved){
+    if(!char) return char;
+    if(!char.profSaves || typeof char.profSaves !== "object" || Array.isArray(char.profSaves)){ char.profSaves = {}; }
+    var legacy = saved && saved.saves;
+    if(legacy && typeof legacy === "object" && !Array.isArray(legacy)){
+      SAVE_KEYS.forEach(function(key){
+        char.profSaves[key] = char.profSaves[key] || !!legacy[key];
+      });
+    }
+    /* 保險：即便有殘留也不再對外保留死欄位。 */
+    if(char.saves !== undefined){ delete char.saves; }
     return char;
   }
 
@@ -243,7 +268,7 @@
   global.DND5E_CHAR = {
     defaultChar, defaultFamiliar, mergeChar, SCHEMA_VERSION,
     FIELD_ZONES, CREATION_LOCKED, DUAL_FACE,
-    ensureSync, migrateSkillsSaves, extractZone, applyZone, mergeInstance, bumpVersion,
+    ensureSync, migrateSkillsSaves, migrateLegacySaves, extractZone, applyZone, mergeInstance, bumpVersion,
     makeInstanceId, instanceIdOf, parseInstanceId
   };
 })(typeof window !== "undefined" ? window : this);
