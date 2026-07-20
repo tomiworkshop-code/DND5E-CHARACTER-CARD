@@ -826,8 +826,8 @@
                   </div>
                   <div v-if="!selectedChar.familiars || selectedChar.familiars.length === 0" class="text-gray-400 text-sm text-center py-6 border-2 border-dashed border-gray-200 rounded-xl">尚未設定魔寵</div>
                   <div v-else class="space-y-6">
-                    <div v-for="(fam, famIndex) in fams" :key="famIndex" class="border border-gray-200 rounded-xl p-4 bg-white shadow-sm relative">
-                      <button v-if="isEditMode" @click="fams.splice(famIndex, 1)" class="absolute top-2 right-2 text-red-400 hover:text-red-600 px-2 py-1 bg-red-50 rounded text-xs">刪除此魔寵</button>
+                    <div v-for="(fam, famIndex) in selectedChar.familiars" :key="famIndex" class="border border-gray-200 rounded-xl p-4 bg-white shadow-sm relative">
+                      <button v-if="isEditMode" @click="selectedChar.familiars.splice(famIndex, 1)" class="absolute top-2 right-2 text-red-400 hover:text-red-600 px-2 py-1 bg-red-50 rounded text-xs">刪除此魔寵</button>
                   <div v-if="!isEditMode">
                     <div class="space-y-4">
                       <div class="flex justify-between items-end border-b pb-2">

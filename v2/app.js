@@ -1182,8 +1182,10 @@
           /* 對話框開啟期間狀態可能改變（例如剛開團）→ 再驗一次閘門 */
           const gate = FAM_PRESETS.canImportFamiliar(preset, familiarImportCtx.value);
           if (!gate.ok) { alert(gate.reason || '目前無法匯入此範本。'); familiarImport.confirmPreset = null; return; }
-          /* 覆蓋機制面、保留玩家敘事面（name/story/notes） */
-          char.familiar = FAM_PRESETS.applyPreset(char.familiar, preset);
+          /* append 一隻新魔寵：帶入機制面，name/story/notes 留空 */
+          const newFam = FAM_PRESETS.applyPreset(window.DND5E_CHAR.defaultFamiliar(), preset);
+          if (!char.familiars) char.familiars = [];
+          char.familiars.push(newFam);
           familiarImport.confirmPreset = null;
           familiarImport.pickerOpen = false;
         };
