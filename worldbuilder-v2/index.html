@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>敘事者之書 DM V2</title>
+  <meta name="theme-color" content="#7c5a3a">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="敘事者之書 DM">
+
+  <!-- 引入順序比照玩家端 v2/index.html，路徑一律走根 ../shared/ -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="../shared/character-schema.js"></script>
+  <script src="../shared/store.js"></script>
+  <!-- Firebase compat 10.12.5（Room 連線）。⚠️ 延遲連線：此處僅載入 SDK，
+       Step 3 才會真正 DND5E_ROOM.createRoom()；載入時不開團。 -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+  <script src="../shared/firebase-config.js"></script>
+  <script src="../shared/room.js"></script>
+
+  <style>
+    :root {
+      --bg-base: #f3e9d2;
+      --bg-surface: #ffffff;
+      --text-main: #2c2116;
+      --text-muted: #7a6a55;
+      --accent: #7c5a3a;
+      --border: #e4d7bd;
+    }
+    body { background-color: var(--bg-base); color: var(--text-main); font-family: sans-serif; }
+    [v-cloak] { display: none !important; }
+
+    /* 抽屜 / 遮罩過渡 */
+    .drawer-enter-active, .drawer-leave-active { transition: transform 0.28s ease; }
+    .drawer-enter-from, .drawer-leave-to { transform: translateX(-100%); }
+    .overlay-enter-active, .overlay-leave-active { transition: opacity 0.28s ease; }
+    .overlay-enter-from, .overlay-leave-to { opacity: 0; }
+  </style>
+</head>
+<body>
+  <div id="app" class="min-h-screen flex flex-col" v-cloak>
+
+    <!-- ===== 頂部標題列 ===== -->
+    <header class="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 shadow-sm"
+            style="background:var(--accent); color:#fff;">
+      <!-- 漢堡（手機顯示，md 以上隱藏） -->
+      <button class="md:hidden text-2xl leading-none px-1 -ml-1 active:opacity-70"
+              aria-label="開啟選單" @click="drawerOpen = true">☰</button>
+      <div class="flex items-baseline gap-2 min-w-0">
+        <h1 class="text-lg font-bold truncate">📖 敘事者之書 <span class="opacity-80">DM</span></h1>
+        <span class="text-[11px] px-2 py-0.5 rounded-full bg-black/20 whitespace-nowrap">{{ APP_VERSION }}</span>
+      </div>
+      <div class="ml-auto text-xs opacity-90 truncate max-w-[40%]" v-if="activeWorldName">
+        🌍 {{ activeWorldName }}
+      </div>
+    </header>
+
+    <!-- 共用腳本未就緒的友善錯誤（除錯用） -->
+    <div v-if="sharedError" class="m-4 p-3 rounded-lg border text-sm"
+         style="background:#fef2f2; border-color:#fca5a5; color:#991b1b;">
+      ⚠️ 共用腳本載入異常：{{ sharedError }}<br>
+      <span class="opacity-80">請確認 ../shared/ 路徑與網路，重新整理再試。</span>
+    </div>
+
+    <div class="flex flex-1 min-h-0">
+      <!-- ===== 平板/寬螢幕側欄（md 以上顯示） ===== -->
+      <aside class="hidden md:flex md:flex-col w-56 shrink-0 border-r p-3 gap-1"
+             style="background:var(--bg-surface); border-color:var(--border);">
+        <nav-list :tabs="tabs" :current="currentTab" @go="goTab"></nav-list>
+      </aside>
+
+      <!-- ===== 手機抽屜 ===== -->
+      <transition name="overlay">
+        <div v-if="drawerOpen" class="md:hidden fixed inset-0 z-40 bg-black/40"
+             @click="drawerOpen = false"></div>
+      </transition>
+      <transition name="drawer">
+        <aside v-if="drawerOpen"
+               class="md:hidden fixed top-0 left-0 z-50 h-full w-64 p-3 flex flex-col gap-1 shadow-xl"
+               style="background:var(--bg-surface);">
+          <div class="flex items-center justify-between px-1 pb-2 mb-1 border-b"
+               style="border-color:var(--border);">
+            <span class="font-bold" style="color:var(--accent);">選單</span>
+            <button class="text-2xl leading-none px-1 active:opacity-70"
+                    aria-label="關閉選單" @click="drawerOpen = false">×</button>
+          </div>
+          <nav-list :tabs="tabs" :current="currentTab" @go="goTab"></nav-list>
+        </aside>
+      </transition>
+
+      <!-- ===== 主要內容區 ===== -->
+      <main class="flex-1 min-w-0 p-4 max-w-3xl mx-auto w-full">
+
+        <!-- ① 世界/劇本列表（唯一實作的實功能） -->
+        <section v-show="currentTab === 'worlds'">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-xl font-bold">🌍 世界 / 劇本</h2>
+            <button class="px-3 py-2 rounded-lg text-white text-sm font-semibold active:opacity-80"
+                    style="background:var(--accent);" @click="showAddWorld = !showAddWorld">
+              ＋ 新增世界
+            </button>
+          </div>
+
+          <!-- 新增世界表單 -->
+          <div v-if="showAddWorld" class="mb-4 p-3 rounded-xl border"
+               style="background:var(--bg-surface); border-color:var(--border);">
+            <label class="block text-xs mb-1" style="color:var(--text-muted);">世界名稱</label>
+            <input v-model="newWorldName" type="text" placeholder="例：破碎群島戰役"
+                   class="w-full px-3 py-2 rounded-lg border mb-2 text-base"
+                   style="border-color:var(--border);"
+                   @keyup.enter="addWorld">
+            <label class="block text-xs mb-1" style="color:var(--text-muted);">備註（可留空）</label>
+            <input v-model="newWorldNote" type="text" placeholder="一句話描述這個世界…"
+                   class="w-full px-3 py-2 rounded-lg border mb-3 text-base"
+                   style="border-color:var(--border);">
+            <div class="flex gap-2">
+              <button class="flex-1 px-3 py-2 rounded-lg text-white text-sm font-semibold active:opacity-80"
+                      style="background:var(--accent);" @click="addWorld">建立</button>
+              <button class="px-3 py-2 rounded-lg text-sm border active:opacity-70"
+                      style="border-color:var(--border);" @click="cancelAddWorld">取消</button>
+            </div>
+          </div>
+
+          <!-- 空狀態 -->
+          <div v-if="!worlds.length" class="text-center py-12 rounded-xl border border-dashed"
+               style="border-color:var(--border); color:var(--text-muted);">
+            <div class="text-4xl mb-2">🗺️</div>
+            <p class="mb-1 font-medium">還沒有任何世界</p>
+            <p class="text-sm">點右上角「＋ 新增世界」開始你的第一個戰役。</p>
+          </div>
+
+          <!-- 世界卡片列表 -->
+          <ul v-else class="grid gap-3 sm:grid-cols-2">
+            <li v-for="w in worlds" :key="w.id"
+                class="p-3 rounded-xl border cursor-pointer transition active:scale-[0.99]"
+                :style="worldCardStyle(w)"
+                @click="selectWorld(w)">
+              <div class="flex items-center gap-2">
+                <span class="font-semibold truncate">{{ w.name || '(未命名世界)' }}</span>
+                <span v-if="w.id === activeWorldId"
+                      class="text-[10px] px-2 py-0.5 rounded-full text-white shrink-0"
+                      style="background:var(--accent);">使用中</span>
+                <span v-if="w.type"
+                      class="ml-auto text-[10px] px-2 py-0.5 rounded-full shrink-0"
+                      style="background:var(--bg-base); color:var(--text-muted);">{{ w.type }}</span>
+              </div>
+              <p class="text-sm mt-1 truncate" style="color:var(--text-muted);">
+                {{ w.note || '（無備註）' }}
+              </p>
+            </li>
+          </ul>
+        </section>
+
+        <!-- ② 開團連線（placeholder） -->
+        <section v-show="currentTab === 'session'">
+          <h2 class="text-xl font-bold mb-3">🔗 開團連線</h2>
+          <!-- TODO(dm-v2-spec Step 3)：createRoom + QR、roster 吃「完整快照」、
+               提案 vs 定案流程（adoptWorldSave / DM 就地編輯回送 saves 通道）。 -->
+          <div class="p-6 rounded-xl border border-dashed text-center"
+               style="border-color:var(--border); color:var(--text-muted);">
+            <div class="text-4xl mb-2">🛰️</div>
+            <p class="font-medium mb-1">即將推出</p>
+            <p class="text-sm">firebase 已備妥；開團（createRoom + QR + Roster）將於 Step 3 實作。</p>
+            <p class="text-xs mt-2">firebase 狀態：{{ firebaseReady ? '✅ 已初始化' : '（尚未初始化）' }}</p>
+          </div>
+        </section>
+
+        <!-- ③ 戰役管理（placeholder） -->
+        <section v-show="currentTab === 'campaign'">
+          <h2 class="text-xl font-bold mb-3">📚 戰役管理</h2>
+          <!-- TODO(dm-v2-spec Step 2)：NPC / 任務 / 線索 / 地點 CRUD + 規則設定區
+               （首個開關 world.rules.allowPactFamiliar，預設 false）。 -->
+          <div class="p-6 rounded-xl border border-dashed text-center"
+               style="border-color:var(--border); color:var(--text-muted);">
+            <div class="text-4xl mb-2">🧩</div>
+            <p class="font-medium mb-1">即將推出</p>
+            <p class="text-sm">NPC／任務／線索／地點 CRUD 與規則設定將於 Step 2 實作。</p>
+          </div>
+        </section>
+
+        <!-- ④ 指令中心（placeholder） -->
+        <section v-show="currentTab === 'command'">
+          <h2 class="text-xl font-bold mb-3">🎛️ 指令中心</h2>
+          <!-- TODO(dm-v2-spec Step 4)：扣血/治療/XP/金幣/給物品/情報 + 即時血條回饋、
+               訊息模板系統（roll table，需 shared/dice.js）。 -->
+          <div class="p-6 rounded-xl border border-dashed text-center"
+               style="border-color:var(--border); color:var(--text-muted);">
+            <div class="text-4xl mb-2">⚔️</div>
+            <p class="font-medium mb-1">即將推出</p>
+            <p class="text-sm">扣血／治療／給物品與訊息模板系統將於 Step 4 實作。</p>
+          </div>
+        </section>
+
+        <!-- ⑤ 設定 -->
+        <section v-show="currentTab === 'settings'">
+          <h2 class="text-xl font-bold mb-3">⚙️ 設定</h2>
+          <div class="p-4 rounded-xl border space-y-2 text-sm"
+               style="background:var(--bg-surface); border-color:var(--border);">
+            <div class="flex justify-between"><span style="color:var(--text-muted);">版本</span><span>{{ APP_VERSION }}</span></div>
+            <div class="flex justify-between"><span style="color:var(--text-muted);">character-schema</span><span>{{ ready.char ? '✅' : '❌' }}</span></div>
+            <div class="flex justify-between"><span style="color:var(--text-muted);">store</span><span>{{ ready.store ? '✅' : '❌' }}</span></div>
+            <div class="flex justify-between"><span style="color:var(--text-muted);">room</span><span>{{ ready.room ? '✅' : '❌' }}</span></div>
+            <div class="flex justify-between"><span style="color:var(--text-muted);">firebase</span><span>{{ firebaseReady ? '✅' : '（延遲）' }}</span></div>
+            <div class="flex justify-between"><span style="color:var(--text-muted);">世界數量</span><span>{{ worlds.length }}</span></div>
+          </div>
+          <p class="text-xs mt-3" style="color:var(--text-muted);">
+            舊版 DM 端 (worldbuilder/) 仍在服役；本 v2 為並行開發版本。
+          </p>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
