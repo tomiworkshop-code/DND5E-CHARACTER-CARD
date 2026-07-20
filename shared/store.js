@@ -136,8 +136,8 @@
     var maxLen = Math.max((identity.identity.familiars || []).length, (instance.mechanical.familiars || []).length, (instance.narrative.familiars || []).length);
     for (var i=0; i<maxLen; i++) {
        var f = C.defaultFamiliar();
-       if (instance.narrative.familiars && instance.narrative.familiars[i]) f = C.mergeChar(f, instance.narrative.familiars[i]);
-       if (instance.mechanical.familiars && instance.mechanical.familiars[i]) f = C.mergeChar(f, instance.mechanical.familiars[i]);
+       if (instance.narrative.familiars && instance.narrative.familiars[i]) f = C.mergeFam(f, instance.narrative.familiars[i]);
+       if (instance.mechanical.familiars && instance.mechanical.familiars[i]) f = C.mergeFam(f, instance.mechanical.familiars[i]);
        c.familiars.push(f);
     }
     // 進度屬於「角色在該世界的存檔槽」，改為每個角色獨立保存，避免同世界串檔

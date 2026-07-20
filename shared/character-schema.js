@@ -158,6 +158,23 @@
     return out;
   }
 
+  /* 魔寵專用合併：魔寵物件與角色物件結構不同（魔寵有 skills/attacks 陣列，
+   * 不可套用 mergeChar 的角色 skills/familiars/saves 分支，否則讀 out.skills["0"]
+   * 會因 out.skills 為 undefined 而崩潰）。此函式僅做逐欄複製，hp/abilities 深合併。 */
+  function mergeFam(base, saved){
+    const out = JSON.parse(JSON.stringify(base || defaultFamiliar()));
+    if(!saved || typeof saved !== "object"){ return out; }
+    for(const k in saved){
+      if(saved[k] === undefined){ continue; }
+      if((k==="hp" || k==="abilities") && saved[k] && typeof saved[k] === "object" && !Array.isArray(saved[k])){
+        out[k] = Object.assign(out[k]||{}, saved[k]);
+      } else {
+        out[k] = saved[k];
+      }
+    }
+    return out;
+  }
+
   /* SCHEMA v4 遷移：確保每個技能有 expertise:false，且 profSaves 為物件。
    * 對舊存檔（v<=3）安全冪等，可重複呼叫。 */
   function migrateSkillsSaves(char){
@@ -266,7 +283,7 @@
   }
 
   global.DND5E_CHAR = {
-    defaultChar, defaultFamiliar, mergeChar, SCHEMA_VERSION,
+    defaultChar, defaultFamiliar, mergeChar, mergeFam, SCHEMA_VERSION,
     FIELD_ZONES, CREATION_LOCKED, DUAL_FACE,
     ensureSync, migrateSkillsSaves, migrateLegacySaves, extractZone, applyZone, mergeInstance, bumpVersion,
     makeInstanceId, instanceIdOf, parseInstanceId
