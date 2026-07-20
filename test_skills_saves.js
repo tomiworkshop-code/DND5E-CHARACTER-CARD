@@ -61,9 +61,10 @@ const tick = (ms) => new Promise(r => setTimeout(r, ms));
 
   // ---------- A) 魔寵匯入 render ----------
   vm.activeModule = 'familiar';
+  vm.isEditMode = true; // 匯入/新增按鈕僅在編輯模式顯示（v-if="isEditMode"）
   await tick(300);
   let appHtml = doc.getElementById('app').innerHTML;
-  ok('魔寵分頁 render「🐾 從範本中匯入」按鈕', /從範本中匯入/.test(appHtml));
+  ok('魔寵分頁（編輯模式）render「🐾 從範本中匯入」按鈕', /從範本中匯入/.test(appHtml));
 
   vm.familiarImport.pickerOpen = true;
   await tick(300);
