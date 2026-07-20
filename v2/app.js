@@ -995,7 +995,11 @@
         const bindDmWorld = (meta, rid) => {
           if (!meta || !meta.worldId) return;
           try {
-            STORE.upsertWorld({ worldId: meta.worldId, name: meta.worldId, type: 'dm', roomId: rid, dmId: meta.dmId || null });
+            /* world.rules.allowPactFamiliar 預設 false（familiar-preset-spec §5）。
+             * 保留任何既有 rules（如 DM 日後開啟），僅在缺欄時補 false。 */
+            const _existW = (worlds.value || []).find((w) => w && (w.worldId === meta.worldId || w.id === meta.worldId));
+            const _rules = Object.assign({ allowPactFamiliar: false }, (_existW && _existW.rules) || {});
+            STORE.upsertWorld({ worldId: meta.worldId, name: meta.worldId, type: 'dm', roomId: rid, dmId: meta.dmId || null, rules: _rules });
             worlds.value = STORE.loadWorlds() || worlds.value;
             if (selectedChar.value && selectedChar.value.id) {
               STORE.bindActiveWorld(selectedChar.value.id, meta.worldId);
@@ -1114,7 +1118,64 @@
           addRequestForm.itemName = ''; addRequestForm.qty = 1; addRequestForm.reason = '';
         };
 
+        /* ===== 魔寵範本匯入 (Familiar Preset Import) — familiar-preset-spec §5/§6 ===== */
+        const FAM_PRESETS = (typeof window !== 'undefined') ? window.DND5E_FAMILIAR_PRESETS : null;
+        /* 主權閘門 ctx：接既有狀態，不新造平行狀態。
+         *   mode:    DM 世界(isDmWorldObj) → 'dm'，否則本地/單人 → 'local'
+         *   started: 已連線 DM 房間(room.status==='connected') = 開團 → 機制面鎖定
+         *   allowPactFamiliar: world.rules.allowPactFamiliar（預設 false） */
+        const familiarImportCtx = computed(() => {
+          const w = selectedWorldObj.value;
+          return {
+            mode: isDmWorldObj(w) ? 'dm' : 'local',
+            started: room.status === 'connected',
+            allowPactFamiliar: !!(w && w.rules && w.rules.allowPactFamiliar)
+          };
+        });
+        /* 依 tier 分組，附逐項閘門判定 */
+        const familiarPresetGroups = computed(() => {
+          if (!FAM_PRESETS || !FAM_PRESETS.PRESETS) return [];
+          const ctx = familiarImportCtx.value;
+          const groups = {};
+          const order = [];
+          FAM_PRESETS.PRESETS.forEach((p) => {
+            if (!groups[p.tier]) {
+              groups[p.tier] = { tier: p.tier, label: (FAM_PRESETS.TIER_LABELS && FAM_PRESETS.TIER_LABELS[p.tier]) || p.tier, items: [] };
+              order.push(p.tier);
+            }
+            const gate = FAM_PRESETS.canImportFamiliar(p, ctx);
+            groups[p.tier].items.push({ preset: p, allowed: gate.ok, reason: gate.reason });
+          });
+          return order.map((k) => groups[k]);
+        });
+        const familiarImport = Vue.reactive({ pickerOpen: false, confirmPreset: null });
+        const openFamiliarPresetPicker = () => { familiarImport.pickerOpen = true; };
+        const closeFamiliarPresetPicker = () => { familiarImport.pickerOpen = false; familiarImport.confirmPreset = null; };
+        const askImportFamiliarPreset = (entry) => {
+          if (!entry || !entry.allowed) return;
+          familiarImport.confirmPreset = entry.preset;
+        };
+        const confirmImportFamiliarPreset = () => {
+          const preset = familiarImport.confirmPreset;
+          const char = selectedChar.value;
+          if (!preset || !char || !FAM_PRESETS) { familiarImport.confirmPreset = null; return; }
+          /* 對話框開啟期間狀態可能改變（例如剛開團）→ 再驗一次閘門 */
+          const gate = FAM_PRESETS.canImportFamiliar(preset, familiarImportCtx.value);
+          if (!gate.ok) { alert(gate.reason || '目前無法匯入此範本。'); familiarImport.confirmPreset = null; return; }
+          /* 覆蓋機制面、保留玩家敘事面（name/story/notes） */
+          char.familiar = FAM_PRESETS.applyPreset(char.familiar, preset);
+          familiarImport.confirmPreset = null;
+          familiarImport.pickerOpen = false;
+        };
+
         return {
+          familiarImportCtx,
+          familiarPresetGroups,
+          familiarImport,
+          openFamiliarPresetPicker,
+          closeFamiliarPresetPicker,
+          askImportFamiliarPreset,
+          confirmImportFamiliarPreset,
           room,
           conflictDiff,
           addRequestForm,
