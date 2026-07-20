@@ -906,12 +906,27 @@
               changed = true;
               break;
             }
+            /* 相容 DM 兩種契約：新版送 'give-item'；舊版世界建置器送 'item'。
+             * 兩者皆讀 cmd.itemName / cmd.qty，寫入背包。 */
+            case 'item':
             case 'give-item': {
               if(!char.inventory) char.inventory = [];
               const qty = Number(cmd.qty)||1;
               char.inventory.push({ name: cmd.itemName || '未知物品', qty: qty, desc: cmd.note || '' });
               text = `${cName} 獲得物品：${cmd.itemName || '未知物品'}${qty > 1 ? ' ×' + qty : ''}`;
               changed = true;
+              break;
+            }
+            /* DM 情報／劇情回調／旗標回饋：type:'info'（cmd.note 或 cmd.flag.label）。
+             * 僅作為通知顯示，不改任何機制數值（changed 維持 false，不寫 instance／不 bump 版本）。 */
+            case 'info': {
+              let note = '';
+              if (cmd.note) note = String(cmd.note);
+              else if (cmd.flag && cmd.flag.label) {
+                note = String(cmd.flag.label) + (cmd.flag.done ? '（已完成）' : '');
+              }
+              const tag = cmd.source ? `【${cmd.source}】` : '📜 DM 情報';
+              text = note ? `${tag}${cmd.source ? '：' : ' '}${note}` : (cmd.source ? tag : 'DM 情報');
               break;
             }
             default:
@@ -1023,6 +1038,30 @@
             worlds.value = STORE.loadWorlds() || worlds.value;
             if (selectedChar.value && selectedChar.value.id) {
               STORE.bindActiveWorld(selectedChar.value.id, meta.worldId);
+            }
+            /* Bug#2：玩家開團（joinRoom）後必須在角色的 worldProgress 建立／更新該 worldId 節點，
+             * 否則離開房間後「冒險」分頁看不到這個世界（Tommy 回報）。
+             * 不存在→新增（含 name / lastPlayed）；已存在→更新 lastPlayed timestamp。
+             * 寫完後以 STORE.writeInstanceFromChar 持久化（不傳 versions，不 bump 版本）。 */
+            const _pc = selectedChar.value;
+            if (_pc && _pc.id) {
+              if (!_pc.worldProgress) _pc.worldProgress = {};
+              const _wid = meta.worldId;
+              const _now = Date.now();
+              if (!_pc.worldProgress[_wid]) {
+                _pc.worldProgress[_wid] = {
+                  name: _wid, location: '', time: '', quest: '',
+                  records: { log: [], quest: [], npc: [], clue: [] },
+                  lastPlayed: _now
+                };
+              } else {
+                const _wp = _pc.worldProgress[_wid];
+                if (!_wp.name) _wp.name = _wid;
+                if (!_wp.records) _wp.records = { log: [], quest: [], npc: [], clue: [] };
+                _wp.lastPlayed = _now;
+              }
+              /* 持久化進度節點到 store instance（chars 的 deep watch 也會再落一次）。 */
+              try { STORE.writeInstanceFromChar(_pc, _wid, {}); } catch (e) {}
             }
           } catch (e) { console.error('bindDmWorld failed', e); }
         };

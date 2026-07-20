@@ -203,7 +203,7 @@
             <div class="text-[12px] mb-2" style="color:var(--gold-deep)">📨 玩家請求</div>
             <div v-for="(req, key) in targetRequests" :key="key" class="mb-2 px-2 py-2" style="background:var(--card);border:1px solid var(--line);border-radius:6px">
               <template v-if="req.kind==='add'">
-                <div class="text-[12px]" style="color:var(--ink)">📨 請求新增：<b>{{ req.name }}</b> ×{{ req.qty || 1 }}</div>
+                <div class="text-[12px]" style="color:var(--ink)">📨 請求新增：<b>{{ req.name || req.itemName }}</b> ×{{ req.qty || 1 }}</div>
                 <div v-if="req.reason" class="text-[11px] mt-1" style="color:var(--ink-soft)">{{ req.reason }}</div>
                 <div class="flex items-center gap-2 mt-2">
                   <button @click="approveRequest(key, req)" class="btn px-3 py-1 text-[12px]" style="background:#2e8b57;color:#fff">✅ 核准</button>
@@ -211,7 +211,7 @@
                 </div>
               </template>
               <template v-else-if="req.kind==='ask'">
-                <div class="text-[12px]" style="color:var(--ink)">❓ 詢問物品：<b>{{ req.itemName }}</b></div>
+                <div class="text-[12px]" style="color:var(--ink)">❓ 玩家詢問：<b>{{ req.text || req.itemName }}</b></div>
                 <div class="flex items-center gap-2 mt-2">
                   <button @click="rejectRequest(key)" class="btn px-3 py-1 text-[12px]" style="background:#6a4fb0;color:#fff">✔ 已讀</button>
                 </div>
@@ -1282,7 +1282,7 @@ createApp({
       if(!name){ return; }
       try{
         await window.DND5E_ROOM.sendCommand(fbApp.db, roomState.id, cmdTarget.value, {
-          type: "item",
+          type: "give-item",
           itemName: name,
           qty: Math.max(1, Number(cmdItemQty.value)||1),
           source: cmdSource.value || "",
@@ -1336,8 +1336,8 @@ createApp({
       if(!cmdTarget.value || roomState.status !== "open"){ return; }
       try{
         await window.DND5E_ROOM.sendCommand(fbApp.db, roomState.id, cmdTarget.value, {
-          type: "item",
-          itemName: (req.name || "").trim() || "未命名物品",
+          type: "give-item",
+          itemName: (req.name || req.itemName || "").trim() || "未命名物品",
           qty: Math.max(1, Number(req.qty)||1),
           source: "玩家請求核准",
           visibleToPlayer: true,
