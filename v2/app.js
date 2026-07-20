@@ -404,8 +404,25 @@
           if (!def) return 0;
           const skData = selectedChar.value.skills[zh];
           if (!skData) return abilityMod(abilityTotal(def.attr));
+          // 「覆寫」語意 = 直接取代（沿用既有 UI「覆寫」行為，不與熟練/專精相加）
           if (skData.override !== null && skData.override !== '' && skData.override !== undefined) return Number(skData.override);
-          return abilityMod(abilityTotal(def.attr)) + (skData.proficient ? profBonus.value : 0);
+          // 主控屬性調整值 + (熟練?熟練加值:0)*(專精?2:1)
+          const profPart = skData.proficient ? profBonus.value * (skData.expertise ? 2 : 1) : 0;
+          return abilityMod(abilityTotal(def.attr)) + profPart;
+        };
+        // 技能主控屬性（中/英 key）— 供技能頁旁註「隱匿→敏捷」
+        const skillAttr = (zh) => { const def = coreRules.SKILLS.find(s => s.zh === zh); return def ? def.attr : ''; };
+        const skillAttrZh = (zh) => { const def = coreRules.SKILLS.find(s => s.zh === zh); return def ? (def.attrZh || def.attr) : ''; };
+        // 豁免檢定六大屬性清單（技能頁「豁免檢定」區塊用）
+        const SAVE_LIST = [
+          { key:'str', zh:'力量' }, { key:'dex', zh:'敏捷' }, { key:'con', zh:'體質' },
+          { key:'int', zh:'智力' }, { key:'wis', zh:'感知' }, { key:'cha', zh:'魅力' }
+        ];
+        // 豁免值 = 該屬性調整值 + (熟練?熟練加值:0)；熟練綁 profSaves[key]
+        const saveValue = (key) => {
+          if (!selectedChar.value) return 0;
+          const prof = !!(selectedChar.value.profSaves && selectedChar.value.profSaves[key]);
+          return abilityMod(abilityTotal(key)) + (prof ? profBonus.value : 0);
         };
         
         const isDMWorld = computed(() => selectedWorldKey.value !== '__solo__');
@@ -435,9 +452,12 @@
             if (!char.skills) char.skills = {};
             if (rulesSkills && rulesSkills.length) {
               rulesSkills.forEach(s => {
-                if (!char.skills[s.zh]) char.skills[s.zh] = { proficient: false, override: null };
+                if (!char.skills[s.zh]) char.skills[s.zh] = { proficient: false, expertise: false, override: null };
+                else if (typeof char.skills[s.zh].expertise !== 'boolean') char.skills[s.zh].expertise = false;
               });
             }
+            // 豁免檢定熟練容器（相容舊存檔／新建角色）
+            if (!char.profSaves || typeof char.profSaves !== 'object') char.profSaves = {};
           }
           if (edit && mod === 'stats' && char) {
             if (!char.abilities) {
@@ -1215,6 +1235,7 @@ sendRoomRequest,
               spellSlots: Array.from({length:9}, (_,i)=>({ level:i+1, max:0, used:0 })),
               familiar: null,
               skills: {},
+              profSaves: {},
               worldProgress: {}
             };
             chars.value.push(newChar);
@@ -1358,6 +1379,10 @@ sendRoomRequest,
           abilityDefs,
           profBonus,
           skillValue,
+          skillAttr,
+          skillAttrZh,
+          SAVE_LIST,
+          saveValue,
           isDMWorld,
           requestDMApproval,
           subclassDef: (cl) => {
@@ -1411,7 +1436,9 @@ sendRoomRequest,
       document.body.innerHTML = '<div style="color:red;font-size:20px;padding:20px;"><h1>VUE ERROR</h1><pre>' + err.stack + '</pre><p>Info: ' + info + '</p></div>';
     };
 
-    app.mount('#app');
+    const __vmInstance = app.mount('#app');
+    // 暴露根實例供測試（jsdom）與 debug 使用；不影響正式行為。
+    if (typeof window !== 'undefined') { try { window.__vm = __vmInstance; } catch (e) {} }
 
     /* ===== 挂載完成：淡出開場 Loading Screen ===== */
     (function () {

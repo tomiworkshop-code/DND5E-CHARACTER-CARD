@@ -12,8 +12,9 @@
   /* schema 版本常數
    *   1 = Step A 起始
    *   2 = 預埋 characterId/worldId 存檔槽欄位（Phase 3 前置，§5.6）
-   *   3 = 預埋 mechanical/narrative 雙區 + version_m/version_n 同步骨架（§5.10C/D） */
-  const SCHEMA_VERSION = 3;
+   *   3 = 預埋 mechanical/narrative 雙區 + version_m/version_n 同步骨架（§5.10C/D）
+   *   4 = 技能結構加 expertise（專精）欄位；豁免檢定沿用 profSaves（§技能頁強化） */
+  const SCHEMA_VERSION = 4;
 
   /* 欄位分區表（§5.10C/D）— 決定同步時「誰說了算」。
    * 採「加法式骨架」：不物理地把欄位嵌進已深雙物件（避免翻改整份 UI），
@@ -58,7 +59,7 @@
 
   function defaultChar(){
     const skills = {};
-    if (typeof SKILLS !== 'undefined' && Array.isArray(SKILLS)) SKILLS.forEach(s => { skills[s.zh] = { proficient:false, override:null }; });
+    if (typeof SKILLS !== 'undefined' && Array.isArray(SKILLS)) SKILLS.forEach(s => { skills[s.zh] = { proficient:false, expertise:false, override:null }; });
     return {
       id: uid(),
       /* 存檔槽定位（Phase 3 前置，§5.6）：
@@ -108,7 +109,10 @@
     const out = JSON.parse(JSON.stringify(base));
     for(const k in saved){
       if(k==="skills"){
-        for(const sk in saved.skills){ if(out.skills[sk]) out.skills[sk] = Object.assign(out.skills[sk], saved.skills[sk]); }
+        for(const sk in saved.skills){
+          if(out.skills[sk]){ out.skills[sk] = Object.assign(out.skills[sk], saved.skills[sk]); }
+          else if(saved.skills[sk] && typeof saved.skills[sk] === "object"){ out.skills[sk] = Object.assign({ proficient:false, expertise:false, override:null }, saved.skills[sk]); }
+        }
       } else if(k==="familiar"){
         if(saved.familiar && typeof saved.familiar === "object"){
           const f = defaultFamiliar();
@@ -130,7 +134,22 @@
     if(saved.worldId == null){ out.worldId = ""; }
     /* 雙版本同步骨架回填（§5.10C）：舊存檔無 _sync → 補 {0,0}。 */
     ensureSync(out);
+    /* SCHEMA v4 回填：舊存檔技能無 expertise → 補 false；profSaves 缺 → 補 {}。 */
+    migrateSkillsSaves(out);
     return out;
+  }
+
+  /* SCHEMA v4 遷移：確保每個技能有 expertise:false，且 profSaves 為物件。
+   * 對舊存檔（v<=3）安全冪等，可重複呼叫。 */
+  function migrateSkillsSaves(char){
+    if(char && char.skills && typeof char.skills === "object"){
+      for(const sk in char.skills){
+        const s = char.skills[sk];
+        if(s && typeof s === "object" && typeof s.expertise !== "boolean"){ s.expertise = false; }
+      }
+    }
+    if(!char.profSaves || typeof char.profSaves !== "object" || Array.isArray(char.profSaves)){ char.profSaves = {}; }
+    return char;
   }
 
   /* 確保 _sync 雙版本存在且為合法數字。 */
@@ -210,7 +229,7 @@
   global.DND5E_CHAR = {
     defaultChar, defaultFamiliar, mergeChar, SCHEMA_VERSION,
     FIELD_ZONES, CREATION_LOCKED, DUAL_FACE,
-    ensureSync, extractZone, applyZone, mergeInstance, bumpVersion,
+    ensureSync, migrateSkillsSaves, extractZone, applyZone, mergeInstance, bumpVersion,
     makeInstanceId, instanceIdOf, parseInstanceId
   };
 })(typeof window !== "undefined" ? window : this);
