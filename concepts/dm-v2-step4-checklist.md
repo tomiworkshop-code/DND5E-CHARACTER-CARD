@@ -18,12 +18,13 @@
 - [x] 提供 `encounterMonsters` 攤平清單（給 4.4 `{monsterName}` 選單用）。
 - [x] 測試（模型/三軸關聯/怪物子清單 CRUD）+ 回歸 + push。
 
-## 4.1 模板資料模型
-- [ ] `{ id, name, kind:'broadcast'|'inbox'|'command', text, vars:[{name,hint?}], command? }`。
-- [ ] 變數 `hint` = 預設提示過濾來源（roster/npc/location/quest/clue/event/monster/free），不鎖死。
-- [ ] command（可選）：`{ type:'damage'|'heal'|'xp'|'gold'|'item', amountVar?, targetIsRoster:true }`。
-- [ ] `dmv2:dnd_templates_v2` 儲存 + 內建範例 seed。
-- [ ] 測試 + push。
+## 4.1 模板資料模型 — ✅ 完成 (DM v2.5.1 / Build 0721.10)
+- [x] `{ id, name, kind:'broadcast'|'inbox'|'command', text, vars:[{name,hint?}], command? }`。
+- [x] 變數 `hint` = 預設提示過濾來源（roster/npc/location/quest/clue/event/monster/free），不鎖死。
+- [x] command（可選）：`{ type:'damage'|'heal'|'xp'|'gold'|'item', amountVar?, targetIsRoster:true }`。
+- [x] `dmv2:dnd_templates_v2` 儲存 + 內建範例 seed。
+- [x] 測試 + push。
+- 實作：純邏輯 `shared/templates.js`(DND5E_TEMPLATES: scanVars/guessHint/normalize/applyValues/missingVars/builtins/parseLibrary) + DM app 儲存層(`dmv2:dnd_templates_v2` 全域、首載 seed 5 內建、upsert/delete/reset)。test `test_dmv2_step4_templates.js`(44)。
 
 ## 4.2 模板設定 UI（CRUD）
 - [ ] 模板清單、新增/編輯/刪除；變數自動偵測 + 每變數標 hint；指令綁定設定。

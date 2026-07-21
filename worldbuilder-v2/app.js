@@ -9,7 +9,7 @@
   "use strict";
 
   /* DM v2 版本字串（與玩家端獨立；Build 號遞增） */
-  var APP_VERSION = "DM v2.5.0 (Build 0721.9)";
+  var APP_VERSION = "DM v2.5.1 (Build 0721.10)";
 
   /* ============================================================
      §6 資料隔離：前綴命名空間 storage adapter（Step 1.5，維持有效）
@@ -57,6 +57,10 @@
       }
     } catch (e) { /* 靜默降級：store.js 會 fallback 到防呆 storage */ }
   })();
+
+  /* Step 4 訊息模板庫：DM 全域（非每世界），同樣落 dmv2: 命名空間 */
+  var TPL_STORE = makePrefixedStorage(DMV2_LS_PREFIX);
+  var TPL_KEY = "dnd_templates_v2";
 
   var Vue = window.Vue;
   if (!Vue) {
@@ -200,10 +204,12 @@
       var CHAR = window.DND5E_CHAR;
       var STORE = window.DND5E_STORE;
       var ROOM = window.DND5E_ROOM;
+      var TPL = window.DND5E_TEMPLATES;
       var ready = Vue.reactive({
         char: !!CHAR,
         store: !!STORE,
-        room: !!ROOM
+        room: !!ROOM,
+        templates: !!TPL
       });
       var sharedError = ref("");
       (function verifyShared() {
@@ -211,6 +217,7 @@
         if (!ready.char) missing.push("DND5E_CHAR (character-schema.js)");
         if (!ready.store) missing.push("DND5E_STORE (store.js)");
         if (!ready.room) missing.push("DND5E_ROOM (room.js)");
+        if (!ready.templates) missing.push("DND5E_TEMPLATES (templates.js)");
         if (missing.length) sharedError.value = "缺少 " + missing.join("、");
       })();
 
@@ -374,6 +381,45 @@
       var currentTypeMeta = computed(function () {
         return ENTITY_TYPES[worldsetView.value] || null;
       });
+
+      /* ============================================================
+         Step 4.1 訊息模板庫（DM 全域；dmv2:dnd_templates_v2）
+         純邏輯在 shared/templates.js（DND5E_TEMPLATES）；本處只管儲存/CRUD。
+         ============================================================ */
+      var templates = ref([]);
+      function loadTemplates() {
+        if (!TPL) { templates.value = []; return; }
+        var lib = TPL.parseLibrary(TPL_STORE.getItem(TPL_KEY));
+        if (!lib || !lib.length) {
+          lib = TPL.builtins();
+          try { TPL_STORE.setItem(TPL_KEY, JSON.stringify(lib)); } catch (e) { /* no-op */ }
+        }
+        templates.value = lib;
+      }
+      function persistTemplates() {
+        try { TPL_STORE.setItem(TPL_KEY, JSON.stringify(templates.value)); } catch (e) { /* no-op */ }
+      }
+      /* 新增/更新一筆模板（傳入工作副本；回傳落地後的 id） */
+      function upsertTemplate(t) {
+        if (!TPL) return "";
+        var norm = TPL.normalize(t);
+        if (!norm.name && !norm.text) return "";
+        if (!norm.id) norm.id = eid("tpl");
+        var idx = templates.value.findIndex(function (x) { return x.id === norm.id; });
+        if (idx >= 0) templates.value.splice(idx, 1, norm);
+        else templates.value.push(norm);
+        persistTemplates();
+        return norm.id;
+      }
+      function deleteTemplate(id) {
+        templates.value = templates.value.filter(function (x) { return x.id !== id; });
+        persistTemplates();
+      }
+      function resetTemplatesToBuiltin() {
+        if (!TPL) return;
+        templates.value = TPL.builtins();
+        persistTemplates();
+      }
 
       /* ---- entity CRUD ---- */
       var showEntityForm = ref(false);
@@ -906,6 +952,7 @@
 
       onMounted(function () {
         refreshWorlds();
+        loadTemplates();
         initFirebase();
       });
 
@@ -938,6 +985,15 @@
         encounterMonsters: encounterMonsters,
         addMonsterRow: addMonsterRow,
         removeMonsterRow: removeMonsterRow,
+        /* Step 4.1 訊息模板庫 */
+        TPL_KINDS: TPL ? TPL.KINDS : [],
+        TPL_HINTS: TPL ? TPL.HINTS : [],
+        TPL_COMMAND_TYPES: TPL ? TPL.COMMAND_TYPES : [],
+        templates: templates,
+        loadTemplates: loadTemplates,
+        upsertTemplate: upsertTemplate,
+        deleteTemplate: deleteTemplate,
+        resetTemplatesToBuiltin: resetTemplatesToBuiltin,
         showEntityForm: showEntityForm,
         editingEntity: editingEntity,
         openAddEntity: openAddEntity,

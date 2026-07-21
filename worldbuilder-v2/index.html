@@ -17,6 +17,8 @@
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="../shared/character-schema.js"></script>
   <script src="../shared/store.js"></script>
+  <!-- Step 4 訊息模板系統（純邏輯：具名變數/軟過濾/綁指令） -->
+  <script src="../shared/templates.js"></script>
   <!-- Firebase compat 10.12.5（Room 連線）。⚠️ 延遲連線：此處僅載入 SDK，
        Step 3 才會真正 DND5E_ROOM.createRoom()；載入時不開團。 -->
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
@@ -756,6 +758,8 @@
             <div class="flex justify-between"><span style="color:var(--text-muted);">character-schema</span><span>{{ ready.char ? '✅' : '❌' }}</span></div>
             <div class="flex justify-between"><span style="color:var(--text-muted);">store</span><span>{{ ready.store ? '✅' : '❌' }}</span></div>
             <div class="flex justify-between"><span style="color:var(--text-muted);">room</span><span>{{ ready.room ? '✅' : '❌' }}</span></div>
+            <div class="flex justify-between"><span style="color:var(--text-muted);">templates</span><span>{{ ready.templates ? '✅' : '❌' }}</span></div>
+            <div class="flex justify-between"><span style="color:var(--text-muted);">模板數量</span><span>{{ templates.length }}</span></div>
             <div class="flex justify-between"><span style="color:var(--text-muted);">firebase</span><span>{{ firebaseReady ? '✅' : '（延遲）' }}</span></div>
             <div class="flex justify-between"><span style="color:var(--text-muted);">世界數量</span><span>{{ worlds.length }}</span></div>
           </div>
