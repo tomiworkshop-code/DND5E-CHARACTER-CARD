@@ -689,6 +689,7 @@
                     <span class="font-semibold truncate">{{ e.name }}</span>
                     <span class="status-badge" :class="statusMeta(e.status).cls">{{ statusMeta(e.status).label }}</span>
                     <span v-if="e.type === 'quest' && e.state" class="status-badge st-hidden">{{ e.state }}</span>
+                    <span v-if="e.type === 'location' && e.placeKind" class="status-badge st-hidden" data-testid="location-kind">{{ placeKindMeta(e.placeKind).icon }} {{ placeKindMeta(e.placeKind).label }}</span>
                   </div>
                   <p v-if="e.type === 'location' && e.region" class="text-xs mt-0.5" style="color:var(--text-muted);">🗺️ {{ e.region }}</p>
                   <p v-if="e.type === 'quest' && e.objective" class="text-xs mt-0.5" style="color:var(--text-muted);">🎯 {{ e.objective }}</p>
@@ -885,6 +886,11 @@
 
           <!-- 地點專屬欄位 -->
           <template v-if="editingEntity.type === 'location'">
+            <label class="block text-xs mb-1" style="color:var(--text-muted);">種類</label>
+            <select v-model="editingEntity.placeKind" data-testid="ef-placeKind"
+                    class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+              <option v-for="k in LOCATION_KINDS" :key="k.v" :value="k.v">{{ k.icon }} {{ k.label }}</option>
+            </select>
             <label class="block text-xs mb-1" style="color:var(--text-muted);">區域 region</label>
             <input v-model="editingEntity.region" type="text"
                    class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border);">

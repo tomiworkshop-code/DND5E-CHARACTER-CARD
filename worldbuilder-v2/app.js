@@ -9,7 +9,7 @@
   "use strict";
 
   /* DM v2 版本字串（與玩家端獨立；Build 號遞增） */
-  var APP_VERSION = "DM v2.6.0 (Build 0721.14)";
+  var APP_VERSION = "DM v2.6.1 (Build 0721.15)";
 
   /* ============================================================
      §6 資料隔離：前綴命名空間 storage adapter（Step 1.5，維持有效）
@@ -92,6 +92,18 @@
     event:    { icon: "⚡", label: "事件" },
     encounter:{ icon: "⚔️", label: "遭遇" }
   };
+  /* 地點種類（location.placeKind）：便於把商店/城鎮/地城等分門別類 */
+  var LOCATION_KINDS = [
+    { v: "",        icon: "📍", label: "未分類" },
+    { v: "town",    icon: "🏘️", label: "城鎮/村莊" },
+    { v: "shop",    icon: "🏪", label: "商店/商鋪" },
+    { v: "inn",     icon: "🍺", label: "旅店/酒館" },
+    { v: "dungeon", icon: "🏰", label: "地城/遺跡" },
+    { v: "temple",  icon: "⛪", label: "神殿/教堂" },
+    { v: "fortress",icon: "🛡️", label: "要塞/城堡" },
+    { v: "wild",    icon: "🌲", label: "野外/秘境" },
+    { v: "other",   icon: "🗺️", label: "其他" }
+  ];
   /* §10.2 status 列舉：active(存在)/changed(已質變)/destroyed(已毀)/hidden(未登場) */
   var STATUS_OPTIONS = [
     { v: "active",    label: "存在", cls: "st-active" },
@@ -688,7 +700,7 @@
         return {
           id: "", type: type, name: "", status: "active", story: "", notes: "",
           objective: "", reward: "", state: "進行中",   /* quest */
-          region: "",                                     /* location */
+          region: "", placeKind: "",                       /* location（region 區域 + placeKind 種類） */
           trigger: "",                                     /* event */
           questId: "", locationId: "", eraId: "", monsters: []  /* encounter 三軸 + 怪物子清單 */
         };
@@ -728,6 +740,7 @@
         copy.reward = e.reward || "";
         copy.state = e.state || "進行中";
         copy.region = e.region || "";
+        copy.placeKind = e.placeKind || "";
         copy.trigger = e.trigger || "";
         copy.questId = e.questId || "";
         copy.locationId = e.locationId || "";
@@ -765,6 +778,7 @@
             rec.state = e.state || "進行中";
           } else if (e.type === "location") {
             rec.region = e.region || "";
+            rec.placeKind = e.placeKind || "";
           } else if (e.type === "event") {
             rec.trigger = e.trigger || "";
           } else if (e.type === "encounter") {
@@ -793,6 +807,12 @@
           if (STATUS_OPTIONS[i].v === v) return STATUS_OPTIONS[i];
         }
         return STATUS_OPTIONS[0];
+      }
+      function placeKindMeta(v) {
+        for (var i = 0; i < LOCATION_KINDS.length; i++) {
+          if (LOCATION_KINDS[i].v === (v || "")) return LOCATION_KINDS[i];
+        }
+        return LOCATION_KINDS[0];
       }
 
       /* ============================================================
@@ -1228,6 +1248,7 @@
         goTab: goTab,
         /* §10 世界設定：entity CRUD + 紀元節點 + 規則 */
         STATUS_OPTIONS: STATUS_OPTIONS,
+        LOCATION_KINDS: LOCATION_KINDS,
         QUEST_STATE_OPTIONS: QUEST_STATE_OPTIONS,
         worldsetView: worldsetView,
         openModule: openModule,
@@ -1296,6 +1317,7 @@
         saveEntity: saveEntity,
         deleteEntity: deleteEntity,
         statusMeta: statusMeta,
+        placeKindMeta: placeKindMeta,
         worldEras: worldEras,
         currentEraId: currentEraId,
         newEraName: newEraName,

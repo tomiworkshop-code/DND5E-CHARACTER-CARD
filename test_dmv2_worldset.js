@@ -81,7 +81,7 @@ function tick(vm) { return new Promise((r) => vm.$nextTick(() => setTimeout(r, 2
     vm.editingEntity.story = t + ' 的經歷故事';
     vm.editingEntity.notes = t + ' 備註';
     if (t === 'quest') { vm.editingEntity.objective = '尋回聖劍'; vm.editingEntity.reward = '500gp'; vm.editingEntity.state = '已完成'; }
-    if (t === 'location') { vm.editingEntity.region = '北方山脈'; }
+    if (t === 'location') { vm.editingEntity.region = '北方山脈'; vm.editingEntity.placeKind = 'shop'; }
     if (t === 'event') { vm.editingEntity.trigger = '午夜鐘響'; }
     vm.saveEntity();
     await tick(vm);
@@ -93,6 +93,7 @@ function tick(vm) { return new Promise((r) => vm.$nextTick(() => setTimeout(r, 2
     ok(t + ' 表單關閉', vm.showEntityForm === false);
     if (t === 'quest') ok('quest 專屬欄位 objective/reward/state', ents[0].objective === '尋回聖劍' && ents[0].reward === '500gp' && ents[0].state === '已完成');
     if (t === 'location') ok('location 專屬欄位 region', ents[0].region === '北方山脈');
+    if (t === 'location') ok('location 種類 placeKind 存取(shop)', ents[0].placeKind === 'shop');
     if (t === 'event') ok('event 專屬欄位 trigger', ents[0].trigger === '午夜鐘響');
 
     vm.closeWorldsetView();
@@ -116,6 +117,19 @@ function tick(vm) { return new Promise((r) => vm.$nextTick(() => setTimeout(r, 2
   ok('編輯後 status 更新（destroyed）', vm.currentEntities[0].status === 'destroyed');
   ok('編輯後 story 更新', vm.currentEntities[0].story === '改後的故事');
   ok('編輯未產生重複（仍 1 筆）', vm.currentEntities.length === 1);
+  vm.closeWorldsetView();
+  await tick(vm);
+
+  /* location placeKind 編輯 round-trip */
+  vm.openModule({ key: 'place' });
+  await tick(vm);
+  vm.openEditEntity(vm.currentEntities[0]);
+  await tick(vm);
+  ok('編輯載入 placeKind(shop)', vm.editingEntity.placeKind === 'shop');
+  vm.editingEntity.placeKind = 'temple';
+  vm.saveEntity();
+  await tick(vm);
+  ok('編輯後 placeKind 更新(temple)', vm.currentEntities[0].placeKind === 'temple');
   vm.closeWorldsetView();
   await tick(vm);
 
