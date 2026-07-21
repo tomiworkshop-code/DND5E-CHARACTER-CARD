@@ -100,3 +100,23 @@
 - **隱私/歸屬**：這些是「玩家的資料由 DM 代管備份」，不與 DM 個人角色卡混放；
   刪除世界/房間時提示是否一併清除該世界的玩家快照備份。
 - 排期：基礎存檔隨 Step 3（開團連線 + Roster + 收快照）落地；恢復 UI 可 Step 3 尾或 Step 4。
+
+## 8. v1 → v2 匯入器（Converter，Tommy 2026-07-21 定案；排入 Step 2）
+> 背景：舊版 DM v1（worldbuilder/）未用 shared/store.js，自帶獨立 key，與玩家版/DM v2 皆不撞：
+> - `dm_worldbuilder_v1`（總表）、`dm_worldbuilder_worlds_v1`（世界）、`dm_worldbuilder_active_v1`（當前世界）、
+>   `dm_worldbuilder_quests_v1`（任務）、`dm_worldbuilder_encounters_v1`（遭遇/戰鬥）、
+>   `dnd_narrator_dmflags`（DM 旗標）、`dm_theme`（主題）。
+> 因此 v1 天生已隔離；**不需**、也**不應**改 v1 的 prefix（改了會讓 v1 現有存檔瞬間失聯，且動到欲凍結的舊 App）。
+
+- **原則**：v1 保持原樣凍結；轉換能力做在 **DM v2 端**（讀 v1 舊 key → 轉格式 → 寫入 `dmv2:` 命名空間）。
+- **來源 → 目標對映（草案）**：
+  - `dm_worldbuilder_worlds_v1` → `dmv2:dnd_worlds_v2`（每筆補 `role:'dm_owner'`、`type:'dm'`；保留 name/note；產生新 id 或沿用）
+  - `dm_worldbuilder_quests_v1` / `dm_worldbuilder_encounters_v1` → 掛入對應世界的戰役內容（Step 2 的 quest/encounter 結構）
+  - `dm_worldbuilder_active_v1` → `dmv2:dnd_active_world_v2`（若該世界有被匯入）
+  - `dnd_narrator_dmflags` → 世界層 `rules`（如日後對映 allowPactFamiliar 等旗標）
+  - `dm_theme` → DM v2 設定（可選）
+- **UI**：DM v2「設定」分頁放「📥 從舊版 (v1) 匯入」按鈕；執行前顯示預覽（將匯入幾個世界/任務），
+  匯入採「合併不覆蓋」（同名/同 id 詢問或跳過），完成後回報結果。**絕不刪 v1 原始資料**（v1 keys 原封不動）。
+- **安全**：匯入為冪等/可重跑；同一世界不重複灌入（以來源 id 或名稱去重）。
+- **排期**：實作排入 **Step 2**（戰役管理落地、v2 世界/任務結構定形後即可對映搬遷）。
+- **驗證**：測試以記憶體 storage 塞入模擬 v1 keys → 執行 converter → 斷言 `dmv2:` 目標 key 內容正確、v1 keys 未被更動。
