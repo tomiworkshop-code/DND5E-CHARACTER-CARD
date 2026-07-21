@@ -73,3 +73,30 @@
 - 舊 `worldbuilder/` 不動，持續可用。
 - 新版逐步接手；切換前雙版並存。
 - 每步：語法檢查 + 既有測試全綠 + 新增對應測試；commit 後 **git push origin main**。
+
+## 6. 資料隔離（Step 1.5，Tommy 2026-07-21 定案）
+> 情境：同一人可能「在 DM 版當 DM」又「在玩家版打野團」。若同網域同瀏覽器，
+> 兩 App 共用 `../shared/store.js` → **同一組 localStorage key**（origin 級共用，非路徑），會攪混。
+
+- **做法**：DM v2 於啟動時以 `STORE.setStorage(adapter)` 注入「加前綴」storage adapter，
+  key 全部前綴 `dmv2:`（如 `dmv2:dnd_worlds_v2`），與玩家版 `v2/` 完全不同命名空間。
+- **不影響程式碼共用**：composeC/decomposeC/mergeChar 解析的是「網路收到的玩家快照」，
+  與 localStorage 無關，隔離後照常重用。
+- **世界來源標記釐清**：需區分「我當 DM 開的世界 (role:'dm_owner')」vs「我以玩家 join 的野團 (role:'guest')」；
+  目前兩者都被標 `type:'dm'` 難分。DM v2 只顯示 dm_owner；玩家版只顯示 guest/local。
+- 驗證：冒煙測試確認 DM v2 寫入不落在玩家版 key、兩邊 key 不打架。
+
+## 7. 玩家快照存檔與恢復（DM 側記錄 + 玩家還原，Tommy 2026-07-21 定案）
+> 隔離 ≠ 不存玩家資料。DM 收到玩家 join/更新的完整快照後，**必須落地保存為記錄**，
+> 供 (a) DM 觀測與定案；(b) 玩家日後資料遺失時「從 DM 端恢復」。
+
+- **存哪**：DM 命名空間內，按 `世界 → 玩家(pid/characterId) → 快照` 歸檔；保留最新一份 + 精簡歷史
+  （含時間戳/版本 version_m/version_n），非只存記憶體。雲端側沿用 firebase
+  `rooms/{roomId}/saves/{characterId}`（權威存檔）與 players 快照，本地側在 DM v2 storage 另存鏡像備份（離線可查）。
+- **恢復流程**：玩家資料遺失 → 重新 join 同房間 → DM 端將保存的該角色快照透過 saves/inbox 通道
+  **回送**玩家（玩家端 handleRemoteSave 已支援版本裁決/衝突 UI）；或 DM 匯出該玩家快照 JSON 交還玩家匯入。
+- **與提案/定案流程整合（§3）**：玩家送來的是提案；DM 保存記錄後再決定採納或就地改值定案。
+  即使 DM 不採納進正史，記錄仍保留（備份用途）。
+- **隱私/歸屬**：這些是「玩家的資料由 DM 代管備份」，不與 DM 個人角色卡混放；
+  刪除世界/房間時提示是否一併清除該世界的玩家快照備份。
+- 排期：基礎存檔隨 Step 3（開團連線 + Roster + 收快照）落地；恢復 UI 可 Step 3 尾或 Step 4。

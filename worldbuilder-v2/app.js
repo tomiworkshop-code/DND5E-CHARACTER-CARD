@@ -8,7 +8,56 @@
   "use strict";
 
   /* DM v2 版本字串（與玩家端獨立） */
-  var APP_VERSION = "DM v2.0.0 (Build 0720.1)";
+  var APP_VERSION = "DM v2.0.0 (Build 0721.1)";
+
+  /* ============================================================
+     §6 資料隔離：前綴命名空間 storage adapter
+     ------------------------------------------------------------
+     玩家版 v2/ 與 DM 版 worldbuilder-v2/ 載入同一份 shared/store.js，
+     使用相同 localStorage keys；localStorage 依 origin（非路徑）共用，
+     同網域同瀏覽器會攪混。這裡包裝 window.localStorage，所有 key 自動
+     加前綴 "dmv2:"，讓 DM v2 寫入落在獨立命名空間（如 dmv2:dnd_worlds_v2），
+     與玩家版完全隔離、互不可見。
+     未有 window.localStorage（SSR/測試）時安全降級（getItem 回 null、
+     setItem/removeItem no-op），比照 store.js 既有防呆。
+     ⚠️ 必須在任何 STORE 讀寫前呼叫 STORE.setStorage(adapter)。
+     ============================================================ */
+  var DMV2_LS_PREFIX = "dmv2:";
+
+  function makePrefixedStorage(prefix) {
+    function ls() {
+      try {
+        if (typeof window !== "undefined" && window.localStorage) return window.localStorage;
+      } catch (e) { /* 存取被拒（如隱私模式）→ 視為無 storage */ }
+      return null;
+    }
+    return {
+      getItem: function (k) {
+        var s = ls();
+        if (!s) return null;
+        try { return s.getItem(prefix + k); } catch (e) { return null; }
+      },
+      setItem: function (k, v) {
+        var s = ls();
+        if (!s) return;
+        try { s.setItem(prefix + k, v); } catch (e) { /* no-op */ }
+      },
+      removeItem: function (k) {
+        var s = ls();
+        if (!s) return;
+        try { s.removeItem(prefix + k); } catch (e) { /* no-op */ }
+      }
+    };
+  }
+
+  (function injectIsolatedStorage() {
+    try {
+      var S = window.DND5E_STORE;
+      if (S && typeof S.setStorage === "function") {
+        S.setStorage(makePrefixedStorage(DMV2_LS_PREFIX));
+      }
+    } catch (e) { /* 靜默降級：store.js 會 fallback 到防呆 storage */ }
+  })();
 
   var Vue = window.Vue;
   if (!Vue) {
@@ -84,7 +133,10 @@
         if (!STORE) { worlds.value = []; return; }
         try {
           var list = STORE.loadWorlds();
-          worlds.value = Array.isArray(list) ? list : [];
+          list = Array.isArray(list) ? list : [];
+          /* §6 世界來源 role 過濾：DM v2 只顯示自建世界 (role:'dm_owner')。
+             因已做命名空間隔離，store 本就看不到玩家版世界；此為雙保險。 */
+          worlds.value = list.filter(function (w) { return w && w.role === "dm_owner"; });
         } catch (e) {
           worlds.value = [];
           sharedError.value = "讀取世界失敗：" + (e && e.message ? e.message : e);
@@ -100,7 +152,8 @@
         if (!STORE) { sharedError.value = "STORE 未就緒，無法新增世界。"; return; }
         var id = uid();
         try {
-          STORE.upsertWorld({ id: id, name: name, note: (newWorldNote.value || "").trim(), type: "dm" });
+          /* §6 role 標記：DM v2 自建世界標 role:'dm_owner'（保留既有 type 欄位不破壞）。 */
+          STORE.upsertWorld({ id: id, name: name, note: (newWorldNote.value || "").trim(), type: "dm", role: "dm_owner" });
           if (STORE.setActiveWorld) STORE.setActiveWorld(id);
         } catch (e) {
           sharedError.value = "新增世界失敗：" + (e && e.message ? e.message : e);
