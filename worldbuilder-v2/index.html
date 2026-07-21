@@ -79,6 +79,51 @@
     .entry-card .entry-icon { font-size: 1.9rem; line-height: 1; }
     .entry-card .entry-label { font-weight: 600; font-size: 0.9rem; }
     .entry-card .entry-sub { font-size: 0.7rem; color: var(--text-muted); }
+
+    /* §10.2 entity status 標籤 */
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 0.25rem;
+      padding: 0.1rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600;
+      border: 1px solid transparent; white-space: nowrap;
+    }
+    .st-active    { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+    .st-changed   { background: #fef9c3; color: #854d0e; border-color: #fde68a; }
+    .st-destroyed { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+    .st-hidden    { background: #e5e7eb; color: #4b5563; border-color: #d1d5db; }
+
+    /* entity 卡片（列表項） */
+    .entity-card {
+      display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.75rem 0.85rem;
+      border-radius: 0.75rem; border: 1px solid var(--border); background: var(--bg-surface);
+    }
+
+    /* 世界規則 toggle 開關 */
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch .slider {
+      position: absolute; cursor: pointer; inset: 0; background: #cbd5e1;
+      border-radius: 9999px; transition: background 0.2s ease;
+    }
+    .switch .slider::before {
+      content: ""; position: absolute; height: 18px; width: 18px; left: 3px; top: 3px;
+      background: #fff; border-radius: 50%; transition: transform 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .switch input:checked + .slider { background: var(--accent); }
+    .switch input:checked + .slider::before { transform: translateX(20px); }
+
+    /* 線性紀元時間軸 */
+    .era-row {
+      display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.6rem 0.75rem;
+      border-radius: 0.7rem; border: 1px solid var(--border); background: var(--bg-surface);
+    }
+    .era-row.era-current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+    .era-dot {
+      width: 1.6rem; height: 1.6rem; border-radius: 9999px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 0.75rem;
+      background: var(--bg-base); color: var(--text-muted); font-weight: 700;
+    }
+    .era-row.era-current .era-dot { background: var(--accent); color: #fff; }
   </style>
 </head>
 <body>
@@ -254,19 +299,139 @@
             <div class="text-4xl mb-2">🌍</div>
             <p class="text-sm">請先於右上「換世界」選定或新增一個世界。</p>
           </div>
-          <div v-else data-testid="worldset-modules">
+          <!-- 世界設定首頁：模組格 + 世界紀元（線性） -->
+          <div v-else-if="!worldsetView" data-testid="worldset-modules">
             <p class="text-sm mb-3" style="color:var(--text-muted);">
-              「{{ activeWorld.name }}」的世界觀設定模組（NPC／任務／線索／地點／事件／規則）。
-              <br>CRUD 與規則開關（allowPactFamiliar 等）將於 Step 2b 實作。
+              「{{ activeWorld.name }}」的世界觀設定模組。點入各模組新增／編輯／刪除。
             </p>
-            <!-- TODO(dm-v2-spec Step 2b)：各模組 CRUD + world.rules.allowPactFamiliar（預設 false）。 -->
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-3 gap-3 mb-6">
               <button v-for="m in worldsetModules" :key="m.key" class="entry-card"
-                      :data-module="m.key" @click="openEntry(m)">
+                      :data-module="m.key" @click="openModule(m)">
                 <span class="entry-icon">{{ m.icon }}</span>
                 <span class="entry-label">{{ m.label }}</span>
-                <span class="entry-sub">即將推出</span>
+                <span class="entry-sub" v-if="m.key === 'rules'">世界規則開關</span>
+                <span class="entry-sub" v-else>{{ worldEntities.filter(e => e.type === (m.key === 'place' ? 'location' : m.key)).length }} 筆</span>
               </button>
+            </div>
+
+            <!-- 世界紀元（線性時間軸；§10.6） -->
+            <div data-testid="era-section">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-lg">⏳</span>
+                <h3 class="font-bold">世界紀元</h3>
+                <span class="text-xs" style="color:var(--text-muted);">線性時間軸（新節點接在當前後）</span>
+              </div>
+
+              <div v-if="!worldEras.length" class="text-sm mb-3 p-3 rounded-lg border border-dashed text-center"
+                   style="border-color:var(--border); color:var(--text-muted);" data-testid="era-empty">
+                尚無紀元節點，新增第一個以開始記錄世界時間線。
+              </div>
+
+              <div v-else class="space-y-2 mb-3" data-testid="era-list">
+                <div v-for="(era, i) in worldEras" :key="era.id"
+                     class="era-row" :class="era.id === currentEraId ? 'era-current' : ''"
+                     :data-era-id="era.id">
+                  <span class="era-dot">{{ i + 1 }}</span>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="font-semibold text-sm truncate">{{ era.name }}</span>
+                      <span v-if="era.id === currentEraId" class="status-badge st-active">★ 當前</span>
+                    </div>
+                    <p v-if="era.summary" class="text-xs mt-0.5" style="color:var(--text-muted);">{{ era.summary }}</p>
+                  </div>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button class="icon-btn icon-btn-ghost icon-btn-icon-only" title="上移"
+                            :disabled="i === 0" @click="moveEra(era, -1)">⬆️</button>
+                    <button class="icon-btn icon-btn-ghost icon-btn-icon-only" title="下移"
+                            :disabled="i === worldEras.length - 1" @click="moveEra(era, 1)">⬇️</button>
+                    <button v-if="era.id !== currentEraId" class="icon-btn icon-btn-ghost icon-btn-icon-only"
+                            title="設為當前" @click="setCurrentEra(era)">⭐</button>
+                    <button class="icon-btn icon-btn-ghost icon-btn-icon-only" title="重新命名"
+                            @click="renameEra(era)">✏️</button>
+                    <button class="icon-btn icon-btn-ghost icon-btn-icon-only" title="刪除"
+                            @click="deleteEra(era)">🗑️</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="p-3 rounded-lg border" style="background:var(--bg-surface); border-color:var(--border);">
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input v-model="newEraName" type="text" placeholder="新紀元名稱（如：北城之围）"
+                         class="flex-1 px-3 py-2 rounded-lg border text-base" style="border-color:var(--border);"
+                         data-testid="era-name-input" @keyup.enter="addEra">
+                  <input v-model="newEraSummary" type="text" placeholder="摘要（可留空）"
+                         class="flex-1 px-3 py-2 rounded-lg border text-base" style="border-color:var(--border);">
+                  <button class="icon-btn icon-btn-primary" data-testid="era-add-btn" @click="addEra">
+                    <span class="ib-icon">＋</span><span>新增紀元</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- entity 清單子視圖 -->
+          <div v-else-if="worldsetView !== 'rules'" data-testid="entity-list">
+            <div class="flex items-center gap-2 mb-3">
+              <button class="icon-btn icon-btn-ghost icon-btn-icon-only" title="返回"
+                      data-testid="entity-back" @click="closeWorldsetView">←</button>
+              <span class="text-lg" v-if="currentTypeMeta">{{ currentTypeMeta.icon }}</span>
+              <h3 class="font-bold">{{ currentTypeMeta ? currentTypeMeta.label : '' }}</h3>
+              <button class="icon-btn icon-btn-primary ml-auto" data-testid="entity-add"
+                      @click="openAddEntity(worldsetView)">
+                <span class="ib-icon">＋</span><span>新增</span>
+              </button>
+            </div>
+
+            <div v-if="!currentEntities.length" class="p-6 rounded-xl border border-dashed text-center text-sm"
+                 style="border-color:var(--border); color:var(--text-muted);" data-testid="entity-empty">
+              尚無【{{ currentTypeMeta ? currentTypeMeta.label : '' }}】，點右上「新增」建立第一筆。
+            </div>
+
+            <div v-else class="space-y-2" data-testid="entity-cards">
+              <div v-for="e in currentEntities" :key="e.id" class="entity-card" :data-entity-id="e.id">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-semibold truncate">{{ e.name }}</span>
+                    <span class="status-badge" :class="statusMeta(e.status).cls">{{ statusMeta(e.status).label }}</span>
+                    <span v-if="e.type === 'quest' && e.state" class="status-badge st-hidden">{{ e.state }}</span>
+                  </div>
+                  <p v-if="e.type === 'location' && e.region" class="text-xs mt-0.5" style="color:var(--text-muted);">🗺️ {{ e.region }}</p>
+                  <p v-if="e.type === 'quest' && e.objective" class="text-xs mt-0.5" style="color:var(--text-muted);">🎯 {{ e.objective }}</p>
+                  <p v-if="e.type === 'event' && e.trigger" class="text-xs mt-0.5" style="color:var(--text-muted);">⚡ {{ e.trigger }}</p>
+                  <p v-if="e.story" class="text-xs mt-1 whitespace-pre-line line-clamp-2" style="color:var(--text-muted);">{{ e.story }}</p>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button class="icon-btn icon-btn-ghost icon-btn-icon-only" title="編輯"
+                          data-testid="entity-edit" @click="openEditEntity(e)">✏️</button>
+                  <button class="icon-btn icon-btn-ghost icon-btn-icon-only" title="刪除"
+                          data-testid="entity-delete" @click="deleteEntity(e)">🗑️</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 世界規則子視圖 -->
+          <div v-else data-testid="rules-panel">
+            <div class="flex items-center gap-2 mb-3">
+              <button class="icon-btn icon-btn-ghost icon-btn-icon-only" title="返回"
+                      @click="closeWorldsetView">←</button>
+              <span class="text-lg">📏</span>
+              <h3 class="font-bold">世界規則</h3>
+            </div>
+            <div class="p-4 rounded-xl border space-y-3" style="background:var(--bg-surface); border-color:var(--border);">
+              <div class="flex items-start gap-3" data-testid="rule-allowPactFamiliar">
+                <label class="switch mt-0.5">
+                  <input type="checkbox" :checked="worldRules.allowPactFamiliar"
+                         @change="toggleRule('allowPactFamiliar')">
+                  <span class="slider"></span>
+                </label>
+                <div class="min-w-0">
+                  <div class="font-semibold text-sm">允許契約魔寵（allowPactFamiliar）</div>
+                  <p class="text-xs mt-0.5" style="color:var(--text-muted);">
+                    開啟後，本世界允許玩家使用契約魔寵相關規則。預設關閉。
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -325,6 +490,80 @@
               <span class="ib-icon">✅</span><span>建立</span>
             </button>
             <button class="icon-btn" @click="cancelAddWorld">
+              <span class="ib-icon">✕</span><span>取消</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ===== entity 新增／編輯表單 Modal（§10.2：status + story） ===== -->
+    <transition name="overlay">
+      <div v-if="showEntityForm && editingEntity" class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+           data-testid="entity-form-modal">
+        <div class="fixed inset-0 bg-black/40" @click="cancelEntityForm"></div>
+        <div class="relative z-10 w-full max-w-md max-h-[88vh] overflow-y-auto p-4 rounded-xl border shadow-2xl"
+             style="background:var(--bg-surface); border-color:var(--border);">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xl">{{ currentTypeMeta ? currentTypeMeta.icon : '📝' }}</span>
+            <h3 class="font-bold">{{ editingEntity.id ? '編輯' : '新增' }}{{ currentTypeMeta ? currentTypeMeta.label : '' }}</h3>
+          </div>
+
+          <label class="block text-xs mb-1" style="color:var(--text-muted);">名稱 *</label>
+          <input v-model="editingEntity.name" type="text" placeholder="名稱"
+                 class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border);"
+                 data-testid="entity-name-input">
+
+          <label class="block text-xs mb-1" style="color:var(--text-muted);">狀態</label>
+          <select v-model="editingEntity.status"
+                  class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border);"
+                  data-testid="entity-status-select">
+            <option v-for="s in STATUS_OPTIONS" :key="s.v" :value="s.v">{{ s.label }}</option>
+          </select>
+
+          <!-- 任務專屬欄位 -->
+          <template v-if="editingEntity.type === 'quest'">
+            <label class="block text-xs mb-1" style="color:var(--text-muted);">目標 objective</label>
+            <input v-model="editingEntity.objective" type="text"
+                   class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border);">
+            <label class="block text-xs mb-1" style="color:var(--text-muted);">獎勵 reward</label>
+            <input v-model="editingEntity.reward" type="text"
+                   class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border);">
+            <label class="block text-xs mb-1" style="color:var(--text-muted);">進度 state</label>
+            <select v-model="editingEntity.state"
+                    class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border);">
+              <option v-for="st in QUEST_STATE_OPTIONS" :key="st" :value="st">{{ st }}</option>
+            </select>
+          </template>
+
+          <!-- 地點專屬欄位 -->
+          <template v-if="editingEntity.type === 'location'">
+            <label class="block text-xs mb-1" style="color:var(--text-muted);">區域 region</label>
+            <input v-model="editingEntity.region" type="text"
+                   class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border);">
+          </template>
+
+          <!-- 事件專屬欄位 -->
+          <template v-if="editingEntity.type === 'event'">
+            <label class="block text-xs mb-1" style="color:var(--text-muted);">觸發 trigger</label>
+            <input v-model="editingEntity.trigger" type="text"
+                   class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border);">
+          </template>
+
+          <label class="block text-xs mb-1" style="color:var(--text-muted);">經歷／故事 story</label>
+          <textarea v-model="editingEntity.story" rows="3" placeholder="這個 entity 自己的經歷…"
+                    class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border);"
+                    data-testid="entity-story-input"></textarea>
+
+          <label class="block text-xs mb-1" style="color:var(--text-muted);">備註 notes</label>
+          <textarea v-model="editingEntity.notes" rows="2" placeholder="DM 備註（可留空）…"
+                    class="w-full px-3 py-2 rounded-lg border mb-3 text-base" style="border-color:var(--border);"></textarea>
+
+          <div class="flex gap-2">
+            <button class="icon-btn icon-btn-primary icon-btn-block" data-testid="entity-save" @click="saveEntity">
+              <span class="ib-icon">✅</span><span>儲存</span>
+            </button>
+            <button class="icon-btn" @click="cancelEntityForm">
               <span class="ib-icon">✕</span><span>取消</span>
             </button>
           </div>

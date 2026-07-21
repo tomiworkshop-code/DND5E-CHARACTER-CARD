@@ -9,7 +9,7 @@
   "use strict";
 
   /* DM v2 版本字串（與玩家端獨立；Build 號遞增） */
-  var APP_VERSION = "DM v2.1.0 (Build 0721.2)";
+  var APP_VERSION = "DM v2.2.0 (Build 0721.3)";
 
   /* ============================================================
      §6 資料隔離：前綴命名空間 storage adapter（Step 1.5，維持有效）
@@ -71,6 +71,30 @@
   function uid() {
     return "w_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
+
+  /* entity / era 用 id 產生器（前綴區分） */
+  function eid(prefix) {
+    return (prefix || "x") + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  /* ============================================================
+     §10 世界設定資料常數（entity 類型 / status 列舉 / 任務狀態）
+     ============================================================ */
+  var ENTITY_TYPES = {
+    npc:      { icon: "👤", label: "NPC" },
+    location: { icon: "📍", label: "地點" },
+    quest:    { icon: "📜", label: "任務" },
+    clue:     { icon: "🔍", label: "線索" },
+    event:    { icon: "⚡", label: "事件" }
+  };
+  /* §10.2 status 列舉：active(存在)/changed(已質變)/destroyed(已毀)/hidden(未登場) */
+  var STATUS_OPTIONS = [
+    { v: "active",    label: "存在", cls: "st-active" },
+    { v: "changed",   label: "已質變", cls: "st-changed" },
+    { v: "destroyed", label: "已毀", cls: "st-destroyed" },
+    { v: "hidden",    label: "未登場", cls: "st-hidden" }
+  ];
+  var QUEST_STATE_OPTIONS = ["進行中", "已完成", "已解鎖"];
 
   /* ============================================================
      §9.4 導覽面板元件（側欄 + 手機抽屜共用）
@@ -267,6 +291,248 @@
         return titleMap[currentTab.value] || "敘事者之書 DM";
       });
 
+      /* ============================================================
+         §10 / §9.6 世界設定：entity CRUD + 紀元節點（線性） + 世界規則
+         --------------------------------------------------------
+         持久化選擇：直接擴充「當前世界」物件（entities / eras /
+         currentEraId / rules）。因 STORE.upsertWorld 以
+         Object.assign(existing, world) 合併、saveWorlds 整份序列化，
+         自訂欄位可原樣 round-trip；且寫入走已注入的 dmv2: adapter，
+         全部落在 dmv2: 前綴，不污染無前綴 key、不動玩家版。
+         ============================================================ */
+      var worldsetView = ref("");   /* '' = 模組格；type = entity 清單；'rules' = 規則 */
+
+      /* 取得目前 active 世界的「完整物件」（含自訂欄位；直讀 store，不受 role 過濾） */
+      function getFullActiveWorld() {
+        if (!STORE || !STORE.loadWorlds) return null;
+        var list = STORE.loadWorlds();
+        list = Array.isArray(list) ? list : [];
+        var wid = activeWorldId.value;
+        for (var i = 0; i < list.length; i++) {
+          var w = list[i];
+          if (w && (w.id === wid || w.worldId === wid)) return w;
+        }
+        return null;
+      }
+
+      /* 對當前世界物件進行變更並存回（確保容器欄位存在）。 */
+      function mutateActiveWorld(fn) {
+        var w = getFullActiveWorld();
+        if (!w) { sharedError.value = "尚未選定世界，無法儲存設定。"; return false; }
+        if (!Array.isArray(w.entities)) w.entities = [];
+        if (!Array.isArray(w.eras)) w.eras = [];
+        if (!w.rules || typeof w.rules !== "object") w.rules = { allowPactFamiliar: false };
+        try {
+          fn(w);
+          STORE.upsertWorld(w);
+        } catch (e) {
+          sharedError.value = "儲存世界設定失敗：" + (e && e.message ? e.message : e);
+          return false;
+        }
+        refreshWorlds();
+        return true;
+      }
+
+      /* ---- entity 讀取（相對 activeWorld reactive） ---- */
+      var worldEntities = computed(function () {
+        return (activeWorld.value && Array.isArray(activeWorld.value.entities))
+          ? activeWorld.value.entities : [];
+      });
+      var currentEntities = computed(function () {
+        var t = worldsetView.value;
+        return worldEntities.value.filter(function (e) { return e && e.type === t; });
+      });
+      var currentTypeMeta = computed(function () {
+        return ENTITY_TYPES[worldsetView.value] || null;
+      });
+
+      /* ---- entity CRUD ---- */
+      var showEntityForm = ref(false);
+      var editingEntity = ref(null);   /* 工作副本 */
+
+      function blankEntity(type) {
+        return {
+          id: "", type: type, name: "", status: "active", story: "", notes: "",
+          objective: "", reward: "", state: "進行中",   /* quest */
+          region: "",                                     /* location */
+          trigger: ""                                      /* event */
+        };
+      }
+
+      function openModule(m) {
+        if (!m) return;
+        if (m.key === "rules") { worldsetView.value = "rules"; return; }
+        var typeMap = { npc: "npc", quest: "quest", clue: "clue", place: "location", event: "event" };
+        worldsetView.value = typeMap[m.key] || m.key;
+      }
+      function closeWorldsetView() { worldsetView.value = ""; }
+
+      function openAddEntity(type) {
+        editingEntity.value = blankEntity(type || worldsetView.value);
+        showEntityForm.value = true;
+      }
+      function openEditEntity(e) {
+        if (!e) return;
+        var copy = blankEntity(e.type);
+        copy.id = e.id;
+        copy.name = e.name || "";
+        copy.status = e.status || "active";
+        copy.story = e.story || "";
+        copy.notes = e.notes || "";
+        copy.objective = e.objective || "";
+        copy.reward = e.reward || "";
+        copy.state = e.state || "進行中";
+        copy.region = e.region || "";
+        copy.trigger = e.trigger || "";
+        editingEntity.value = copy;
+        showEntityForm.value = true;
+      }
+      function cancelEntityForm() {
+        showEntityForm.value = false;
+        editingEntity.value = null;
+      }
+      function saveEntity() {
+        var e = editingEntity.value;
+        if (!e) return;
+        var name = (e.name || "").trim();
+        if (!name) return;
+        mutateActiveWorld(function (w) {
+          var now = Date.now();
+          var rec = e.id ? w.entities.find(function (x) { return x.id === e.id; }) : null;
+          if (!rec) {
+            rec = { id: eid("e"), type: e.type, createdAt: now };
+            w.entities.push(rec);
+          }
+          rec.type = e.type;
+          rec.name = name;
+          rec.status = e.status || "active";
+          rec.story = e.story || "";
+          rec.notes = e.notes || "";
+          rec.updatedAt = now;
+          /* 輕量專屬欄位（keep small） */
+          if (e.type === "quest") {
+            rec.objective = e.objective || "";
+            rec.reward = e.reward || "";
+            rec.state = e.state || "進行中";
+          } else if (e.type === "location") {
+            rec.region = e.region || "";
+          } else if (e.type === "event") {
+            rec.trigger = e.trigger || "";
+          }
+        });
+        showEntityForm.value = false;
+        editingEntity.value = null;
+      }
+      function deleteEntity(e) {
+        if (!e || !e.id) return;
+        mutateActiveWorld(function (w) {
+          w.entities = w.entities.filter(function (x) { return x.id !== e.id; });
+        });
+      }
+
+      function statusMeta(v) {
+        for (var i = 0; i < STATUS_OPTIONS.length; i++) {
+          if (STATUS_OPTIONS[i].v === v) return STATUS_OPTIONS[i];
+        }
+        return STATUS_OPTIONS[0];
+      }
+
+      /* ============================================================
+         紀元節點管理（線性；§10.6）
+         world.eras: [{ id, name, parentId, summary, order, canon:true }]
+         world.currentEraId；新節點 parentId = 目前 currentEra（線性往後長）。
+         預留但不做：fork / diff 還原 / 紀元樹視圖。
+         ============================================================ */
+      var worldEras = computed(function () {
+        var a = (activeWorld.value && Array.isArray(activeWorld.value.eras))
+          ? activeWorld.value.eras.slice() : [];
+        a.sort(function (x, y) { return (x.order || 0) - (y.order || 0); });
+        return a;
+      });
+      var currentEraId = computed(function () {
+        return activeWorld.value ? (activeWorld.value.currentEraId || "") : "";
+      });
+      var newEraName = ref("");
+      var newEraSummary = ref("");
+
+      function addEra() {
+        var name = (newEraName.value || "").trim();
+        var summary = (newEraSummary.value || "").trim();
+        mutateActiveWorld(function (w) {
+          if (!name) name = "紀元 " + (w.eras.length + 1);
+          var maxOrder = w.eras.reduce(function (m, x) { return Math.max(m, x.order || 0); }, 0);
+          var parentId = w.eras.length ? (w.currentEraId || null) : null;
+          var era = {
+            id: eid("era"), name: name, parentId: parentId,
+            summary: summary, order: maxOrder + 1, canon: true
+          };
+          w.eras.push(era);
+          w.currentEraId = era.id;   /* 新節點成為當前（線性往後推進） */
+        });
+        newEraName.value = "";
+        newEraSummary.value = "";
+      }
+      function renameEra(era) {
+        if (!era) return;
+        var nn = (typeof window !== "undefined" && window.prompt)
+          ? window.prompt("重新命名紀元：", era.name || "") : null;
+        if (nn == null) return;
+        nn = String(nn).trim();
+        if (!nn) return;
+        mutateActiveWorld(function (w) {
+          var t = w.eras.find(function (x) { return x.id === era.id; });
+          if (t) t.name = nn;
+        });
+      }
+      function setCurrentEra(era) {
+        if (!era) return;
+        mutateActiveWorld(function (w) { w.currentEraId = era.id; });
+      }
+      /* 調整順序：與相鄰節點交換 order（dir: -1 上移 / +1 下移） */
+      function moveEra(era, dir) {
+        if (!era) return;
+        var sorted = worldEras.value;
+        var idx = sorted.findIndex(function (x) { return x.id === era.id; });
+        var swapIdx = idx + dir;
+        if (idx < 0 || swapIdx < 0 || swapIdx >= sorted.length) return;
+        var aId = sorted[idx].id, bId = sorted[swapIdx].id;
+        mutateActiveWorld(function (w) {
+          var a = w.eras.find(function (x) { return x.id === aId; });
+          var b = w.eras.find(function (x) { return x.id === bId; });
+          if (a && b) { var t = a.order; a.order = b.order; b.order = t; }
+        });
+      }
+      function deleteEra(era) {
+        if (!era) return;
+        var hasChild = worldEras.value.some(function (x) { return x.parentId === era.id; });
+        if (hasChild && typeof window !== "undefined" && window.confirm) {
+          if (!window.confirm("此紀元有子節點，子節點將重接到上層。仍要刪除？")) return;
+        }
+        mutateActiveWorld(function (w) {
+          var t = w.eras.find(function (x) { return x.id === era.id; });
+          var newParent = t ? (t.parentId || null) : null;
+          w.eras.forEach(function (x) { if (x.parentId === era.id) x.parentId = newParent; });
+          w.eras = w.eras.filter(function (x) { return x.id !== era.id; });
+          if (w.currentEraId === era.id) {
+            w.currentEraId = newParent || (w.eras.length ? w.eras[w.eras.length - 1].id : "");
+          }
+        });
+      }
+
+      /* ============================================================
+         世界規則開關（world.rules；首個 allowPactFamiliar 預設 false）
+         ============================================================ */
+      var worldRules = computed(function () {
+        var r = (activeWorld.value && activeWorld.value.rules) || {};
+        return { allowPactFamiliar: !!r.allowPactFamiliar };
+      });
+      function toggleRule(key) {
+        mutateActiveWorld(function (w) {
+          if (!w.rules || typeof w.rules !== "object") w.rules = {};
+          w.rules[key] = !w.rules[key];
+        });
+      }
+
       /* 入口卡點擊：帶 nav 的卡導航到對應分頁（如世界設定）；
          其餘佔位卡顯示「即將推出」提示（不實作 CRUD）。 */
       function openEntry(e) {
@@ -280,6 +546,7 @@
       function goTab(key) {
         currentTab.value = key;
         drawerOpen.value = false;
+        if (key === "worldset") worldsetView.value = "";   /* 進入世界設定回到模組格 */
       }
 
       /* ---- firebase：只「備妥」不開團（Step 3 才 createRoom） ---- */
@@ -311,6 +578,34 @@
         worldsetModules: worldsetModules,
         viewTitle: viewTitle,
         goTab: goTab,
+        /* §10 世界設定：entity CRUD + 紀元節點 + 規則 */
+        STATUS_OPTIONS: STATUS_OPTIONS,
+        QUEST_STATE_OPTIONS: QUEST_STATE_OPTIONS,
+        worldsetView: worldsetView,
+        openModule: openModule,
+        closeWorldsetView: closeWorldsetView,
+        currentTypeMeta: currentTypeMeta,
+        worldEntities: worldEntities,
+        currentEntities: currentEntities,
+        showEntityForm: showEntityForm,
+        editingEntity: editingEntity,
+        openAddEntity: openAddEntity,
+        openEditEntity: openEditEntity,
+        cancelEntityForm: cancelEntityForm,
+        saveEntity: saveEntity,
+        deleteEntity: deleteEntity,
+        statusMeta: statusMeta,
+        worldEras: worldEras,
+        currentEraId: currentEraId,
+        newEraName: newEraName,
+        newEraSummary: newEraSummary,
+        addEra: addEra,
+        renameEra: renameEra,
+        setCurrentEra: setCurrentEra,
+        moveEra: moveEra,
+        deleteEra: deleteEra,
+        worldRules: worldRules,
+        toggleRule: toggleRule,
         ready: ready,
         sharedError: sharedError,
         worlds: worlds,
