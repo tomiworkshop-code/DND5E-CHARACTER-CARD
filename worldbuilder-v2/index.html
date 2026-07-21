@@ -773,6 +773,8 @@
                 </div>
               </div>
               <div class="flex items-center gap-1 shrink-0">
+                <button class="icon-btn icon-btn-primary" title="套用"
+                        data-testid="tpl-apply" @click="openApplyTemplate(t)"><span class="ib-icon">🎯</span><span>套用</span></button>
                 <button class="icon-btn icon-btn-ghost icon-btn-icon-only" title="編輯"
                         data-testid="tpl-edit" @click="openEditTemplate(t)">✏️</button>
                 <button class="icon-btn icon-btn-ghost icon-btn-icon-only" title="刪除"
@@ -1032,6 +1034,73 @@
               <span class="ib-icon">✕</span><span>取消</span>
             </button>
           </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ===== 模板套用 Modal（Step 4.3：揃變數 → 搜尋式選擇器 → 可編輯預覽） ===== -->
+    <transition name="overlay">
+      <div v-if="showApplyForm" class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+           data-testid="tpl-apply-modal">
+        <div class="fixed inset-0 bg-black/40" @click="cancelApply"></div>
+        <div class="relative z-10 w-full max-w-md p-4 rounded-xl border shadow-2xl overflow-y-auto"
+             style="background:var(--bg-surface); border-color:var(--border); max-height:90vh;">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xl">🎯</span>
+            <h3 class="font-bold">套用：{{ applyState.name || '模板' }}</h3>
+            <span class="status-badge st-hidden ml-auto">{{ tplKindMeta(applyState.kind).icon }} {{ tplKindMeta(applyState.kind).label }}</span>
+          </div>
+
+          <!-- 逐變數：搜尋式選擇器（軟過濾 + 顯示全部 + 自由輸入） -->
+          <div v-for="v in applyState.vars" :key="v.name" class="mb-3 p-2 rounded-lg border" style="border-color:var(--border);" data-testid="apply-var-block">
+            <div class="flex items-center gap-2 mb-1">
+              <code class="text-xs">{{ '{' + v.name + '}' }}</code>
+              <span class="text-xs" style="color:var(--text-muted);">{{ tplHintMeta(applyVarHint(v.name)).icon }} {{ tplHintMeta(applyVarHint(v.name)).label }}</span>
+              <button class="icon-btn icon-btn-ghost text-xs ml-auto" data-testid="apply-toggle-all"
+                      @click="toggleApplyShowAll(v.name)">{{ applyState.showAll[v.name] ? '✅ 全部來源' : '🔍 顯示全部' }}</button>
+            </div>
+            <!-- 自由輸入 / 搜尋框（當下值） -->
+            <input type="text" :value="applyState.values[v.name] || ''" data-testid="apply-value-input"
+                   :placeholder="'輸入或選下方…'"
+                   @input="setApplyValue(v.name, $event.target.value); setApplySearch(v.name, $event.target.value)"
+                   class="w-full px-2 py-1 rounded border text-sm mb-1" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+            <!-- 候選清單 -->
+            <div class="flex flex-wrap gap-1" data-testid="apply-candidates">
+              <button v-for="c in applyCandidates(v.name)" :key="c.src + ':' + c.name"
+                      class="status-badge st-active" style="cursor:pointer;" data-testid="apply-candidate"
+                      @click="setApplyValue(v.name, c.name)">{{ c.name }}<span v-if="c.sub" style="opacity:.6;">·{{ c.sub }}</span></button>
+              <span v-if="!applyCandidates(v.name).length" class="text-xs" style="color:var(--text-muted);">（無候選，直接輸入）</span>
+            </div>
+          </div>
+
+          <!-- 可編輯預覽 -->
+          <label class="block text-xs mb-1" style="color:var(--text-muted);">預覽（可手改）
+            <button class="icon-btn icon-btn-ghost text-xs ml-1" data-testid="apply-regen" @click="regenApplyText">↺ 重新帶入變數</button>
+          </label>
+          <textarea :value="applyState.finalText" @input="onApplyTextEdit($event.target.value)" rows="3" data-testid="apply-preview"
+                    class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border);"></textarea>
+          <p v-if="applyMissing.length" class="text-xs mb-2" style="color:#c0392b;" data-testid="apply-missing">
+            ⚠️ 尚未填：{{ applyMissing.map(function(n){ return '{' + n + '}'; }).join('、') }}
+          </p>
+
+          <!-- 指令預覽 -->
+          <div v-if="applyCommandPreview" class="p-2 rounded-lg border mb-2 text-sm" style="border-color:var(--border);" data-testid="apply-cmd-preview">
+            <div>⚙️ {{ tplCmdMeta(applyCommandPreview.type).icon }} {{ tplCmdMeta(applyCommandPreview.type).label }}
+              <span v-if="applyCommandPreview.amount">：{{ applyCommandPreview.amount }}</span></div>
+            <div class="mt-0.5">🧑 對象：{{ applyCommandPreview.targetName || '（未選）' }}
+              <span v-if="applyCommandPreview.targetName && applyCommandPreview.targetIsRoster" style="color:#2e7d32;" data-testid="apply-cmd-ok">✅ 連線玩家</span>
+              <span v-else-if="applyCommandPreview.targetName" style="color:#c0392b;" data-testid="apply-cmd-warn">⚠️ 非連線玩家（指令無法執行）</span></div>
+          </div>
+
+          <div class="flex gap-2">
+            <button class="icon-btn icon-btn-primary icon-btn-block" data-testid="apply-confirm" @click="confirmApply">
+              <span class="ib-icon">✅</span><span>確認（待發送）</span>
+            </button>
+            <button class="icon-btn" @click="cancelApply">
+              <span class="ib-icon">✕</span><span>取消</span>
+            </button>
+          </div>
+          <p class="text-xs mt-2" style="color:var(--text-muted);">ℹ️ 實際發送與指令執行將於 4.4 接上。</p>
         </div>
       </div>
     </transition>

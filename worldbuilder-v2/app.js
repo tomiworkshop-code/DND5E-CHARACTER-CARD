@@ -9,7 +9,7 @@
   "use strict";
 
   /* DM v2 版本字串（與玩家端獨立；Build 號遞增） */
-  var APP_VERSION = "DM v2.5.2 (Build 0721.11)";
+  var APP_VERSION = "DM v2.5.3 (Build 0721.12)";
 
   /* ============================================================
      §6 資料隔離：前綴命名空間 storage adapter（Step 1.5，維持有效）
@@ -485,6 +485,121 @@
       function tplKindMeta(v) { var a = TPL ? TPL.KINDS : []; for (var i = 0; i < a.length; i++) if (a[i].v === v) return a[i]; return { v: v, label: v, icon: "" }; }
       function tplHintMeta(v) { var a = TPL ? TPL.HINTS : []; for (var i = 0; i < a.length; i++) if (a[i].v === v) return a[i]; return { v: v, label: v, icon: "" }; }
       function tplCmdMeta(v) { var a = TPL ? TPL.COMMAND_TYPES : []; for (var i = 0; i < a.length; i++) if (a[i].v === v) return a[i]; return { v: v, label: v, icon: "" }; }
+
+      /* ============================================================
+         Step 4.3 套用流程（揃變數 → 搜尋式選擇器 → 可編輯預覽 → 確認）
+         軟過濾：依 hint 預設篩選候選池，但每個變數都可「顯示全部/自由輸入」。
+         confirmApply 只「暗定」成 stagedApply（實際發送/執行留給 4.4）。
+         ============================================================ */
+      var showApplyForm = ref(false);
+      var stagedApply = ref(null);   /* 4.3 暗定結果；4.4 接手發送 */
+      var applyState = Vue.reactive({
+        tplId: "", name: "", kind: "broadcast", text: "", vars: [], command: null,
+        values: {}, search: {}, showAll: {}, finalText: "", edited: false
+      });
+      function openApplyTemplate(t) {
+        if (!t || !TPL) return;
+        applyState.tplId = t.id || "";
+        applyState.name = t.name || "";
+        applyState.kind = t.kind || "broadcast";
+        applyState.text = t.text || "";
+        applyState.vars = Array.isArray(t.vars) ? t.vars : [];
+        applyState.command = (t.command && t.command.type) ? t.command : null;
+        applyState.values = {};
+        applyState.search = {};
+        applyState.showAll = {};
+        applyState.finalText = t.text || "";
+        applyState.edited = false;
+        showApplyForm.value = true;
+      }
+      function cancelApply() { showApplyForm.value = false; }
+      function applyVarHint(name) {
+        var v = (applyState.vars || []).find(function (x) { return x && x.name === name; });
+        return v && v.hint ? v.hint : (TPL ? TPL.guessHint(name) : "free");
+      }
+      /* 候選池：依 hint 取對應來源（需時才算） */
+      function poolFor(hint) {
+        var out = [];
+        if (hint === "roster") {
+          (rosterList.value || []).forEach(function (p) {
+            out.push({ name: p.name || ("玩家" + (p.pid || "")), sub: "Lv" + (p.level || "?") + (p.hp != null ? (" HP" + p.hp) : ""), src: "roster", pid: p.pid, characterId: p.characterId });
+          });
+        } else if (hint === "monster") {
+          (encounterMonsters.value || []).forEach(function (m) {
+            out.push({ name: m.name, sub: m.encounterName || "遭遇", src: "monster" });
+          });
+        } else if (["npc", "location", "quest", "clue", "event"].indexOf(hint) >= 0) {
+          worldEntities.value.filter(function (e) { return e.type === hint; }).forEach(function (e) {
+            out.push({ name: e.name, sub: (ENTITY_TYPES[hint] ? ENTITY_TYPES[hint].label : hint), src: hint });
+          });
+        }
+        return out;
+      }
+      function allPool() {
+        return poolFor("roster")
+          .concat(poolFor("npc")).concat(poolFor("location")).concat(poolFor("quest"))
+          .concat(poolFor("clue")).concat(poolFor("event")).concat(poolFor("monster"));
+      }
+      /* 給定變數名 → 候選清單（軟過濾 + 搜尋，上限 30） */
+      function applyCandidates(name) {
+        var base = applyState.showAll[name] ? allPool() : poolFor(applyVarHint(name));
+        var q = String(applyState.search[name] || "").trim().toLowerCase();
+        if (q) base = base.filter(function (c) { return String(c.name || "").toLowerCase().indexOf(q) >= 0; });
+        return base.slice(0, 30);
+      }
+      function regenApplyText() {
+        applyState.finalText = TPL ? TPL.applyValues(applyState.text, applyState.values) : applyState.text;
+        applyState.edited = false;
+      }
+      function setApplyValue(name, val) {
+        applyState.values[name] = val;
+        if (!applyState.edited) regenApplyText();
+      }
+      function onApplyTextEdit(txt) { applyState.finalText = txt; applyState.edited = true; }
+      function toggleApplyShowAll(name) { applyState.showAll[name] = !applyState.showAll[name]; }
+      function setApplySearch(name, q) { applyState.search[name] = q; }
+      var applyMissing = computed(function () {
+        if (!TPL) return [];
+        var vals = applyState.values;
+        /* 直接讀 vals[n]（反應性 get → 才能被追蹤；hasOwnProperty 不觸發追蹤） */
+        return TPL.scanVars(applyState.text).filter(function (n) {
+          var v = vals[n];
+          return v == null || v === "";
+        });
+      });
+      /* 指令預覽：解析對象(必為 roster) + 數值/物品 */
+      function rosterByName(nm) {
+        if (!nm) return null;
+        return (rosterList.value || []).find(function (p) { return (p.name || "") === nm; }) || null;
+      }
+      var applyCommandPreview = computed(function () {
+        var c = applyState.command;
+        if (!c || applyState.kind !== "command") return null;
+        var targetName = c.targetVar ? applyState.values[c.targetVar] : "";
+        var amount = c.amountVar ? applyState.values[c.amountVar] : "";
+        var target = rosterByName(targetName);
+        return {
+          type: c.type,
+          amount: amount,
+          targetName: targetName || "",
+          targetIsRoster: !!target,
+          target: target
+        };
+      });
+      function confirmApply() {
+        if (!TPL) return;
+        var cp = applyCommandPreview.value;
+        stagedApply.value = {
+          tplId: applyState.tplId,
+          kind: applyState.kind,
+          text: applyState.finalText,
+          values: JSON.parse(JSON.stringify(applyState.values)),
+          command: cp ? { type: cp.type, amount: cp.amount, targetName: cp.targetName, targetIsRoster: cp.targetIsRoster, pid: cp.target ? cp.target.pid : "", characterId: cp.target ? cp.target.characterId : "" } : null,
+          at: Date.now()
+        };
+        showApplyForm.value = false;
+        return stagedApply.value;
+      }
 
       /* ---- entity CRUD ---- */
       var showEntityForm = ref(false);
@@ -1073,6 +1188,22 @@
         tplKindMeta: tplKindMeta,
         tplHintMeta: tplHintMeta,
         tplCmdMeta: tplCmdMeta,
+        /* 4.3 套用流程 */
+        showApplyForm: showApplyForm,
+        applyState: applyState,
+        stagedApply: stagedApply,
+        openApplyTemplate: openApplyTemplate,
+        cancelApply: cancelApply,
+        applyVarHint: applyVarHint,
+        applyCandidates: applyCandidates,
+        setApplyValue: setApplyValue,
+        onApplyTextEdit: onApplyTextEdit,
+        toggleApplyShowAll: toggleApplyShowAll,
+        setApplySearch: setApplySearch,
+        regenApplyText: regenApplyText,
+        applyMissing: applyMissing,
+        applyCommandPreview: applyCommandPreview,
+        confirmApply: confirmApply,
         showEntityForm: showEntityForm,
         editingEntity: editingEntity,
         openAddEntity: openAddEntity,
@@ -1121,6 +1252,7 @@
         closeRoom: closeRoom,
         copyRoomCode: copyRoomCode,
         /* Step 3.2 Roster */
+        rosterMap: rosterMap,
         rosterList: rosterList,
         selectedPlayer: selectedPlayer,
         openPlayerDetail: openPlayerDetail,

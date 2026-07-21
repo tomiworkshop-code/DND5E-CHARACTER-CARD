@@ -31,10 +31,11 @@
 - [x] 測試 + push。
 - 實作：⚔️ 指令中心分頁=模板庫（卡片列：kind badge/command badge/內文/變數chips + 編輯/刪除 + 回復內建）；新增/編輯 Modal（名稱/類型/內文 + 變數即時偵測逐項標 hint + command綁定type/amountVar/targetVar，附紅線提示）。test `test_dmv2_step4_tpl_ui.js`(26)。
 
-## 4.3 套用流程
-- [ ] 選模板 → 掃出 `{變數}` → 每變數生搜尋式選擇器（依 hint 預設過濾，可切全部/自由輸入；`{playerName}` 自動帶入已選 roster 目標）。
-- [ ] 變數代入 → 可編輯預覽框。
-- [ ] 測試 + push。
+## 4.3 套用流程 — ✅ 完成 (DM v2.5.3 / Build 0721.12)
+- [x] 選模板 → 掃出 `{變數}` → 每變數生搜尋式選擇器（依 hint 預設過濾，可切全部/自由輸入；`{playerName}` 自動帶入已選 roster 目標）。
+- [x] 變數代入 → 可編輯預覽框。
+- [x] 測試 + push。
+- 實作：🎯 套用 Modal — 逐變數搜尋式選擇器(依hint取候選池:roster玩家/世界實體/遭遇怪物;showAll切全部;search過濾;可自由輸入) + 即時代入可編輯預覽(手改鎖edited不覆蓋/↺重新代入) + applyMissing缺值提示 + command預覽(解析對象必為roster+數值,非roster顯紅字警告) + confirmApply→stagedApply(4.4才真發送)。踩坑:Vue computed 裡 hasOwnProperty 不觸發追蹤→改直接讀 vals[n]。test `test_dmv2_step4_apply.js`(23)。
 
 ## 4.4 對接發送 + 指令執行
 - [ ] broadcast/inbox/command 三通道；指令對象＝roster 玩家；`{monsterName}` 接遭遇攤平清單。
