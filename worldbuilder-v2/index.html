@@ -220,14 +220,15 @@
               </div>
             </div>
 
-            <!-- 戰役內容入口卡（佔位；Step 2b 才實作 CRUD） -->
-            <h3 class="text-sm font-semibold mb-2" style="color:var(--text-muted);">戰役內容</h3>
-            <div class="grid grid-cols-3 sm:grid-cols-3 gap-3" data-testid="landing-entry-cards">
+            <!-- §9.6 landing 以「活動/紀錄」為主：出團記錄 + 玩家記錄；
+                 世界觀設定模組收進「⚙️ 世界設定」入口卡（佔位；CRUD 留 Step 2b/3）。 -->
+            <h3 class="text-sm font-semibold mb-2" style="color:var(--text-muted);">世界首頁</h3>
+            <div class="grid grid-cols-3 gap-3" data-testid="landing-entry-cards">
               <button v-for="e in entryCards" :key="e.key" class="entry-card"
                       :data-entry="e.key" @click="openEntry(e)">
                 <span class="entry-icon">{{ e.icon }}</span>
                 <span class="entry-label">{{ e.label }}</span>
-                <span class="entry-sub">即將推出</span>
+                <span class="entry-sub">{{ e.sub }}</span>
               </button>
             </div>
           </div>
@@ -246,15 +247,27 @@
           </div>
         </section>
 
-        <!-- ③ 戰役管理（placeholder） -->
-        <section v-show="currentTab === 'campaign'">
-          <!-- TODO(dm-v2-spec Step 2b)：NPC / 任務 / 線索 / 地點 / 事件 CRUD + 規則設定區
-               （首個開關 world.rules.allowPactFamiliar，預設 false）。 -->
-          <div class="p-6 rounded-xl border border-dashed text-center"
+        <!-- ③ §9.6 世界設定（收世界觀設定模組；本次僅佔位入口，CRUD 留 Step 2b） -->
+        <section v-show="currentTab === 'worldset'">
+          <div v-if="!activeWorld" class="p-6 rounded-xl border border-dashed text-center"
                style="border-color:var(--border); color:var(--text-muted);">
-            <div class="text-4xl mb-2">🧩</div>
-            <p class="font-medium mb-1">即將推出</p>
-            <p class="text-sm">NPC／任務／線索／地點／事件 CRUD 與規則設定將於 Step 2b 實作。</p>
+            <div class="text-4xl mb-2">🌍</div>
+            <p class="text-sm">請先於右上「換世界」選定或新增一個世界。</p>
+          </div>
+          <div v-else data-testid="worldset-modules">
+            <p class="text-sm mb-3" style="color:var(--text-muted);">
+              「{{ activeWorld.name }}」的世界觀設定模組（NPC／任務／線索／地點／事件／規則）。
+              <br>CRUD 與規則開關（allowPactFamiliar 等）將於 Step 2b 實作。
+            </p>
+            <!-- TODO(dm-v2-spec Step 2b)：各模組 CRUD + world.rules.allowPactFamiliar（預設 false）。 -->
+            <div class="grid grid-cols-3 gap-3">
+              <button v-for="m in worldsetModules" :key="m.key" class="entry-card"
+                      :data-module="m.key" @click="openEntry(m)">
+                <span class="entry-icon">{{ m.icon }}</span>
+                <span class="entry-label">{{ m.label }}</span>
+                <span class="entry-sub">即將推出</span>
+              </button>
+            </div>
           </div>
         </section>
 

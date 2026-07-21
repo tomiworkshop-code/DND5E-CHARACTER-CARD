@@ -1,6 +1,7 @@
 /* test_dmv2_shell.js
  * 敘事者之書 DM v2 — Step 2a 外殼重構驗證：
- *  §9.1 world-landing 主畫面 + 佔位入口卡（NPC/任務/線索/地點/事件/世界設定）
+ *  §9.1/§9.6 world-landing 主畫面 + 三入口卡（出團記錄/玩家記錄/世界設定）；
+ *          世界觀設定模組（NPC/任務/線索/地點/事件/規則）收進「世界設定」分頁
  *  §9.2 右上「換世界」切換器（點擊開世界浮動選單；單步清單 + 新增世界）
  *  §9.3 版本徽章在選單面板底部、且不在 header
  *  §9.4 圖示按鈕系統（導覽/主要動作用圖示）
@@ -64,11 +65,22 @@ setTimeout(() => {
   const asideMenu = versionBadge && versionBadge.closest('aside');
   ok('版本徽章位於選單抽屜/側欄 (aside) 內', !!asideMenu);
 
-  /* ---- §9.1 landing 佔位入口卡 ---- */
+  /* ---- §9.6 landing 三入口卡（活動/紀錄導向） ---- */
   ok('landing 為預設分頁', vm && vm.currentTab === 'landing');
-  ok('entryCards 定義 6 張佔位卡', vm && Array.isArray(vm.entryCards) && vm.entryCards.length === 6);
-  ['NPC', '任務', '線索', '地點', '事件', '世界設定'].forEach((label) => {
-    ok('入口卡含：' + label, vm && vm.entryCards.some((e) => e.label === label));
+  ok('entryCards 定義 3 張入口卡', vm && Array.isArray(vm.entryCards) && vm.entryCards.length === 3);
+  ['出團記錄', '玩家記錄', '世界設定'].forEach((label) => {
+    ok('landing 入口卡含：' + label, vm && vm.entryCards.some((e) => e.label === label));
+  });
+  // 世界觀設定模組不在 landing（收進世界設定）
+  ['NPC', '任務', '線索', '地點', '事件'].forEach((label) => {
+    ok('landing 不直接列世界觀模組：' + label,
+      vm && !vm.entryCards.some((e) => e.label === label));
+  });
+  ok('worldsetModules 定義 6 個世界觀模組',
+    vm && Array.isArray(vm.worldsetModules) && vm.worldsetModules.length === 6);
+  ['NPC', '任務', '線索', '地點', '事件', '世界規則'].forEach((label) => {
+    ok('世界設定模組含：' + label,
+      vm && vm.worldsetModules.some((m) => m.label === label));
   });
   // 尚無世界時 landing 顯示空狀態 + 建立第一個世界
   ok('無世界時顯示 landing 空狀態',
@@ -111,10 +123,18 @@ setTimeout(() => {
       ok('landing 入口卡容器存在',
         !!doc.querySelector('[data-testid="landing-entry-cards"]'));
 
-      /* ---- 點入口卡 → Step 2b 即將推出提示（不做 CRUD） ---- */
-      vm.openEntry({ key: 'npc', label: 'NPC' });
+      /* ---- 點「世界設定」入口卡 → 導航到 worldset 分頁（列世界觀模組） ---- */
+      const wsCard = vm.entryCards.find((e) => e.key === 'worldset');
+      vm.openEntry(wsCard);
       vm.$nextTick(() => setTimeout(() => {
-        ok('點入口卡顯示「即將推出」提示', /即將推出/.test(vm.comingSoon));
+        ok('點世界設定卡導航至 worldset 分頁', vm.currentTab === 'worldset');
+        ok('worldset 分頁渲染世界觀模組',
+          !!doc.querySelector('[data-testid="worldset-modules"]'));
+        vm.currentTab = 'landing';
+
+        /* ---- 點一般入口卡 → 即將推出提示（不做 CRUD） ---- */
+        vm.openEntry({ key: 'sessionlog', label: '出團記錄' });
+        ok('點出團記錄卡顯示「即將推出」提示', /即將推出/.test(vm.comingSoon));
 
         /* ---- 切換世界走 setActiveWorld（dmv2: adapter） ---- */
         vm.newWorldName = '第二世界';

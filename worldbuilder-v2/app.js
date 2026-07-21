@@ -131,7 +131,7 @@
       var tabs = [
         { key: "landing", icon: "🌍", label: "世界" },
         { key: "session", icon: "🔗", label: "開團" },
-        { key: "campaign", icon: "📚", label: "戰役" },
+        { key: "worldset", icon: "🗺️", label: "世界設定" },
         { key: "command", icon: "🎛️", label: "指令" },
         { key: "settings", icon: "⚙️", label: "設定" }
       ];
@@ -141,21 +141,29 @@
       var comingSoon = ref("");        /* landing 入口卡點擊提示 */
       var comingSoonTimer = null;
 
-      /* landing 佔位入口卡（§9.1；Step 2b 才實作 CRUD） */
+      /* §9.6 landing 入口卡（活動/紀錄導向；本次僅佔位，CRUD 留 Step 2b/3）
+         ⚙️ 世界設定卡點進切到 worldset 分頁（收世界觀設定模組）。 */
       var entryCards = [
+        { key: "sessionlog", icon: "📜", label: "出團記錄", sub: "Step 2b 即將推出" },
+        { key: "players", icon: "👥", label: "玩家記錄", sub: "Step 3 即將推出" },
+        { key: "worldset", icon: "⚙️", label: "世界設定", sub: "進入設定模組", nav: "worldset" }
+      ];
+
+      /* 世界設定分頁內的模組（§9.6；本次佔位，Step 2b 實作 CRUD） */
+      var worldsetModules = [
         { key: "npc", icon: "👤", label: "NPC" },
         { key: "quest", icon: "📜", label: "任務" },
         { key: "clue", icon: "🔍", label: "線索" },
         { key: "place", icon: "📍", label: "地點" },
         { key: "event", icon: "⚡", label: "事件" },
-        { key: "worldset", icon: "⚙️", label: "世界設定" }
+        { key: "rules", icon: "📏", label: "世界規則" }
       ];
 
       /* 當前頁標題（header 中央顯示） */
       var titleMap = {
         landing: "世界儀表板",
         session: "開團連線",
-        campaign: "戰役管理",
+        worldset: "世界設定",
         command: "指令中心",
         settings: "設定"
       };
@@ -259,9 +267,11 @@
         return titleMap[currentTab.value] || "敘事者之書 DM";
       });
 
-      /* landing 入口卡點擊 → 提示 Step 2b 即將推出（不實作 CRUD） */
+      /* 入口卡點擊：帶 nav 的卡導航到對應分頁（如世界設定）；
+         其餘佔位卡顯示「即將推出」提示（不實作 CRUD）。 */
       function openEntry(e) {
-        comingSoon.value = "「" + (e && e.label ? e.label : "此功能") + "」Step 2b 即將推出";
+        if (e && e.nav) { goTab(e.nav); return; }
+        comingSoon.value = "「" + (e && e.label ? e.label : "此功能") + "」即將推出";
         if (comingSoonTimer) clearTimeout(comingSoonTimer);
         comingSoonTimer = setTimeout(function () { comingSoon.value = ""; }, 1800);
       }
@@ -298,6 +308,7 @@
         switcherOpen: switcherOpen,
         comingSoon: comingSoon,
         entryCards: entryCards,
+        worldsetModules: worldsetModules,
         viewTitle: viewTitle,
         goTab: goTab,
         ready: ready,

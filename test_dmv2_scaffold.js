@@ -1,7 +1,7 @@
 /* test_dmv2_scaffold.js
  * 敘事者之書 DM v2 地基冒煙測試（Step 2a 後更新）：
  *  - 頁面掛載無 JS 錯誤
- *  - 五個導覽分頁殼存在（landing/開團/戰役/指令/設定）
+ *  - 五個導覽分頁殼存在（landing/開團/世界設定/指令/設定）
  *  - 預設進入 landing（世界儀表板）
  *  - 共用腳本就緒檢查不報錯
  *  - 世界列表實功能：新增一筆並成為 active world
@@ -52,7 +52,7 @@ setTimeout(() => {
 
   // 五個分頁殼
   ok('分頁定義為 5 個', vm && Array.isArray(vm.tabs) && vm.tabs.length === 5);
-  ['landing', 'session', 'campaign', 'command', 'settings'].forEach((k) => {
+  ['landing', 'session', 'worldset', 'command', 'settings'].forEach((k) => {
     ok('分頁 key 存在：' + k, vm && vm.tabs.some((t) => t.key === k));
   });
 
