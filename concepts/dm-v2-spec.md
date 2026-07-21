@@ -36,16 +36,38 @@
 - **Step 4：指令中心 + 模板**：扣血/治療/XP/金幣/給物品/情報，即時血條回饋；
   訊息模板系統（見 §4）。
 
-## 3. 完整快照 + 提案/定案流程（Step 3 詳規，先記錄方向）
-- **玩家端**（未來配合改 `buildPlayerSnapshot`）：除現有 Tier1(name/level/hp/ac)，
-  增送「完整 mechanical + narrative 摘要」或直接寫入 `rooms/{id}/saves/{characterId}`
-  的 proposal 欄位（沿用現有 `players[pid].proposal.m/n` + saves 通道，不新造平行結構）。
-- **DM 端**：
-  - roster 顯示完整資訊（唯讀檢視）。
-  - 「📥 採納為世界存檔」＝直接套用玩家提案到 DM 世界存檔（已有雛形 `adoptWorldSave`）。
-  - **新增**：DM 就地編輯數值 → 存為 DM 權威版（version_m 前進）→ 透過 saves 通道
-    回送玩家（玩家端 handleRemoteSave 已支援版本裁決/衝突 UI）。
-- 契約：玩家改動一律「提案」；DM 是機制面 version_m 權威；未定案不動 DM 正史。
+## 3. 完整快照 + 提案/定案流程 — ✅ 已實作 (Step 3，2026-07-21)
+> 實作版本：DM v2.4.0 (Build 0721.8) / 玩家版 v2.2.5。施工清單見 `dm-v2-step3-checklist.md`。
+
+### 3.1 玩家端完整快照（`v2/app.js` `buildPlayerSnapshot`）
+- Tier1 頂層不變（name/level/characterId/hp{current,max,temp}/ac），新增巢狀 `full` 區：
+  abilities/profBonus/initiative/saves/skills(18)/passivePerception/familiars/inventory(已裝備優先)/narrative(截斷)/classes…
+- `full.sync = {version_m, version_n}`（讀玩家本機 instance）— 供 DM 判定回送版本基準。
+- 全段 try/catch：full 建構丟例外→退回純 Tier1，絕不中斷 join/上傳。
+
+### 3.2 DM Roster（`worldbuilder-v2`）
+- `onPlayers` 訂閱 → rosterList（名/等/HP/AC、依 joinedAt 排序）；點卡開唯讀詳情抽尜。
+- 舊版無 full 降級顯示；即時同步；關房退訂清空。
+
+### 3.3 提案 → 定案
+- roster/抽尜標「📝未定案」/「✅已定案 (v_m N)」。
+- **📥 採納為世界存檔**：玩家提案寫入 DM 正史 `world.charSaves[characterId]`（dmv2 隔離、純接受、不回送）。
+- **✏️ 就地編輯定案**：DM 改 HP(cur/max/temp)/AC → `version_m` 前進 → `setSave(db,roomId,cid,{hp,ac,_sync})`
+  只送**最小 partial save** 回送 → 玩家端 handleRemoteSave/mergeInstance 採用。
+- **【安全紅線】** 回送只帶 DM 改動的 schema 欄位；`applyZone` 只套「存在的 key」，
+  故玩家的技能/背包/魔寵/敘事完整保留，絕不被快照摘要版覆蓋損壞（專測 `test_dmv2_step3_finalize.js`）。
+
+### 3.4 玩家快照落地備份（§7 基礎）
+- onPlayers 推播時 `archiveRoster()` → `world.playerSaves[characterId] = {latest,latestTs,history[上限10],firstSeen,lastSeen}`。
+- 「👥 玩家記錄」分頁：列本世界快照 → 點入詳情+歷史；關房後備份仍保留（供恢復）。
+
+### 契約與儲存（實際落地）
+- 玩家改動一律「提案」；DM 是機制面 version_m 權威；未定案不動 DM 正史。
+- DM 本地儲存（均 dmv2: 隔離，不污染玩家版）：
+  - `world.charSaves[cid]` = DM 正史定案（adopted/edited + `_sync`）。
+  - `world.playerSaves[cid]` = 快照備份（latest + 精簡 history）。
+- Firebase 回送通道：`rooms/{id}/saves/{characterId}`（`DND5E_ROOM.setSave/onSave`），內容為攤平 (flattened) char 欄位 + `_sync`。
+- 待辦（順延 §7 / Step 4）：快照「回送恢復」UI（DM 主動把備份推回玩家）；專用 proposal 雙向衝突審核（防作弊方向性）。
 
 ## 4. 訊息模板系統（Step 4 詳規，先記錄方向）
 - 動機：DM 臨場不必逐字打；尤其「擲骰結果 → 對應訊息/效果」。
