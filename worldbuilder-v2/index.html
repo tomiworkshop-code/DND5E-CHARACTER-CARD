@@ -32,6 +32,7 @@
       --text-main: #2c2116;
       --text-muted: #7a6a55;
       --accent: #7c5a3a;
+      --accent-soft: #efe4cf;
       --border: #e4d7bd;
     }
     body { background-color: var(--bg-base); color: var(--text-main); font-family: sans-serif; }
@@ -42,25 +43,110 @@
     .drawer-enter-from, .drawer-leave-to { transform: translateX(-100%); }
     .overlay-enter-active, .overlay-leave-active { transition: opacity 0.28s ease; }
     .overlay-enter-from, .overlay-leave-to { opacity: 0; }
+    .pop-enter-active, .pop-leave-active { transition: opacity 0.18s ease, transform 0.18s ease; }
+    .pop-enter-from, .pop-leave-to { opacity: 0; transform: translateY(-6px) scale(0.98); }
+
+    /* ============================================================
+       §9.4 圖示按鈕系統 — 可重用樣式集中一處（換皮只改這裡）
+       icon-btn：所有主要動作按鈕的共用基底；變體用 modifier class。
+       ============================================================ */
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      padding: 0.5rem 0.85rem; border-radius: 0.65rem; font-size: 0.875rem;
+      font-weight: 600; line-height: 1.1; border: 1px solid var(--border);
+      background: var(--bg-surface); color: var(--text-main); cursor: pointer;
+      transition: opacity 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+      -webkit-tap-highlight-color: transparent; user-select: none;
+    }
+    .icon-btn:active { opacity: 0.75; }
+    .icon-btn .ib-icon { font-size: 1.15em; line-height: 1; }
+    .icon-btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .icon-btn-ghost { background: transparent; border-color: transparent; padding: 0.4rem; }
+    .icon-btn-pill { border-radius: 9999px; }
+    .icon-btn-icon-only { padding: 0.45rem; }
+    .icon-btn-block { width: 100%; }
+
+    /* §9.1 landing 佔位入口卡（圖示卡） */
+    .entry-card {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.5rem; padding: 1.1rem 0.75rem; border-radius: 0.9rem;
+      border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main);
+      cursor: pointer; text-align: center; transition: transform 0.1s ease, box-shadow 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .entry-card:active { transform: scale(0.98); }
+    .entry-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+    .entry-card .entry-icon { font-size: 1.9rem; line-height: 1; }
+    .entry-card .entry-label { font-weight: 600; font-size: 0.9rem; }
+    .entry-card .entry-sub { font-size: 0.7rem; color: var(--text-muted); }
   </style>
 </head>
 <body>
   <div id="app" class="min-h-screen flex flex-col" v-cloak>
 
-    <!-- ===== 頂部標題列 ===== -->
-    <header class="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 shadow-sm"
+    <!-- ===== §9.2 頂部 sticky header：左☰ / 中標題 / 右「換世界」膠囊 ===== -->
+    <header class="sticky top-0 z-30 flex items-center gap-3 px-3 sm:px-4 py-3 shadow-sm"
             style="background:var(--accent); color:#fff;">
-      <!-- 漢堡（手機顯示，md 以上隱藏） -->
-      <button class="md:hidden text-2xl leading-none px-1 -ml-1 active:opacity-70"
-              aria-label="開啟選單" @click="drawerOpen = true">☰</button>
-      <div class="flex items-baseline gap-2 min-w-0">
-        <h1 class="text-lg font-bold truncate">📖 敘事者之書 <span class="opacity-80">DM</span></h1>
-        <span class="text-[11px] px-2 py-0.5 rounded-full bg-black/20 whitespace-nowrap">{{ APP_VERSION }}</span>
-      </div>
-      <div class="ml-auto text-xs opacity-90 truncate max-w-[40%]" v-if="activeWorldName">
-        🌍 {{ activeWorldName }}
-      </div>
+      <!-- 左：☰ 選單（圖示按鈕，手機開抽屜；平板已有側欄但仍可作標題錨點） -->
+      <button class="icon-btn icon-btn-ghost icon-btn-icon-only md:hidden text-2xl"
+              style="color:#fff;" aria-label="開啟選單" @click="drawerOpen = true">☰</button>
+
+      <!-- 中：當前頁標題 -->
+      <h1 class="text-base sm:text-lg font-bold truncate">{{ viewTitle }}</h1>
+
+      <!-- 右：換世界膠囊（顯示當前世界名 + ▼） -->
+      <button class="icon-btn icon-btn-pill ml-auto max-w-[52%]"
+              style="background:rgba(255,255,255,0.16); color:#fff; border-color:rgba(255,255,255,0.28);"
+              aria-label="換世界" data-testid="world-switcher-btn"
+              @click="switcherOpen = !switcherOpen">
+        <span class="ib-icon">🌍</span>
+        <span class="truncate">{{ activeWorldName || '選擇世界' }}</span>
+        <span class="text-xs opacity-80">▼</span>
+      </button>
     </header>
+
+    <!-- ===== §9.2 右上角換世界浮動選單（半透明遮罩 + 圓角浮卡；單步世界清單） ===== -->
+    <transition name="overlay">
+      <div v-if="switcherOpen" class="fixed inset-0 z-50 flex items-start justify-end pt-16 pr-3 sm:pr-4"
+           data-testid="world-switcher-menu">
+        <div class="fixed inset-0 bg-black/30 backdrop-blur-sm" @click="switcherOpen = false"></div>
+        <transition name="pop">
+          <div v-if="switcherOpen"
+               class="relative z-10 w-72 max-h-[70vh] flex flex-col rounded-xl shadow-2xl border overflow-hidden"
+               style="background:var(--bg-surface); border-color:var(--border);">
+            <div class="flex items-center justify-between px-3 py-2 border-b"
+                 style="background:var(--accent-soft); border-color:var(--border);">
+              <span class="font-bold text-sm" style="color:var(--accent);">🌍 切換世界</span>
+              <button class="icon-btn icon-btn-ghost icon-btn-icon-only" aria-label="關閉"
+                      @click="switcherOpen = false">✕</button>
+            </div>
+            <div class="overflow-y-auto p-2 space-y-1">
+              <button v-for="w in worlds" :key="w.id"
+                      class="w-full flex items-center gap-3 p-2 rounded-lg text-left transition active:opacity-70"
+                      :style="w.id === activeWorldId ? 'background:var(--accent-soft)' : ''"
+                      @click="switchWorld(w)">
+                <span class="w-8 h-8 rounded-lg flex items-center justify-center text-lg shrink-0"
+                      style="background:var(--bg-base);">🌍</span>
+                <span class="flex-1 truncate">
+                  <span class="block font-semibold text-sm truncate">{{ w.name || '(未命名世界)' }}</span>
+                  <span class="block text-xs truncate" style="color:var(--text-muted);">{{ w.note || '（無備註）' }}</span>
+                </span>
+                <span v-if="w.id === activeWorldId" class="text-xs" style="color:var(--accent);">✔</span>
+              </button>
+              <div v-if="!worlds.length" class="p-4 text-center text-sm" style="color:var(--text-muted);">
+                尚無世界，先新增一個吧。
+              </div>
+              <div class="pt-2 mt-1 border-t" style="border-color:var(--border);">
+                <button class="icon-btn icon-btn-block" style="border-style:dashed; color:var(--accent);"
+                        data-testid="switcher-add-world" @click="openAddWorld">
+                  <span class="ib-icon">＋</span><span>新增世界</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </div>
+    </transition>
 
     <!-- 共用腳本未就緒的友善錯誤（除錯用） -->
     <div v-if="sharedError" class="m-4 p-3 rounded-lg border text-sm"
@@ -70,97 +156,85 @@
     </div>
 
     <div class="flex flex-1 min-h-0">
-      <!-- ===== 平板/寬螢幕側欄（md 以上顯示） ===== -->
-      <aside class="hidden md:flex md:flex-col w-56 shrink-0 border-r p-3 gap-1"
+      <!-- ===== 平板/寬螢幕側欄（md 以上顯示；含版本徽章於底部） ===== -->
+      <aside class="hidden md:flex md:flex-col w-56 shrink-0 border-r p-3"
              style="background:var(--bg-surface); border-color:var(--border);">
-        <nav-list :tabs="tabs" :current="currentTab" @go="goTab"></nav-list>
+        <menu-panel :tabs="tabs" :current="currentTab" :version="APP_VERSION"
+                    @go="goTab"></menu-panel>
       </aside>
 
-      <!-- ===== 手機抽屜 ===== -->
+      <!-- ===== 手機抽屜（含版本徽章於底部 §9.3） ===== -->
       <transition name="overlay">
         <div v-if="drawerOpen" class="md:hidden fixed inset-0 z-40 bg-black/40"
              @click="drawerOpen = false"></div>
       </transition>
       <transition name="drawer">
         <aside v-if="drawerOpen"
-               class="md:hidden fixed top-0 left-0 z-50 h-full w-64 p-3 flex flex-col gap-1 shadow-xl"
+               class="md:hidden fixed top-0 left-0 z-50 h-full w-64 p-3 flex flex-col shadow-xl"
                style="background:var(--bg-surface);">
           <div class="flex items-center justify-between px-1 pb-2 mb-1 border-b"
                style="border-color:var(--border);">
             <span class="font-bold" style="color:var(--accent);">選單</span>
-            <button class="text-2xl leading-none px-1 active:opacity-70"
+            <button class="icon-btn icon-btn-ghost icon-btn-icon-only text-2xl"
                     aria-label="關閉選單" @click="drawerOpen = false">×</button>
           </div>
-          <nav-list :tabs="tabs" :current="currentTab" @go="goTab"></nav-list>
+          <menu-panel :tabs="tabs" :current="currentTab" :version="APP_VERSION"
+                      @go="goTab"></menu-panel>
         </aside>
       </transition>
 
       <!-- ===== 主要內容區 ===== -->
       <main class="flex-1 min-w-0 p-4 max-w-3xl mx-auto w-full">
 
-        <!-- ① 世界/劇本列表（唯一實作的實功能） -->
-        <section v-show="currentTab === 'worlds'">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-xl font-bold">🌍 世界 / 劇本</h2>
-            <button class="px-3 py-2 rounded-lg text-white text-sm font-semibold active:opacity-80"
-                    style="background:var(--accent);" @click="showAddWorld = !showAddWorld">
-              ＋ 新增世界
+        <!-- ① §9.1 世界 Landing（主畫面 = 當前世界儀表板） -->
+        <section v-show="currentTab === 'landing'">
+          <!-- 空狀態：尚未選/建任何世界 -->
+          <div v-if="!activeWorld" class="text-center py-14 rounded-xl border border-dashed"
+               style="border-color:var(--border); color:var(--text-muted);"
+               data-testid="landing-empty">
+            <div class="text-5xl mb-3">🗺️</div>
+            <p class="mb-1 font-medium" style="color:var(--text-main);">尚未有任何世界</p>
+            <p class="text-sm mb-4">建立你的第一個世界，開始編織這段傳說。</p>
+            <button class="icon-btn icon-btn-primary" data-testid="landing-create-first"
+                    @click="openAddWorld">
+              <span class="ib-icon">✨</span><span>建立第一個世界</span>
             </button>
           </div>
 
-          <!-- 新增世界表單 -->
-          <div v-if="showAddWorld" class="mb-4 p-3 rounded-xl border"
-               style="background:var(--bg-surface); border-color:var(--border);">
-            <label class="block text-xs mb-1" style="color:var(--text-muted);">世界名稱</label>
-            <input v-model="newWorldName" type="text" placeholder="例：破碎群島戰役"
-                   class="w-full px-3 py-2 rounded-lg border mb-2 text-base"
-                   style="border-color:var(--border);"
-                   @keyup.enter="addWorld">
-            <label class="block text-xs mb-1" style="color:var(--text-muted);">備註（可留空）</label>
-            <input v-model="newWorldNote" type="text" placeholder="一句話描述這個世界…"
-                   class="w-full px-3 py-2 rounded-lg border mb-3 text-base"
-                   style="border-color:var(--border);">
-            <div class="flex gap-2">
-              <button class="flex-1 px-3 py-2 rounded-lg text-white text-sm font-semibold active:opacity-80"
-                      style="background:var(--accent);" @click="addWorld">建立</button>
-              <button class="px-3 py-2 rounded-lg text-sm border active:opacity-70"
-                      style="border-color:var(--border);" @click="cancelAddWorld">取消</button>
+          <!-- 已選世界：儀表板 landing -->
+          <div v-else data-testid="landing-dashboard">
+            <div class="p-4 rounded-xl border mb-4"
+                 style="background:var(--bg-surface); border-color:var(--border);">
+              <div class="flex items-start gap-2">
+                <span class="text-3xl">🌍</span>
+                <div class="min-w-0">
+                  <h2 class="text-xl font-bold truncate">{{ activeWorld.name || '(未命名世界)' }}</h2>
+                  <p class="text-sm mt-0.5" style="color:var(--text-muted);">
+                    {{ activeWorld.note || '（尚無備註）' }}
+                  </p>
+                </div>
+                <button class="icon-btn icon-btn-pill ml-auto shrink-0"
+                        data-testid="landing-switch" @click="switcherOpen = true">
+                  <span class="ib-icon">🔀</span><span class="hidden sm:inline">換世界</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 戰役內容入口卡（佔位；Step 2b 才實作 CRUD） -->
+            <h3 class="text-sm font-semibold mb-2" style="color:var(--text-muted);">戰役內容</h3>
+            <div class="grid grid-cols-3 sm:grid-cols-3 gap-3" data-testid="landing-entry-cards">
+              <button v-for="e in entryCards" :key="e.key" class="entry-card"
+                      :data-entry="e.key" @click="openEntry(e)">
+                <span class="entry-icon">{{ e.icon }}</span>
+                <span class="entry-label">{{ e.label }}</span>
+                <span class="entry-sub">即將推出</span>
+              </button>
             </div>
           </div>
-
-          <!-- 空狀態 -->
-          <div v-if="!worlds.length" class="text-center py-12 rounded-xl border border-dashed"
-               style="border-color:var(--border); color:var(--text-muted);">
-            <div class="text-4xl mb-2">🗺️</div>
-            <p class="mb-1 font-medium">還沒有任何世界</p>
-            <p class="text-sm">點右上角「＋ 新增世界」開始你的第一個戰役。</p>
-          </div>
-
-          <!-- 世界卡片列表 -->
-          <ul v-else class="grid gap-3 sm:grid-cols-2">
-            <li v-for="w in worlds" :key="w.id"
-                class="p-3 rounded-xl border cursor-pointer transition active:scale-[0.99]"
-                :style="worldCardStyle(w)"
-                @click="selectWorld(w)">
-              <div class="flex items-center gap-2">
-                <span class="font-semibold truncate">{{ w.name || '(未命名世界)' }}</span>
-                <span v-if="w.id === activeWorldId"
-                      class="text-[10px] px-2 py-0.5 rounded-full text-white shrink-0"
-                      style="background:var(--accent);">使用中</span>
-                <span v-if="w.type"
-                      class="ml-auto text-[10px] px-2 py-0.5 rounded-full shrink-0"
-                      style="background:var(--bg-base); color:var(--text-muted);">{{ w.type }}</span>
-              </div>
-              <p class="text-sm mt-1 truncate" style="color:var(--text-muted);">
-                {{ w.note || '（無備註）' }}
-              </p>
-            </li>
-          </ul>
         </section>
 
         <!-- ② 開團連線（placeholder） -->
         <section v-show="currentTab === 'session'">
-          <h2 class="text-xl font-bold mb-3">🔗 開團連線</h2>
           <!-- TODO(dm-v2-spec Step 3)：createRoom + QR、roster 吃「完整快照」、
                提案 vs 定案流程（adoptWorldSave / DM 就地編輯回送 saves 通道）。 -->
           <div class="p-6 rounded-xl border border-dashed text-center"
@@ -174,20 +248,18 @@
 
         <!-- ③ 戰役管理（placeholder） -->
         <section v-show="currentTab === 'campaign'">
-          <h2 class="text-xl font-bold mb-3">📚 戰役管理</h2>
-          <!-- TODO(dm-v2-spec Step 2)：NPC / 任務 / 線索 / 地點 CRUD + 規則設定區
+          <!-- TODO(dm-v2-spec Step 2b)：NPC / 任務 / 線索 / 地點 / 事件 CRUD + 規則設定區
                （首個開關 world.rules.allowPactFamiliar，預設 false）。 -->
           <div class="p-6 rounded-xl border border-dashed text-center"
                style="border-color:var(--border); color:var(--text-muted);">
             <div class="text-4xl mb-2">🧩</div>
             <p class="font-medium mb-1">即將推出</p>
-            <p class="text-sm">NPC／任務／線索／地點 CRUD 與規則設定將於 Step 2 實作。</p>
+            <p class="text-sm">NPC／任務／線索／地點／事件 CRUD 與規則設定將於 Step 2b 實作。</p>
           </div>
         </section>
 
         <!-- ④ 指令中心（placeholder） -->
         <section v-show="currentTab === 'command'">
-          <h2 class="text-xl font-bold mb-3">🎛️ 指令中心</h2>
           <!-- TODO(dm-v2-spec Step 4)：扣血/治療/XP/金幣/給物品/情報 + 即時血條回饋、
                訊息模板系統（roll table，需 shared/dice.js）。 -->
           <div class="p-6 rounded-xl border border-dashed text-center"
@@ -200,10 +272,8 @@
 
         <!-- ⑤ 設定 -->
         <section v-show="currentTab === 'settings'">
-          <h2 class="text-xl font-bold mb-3">⚙️ 設定</h2>
           <div class="p-4 rounded-xl border space-y-2 text-sm"
                style="background:var(--bg-surface); border-color:var(--border);">
-            <div class="flex justify-between"><span style="color:var(--text-muted);">版本</span><span>{{ APP_VERSION }}</span></div>
             <div class="flex justify-between"><span style="color:var(--text-muted);">character-schema</span><span>{{ ready.char ? '✅' : '❌' }}</span></div>
             <div class="flex justify-between"><span style="color:var(--text-muted);">store</span><span>{{ ready.store ? '✅' : '❌' }}</span></div>
             <div class="flex justify-between"><span style="color:var(--text-muted);">room</span><span>{{ ready.room ? '✅' : '❌' }}</span></div>
@@ -217,6 +287,46 @@
 
       </main>
     </div>
+
+    <!-- ===== 新增世界 Modal（landing / 換世界選單皆可觸發） ===== -->
+    <transition name="overlay">
+      <div v-if="showAddWorld" class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+           data-testid="add-world-modal">
+        <div class="fixed inset-0 bg-black/40" @click="cancelAddWorld"></div>
+        <div class="relative z-10 w-full max-w-sm p-4 rounded-xl border shadow-2xl"
+             style="background:var(--bg-surface); border-color:var(--border);">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xl">✨</span>
+            <h3 class="font-bold">新增世界</h3>
+          </div>
+          <label class="block text-xs mb-1" style="color:var(--text-muted);">世界名稱</label>
+          <input v-model="newWorldName" type="text" placeholder="例：破碎群島戰役"
+                 class="w-full px-3 py-2 rounded-lg border mb-2 text-base"
+                 style="border-color:var(--border);" @keyup.enter="addWorld">
+          <label class="block text-xs mb-1" style="color:var(--text-muted);">備註（可留空）</label>
+          <input v-model="newWorldNote" type="text" placeholder="一句話描述這個世界…"
+                 class="w-full px-3 py-2 rounded-lg border mb-3 text-base"
+                 style="border-color:var(--border);">
+          <div class="flex gap-2">
+            <button class="icon-btn icon-btn-primary icon-btn-block" @click="addWorld">
+              <span class="ib-icon">✅</span><span>建立</span>
+            </button>
+            <button class="icon-btn" @click="cancelAddWorld">
+              <span class="ib-icon">✕</span><span>取消</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ===== 「即將推出」提示（點 landing 入口卡） ===== -->
+    <transition name="overlay">
+      <div v-if="comingSoon" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full shadow-lg text-sm"
+           style="background:var(--text-main); color:#fff;" data-testid="coming-soon-toast">
+        {{ comingSoon }}
+      </div>
+    </transition>
+
   </div>
 
   <script src="./app.js"></script>
