@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>世界紀元樹 World Era Tree</title>
+<style>
+  html,body{margin:0;padding:0;background:#f4f6f8;}
+  .wrap{width:1200px;height:820px;background:#ffffff;font-family:"Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif;}
+  svg{display:block;}
+  text{fill:#1f2937;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<svg width="1200" height="820" viewBox="0 0 1200 820" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arw" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 z" fill="#475569"/>
+    </marker>
+    <marker id="arwO" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 z" fill="#d97706"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="40" y="52" font-size="30" font-weight="700">🌳 世界紀元樹（World Era Tree）</text>
+  <text x="42" y="82" font-size="17" fill="#6b7280">世界像一棵可展開的樹．角色永遠活在「當下的節點」．分支＝平行世界，不是把時間倒帶</text>
+
+  <!-- ================= CONNECTORS (draw first) ================= -->
+  <!-- canon line E0->E1->E2 -->
+  <path d="M212,250 L268,250" stroke="#2563eb" stroke-width="3.5" fill="none" marker-end="url(#arw)"/>
+  <path d="M452,250 L508,250" stroke="#2563eb" stroke-width="3.5" fill="none" marker-end="url(#arw)"/>
+  <!-- fork E1 -> B1 -->
+  <path d="M360,300 C360,380 400,420 508,438" stroke="#d97706" stroke-width="3.5" stroke-dasharray="8 5" fill="none" marker-end="url(#arwO)"/>
+  <!-- team anchors -->
+  <path d="M712,250 L760,250" stroke="#059669" stroke-width="3" fill="none" marker-end="url(#arw)"/>
+  <path d="M742,438 L790,438" stroke="#059669" stroke-width="3" fill="none" marker-end="url(#arw)"/>
+
+  <!-- canon label -->
+  <text x="300" y="188" font-size="15" fill="#2563eb" font-weight="700">主線 · 正史（canon）</text>
+  <text x="405" y="360" font-size="15" fill="#d97706" font-weight="700">fork 開新分支（DM 決定）</text>
+
+  <!-- ================= NODES ================= -->
+  <!-- E0 -->
+  <rect x="40" y="210" width="172" height="86" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="60" y="242" font-size="18" font-weight="700">E0 · 世界誕生</text>
+  <text x="60" y="268" font-size="13.5" fill="#475569">初始設定：城鎮、</text>
+  <text x="60" y="287" font-size="13.5" fill="#475569">NPC、勢力就位</text>
+
+  <!-- E1 -->
+  <rect x="268" y="210" width="184" height="86" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="288" y="242" font-size="18" font-weight="700">E1 · 邊境動亂</text>
+  <text x="288" y="268" font-size="13.5" fill="#475569">變化(diff)：獸人入侵、</text>
+  <text x="288" y="287" font-size="13.5" fill="#475569">邊境村莊示警</text>
+
+  <!-- E2 (current canon) -->
+  <rect x="508" y="204" width="204" height="98" rx="12" fill="#dbeafe" stroke="#1d4ed8" stroke-width="3"/>
+  <text x="528" y="236" font-size="18" font-weight="700">E2 · 北城陷落後</text>
+  <text x="528" y="262" font-size="13.5" fill="#475569">diff：北城🔥被毀、</text>
+  <text x="528" y="281" font-size="13.5" fill="#475569">領主陣亡</text>
+  <text x="528" y="298" font-size="12.5" fill="#1d4ed8" font-weight="700">◀ 目前正史（current）</text>
+
+  <!-- B1 branch -->
+  <rect x="508" y="396" width="234" height="86" rx="12" fill="#fff7ed" stroke="#d97706" stroke-width="2.5"/>
+  <text x="528" y="428" font-size="17" font-weight="700" fill="#b45309">B1 · 平行線：北城未陷</text>
+  <text x="528" y="454" font-size="13.5" fill="#7c2d12">diff：玩家守住北城、</text>
+  <text x="528" y="473" font-size="13.5" fill="#7c2d12">領主存活（另一個現實）</text>
+
+  <!-- Team A -->
+  <rect x="760" y="218" width="176" height="64" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+  <text x="780" y="245" font-size="16" font-weight="700" fill="#065f46">🎲 團 A</text>
+  <text x="780" y="268" font-size="13" fill="#047857">錨定在 E2 上繼續冒險</text>
+
+  <!-- Team B -->
+  <rect x="790" y="406" width="176" height="64" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+  <text x="810" y="433" font-size="16" font-weight="700" fill="#065f46">🎲 團 B</text>
+  <text x="810" y="456" font-size="13" fill="#047857">錨定在 B1 這條分支</text>
+
+  <!-- ================= DM DECISION ================= -->
+  <rect x="40" y="560" width="600" height="150" rx="14" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+  <text x="64" y="592" font-size="19" font-weight="700" fill="#b45309">🧙 DM 的決定：一場團打完之後…</text>
+  <text x="64" y="624" font-size="15" fill="#78350f">團的結果會改變世界。若和正史衝突，DM 二選一：</text>
+  <text x="80" y="655" font-size="15" fill="#1d4ed8" font-weight="700">① 併入主線 → 推進正史（canon 往前長一個節點）</text>
+  <text x="80" y="683" font-size="15" fill="#b45309" font-weight="700">② 開新分支 → fork 一條平行世界（不影響主線）</text>
+
+  <!-- ================= LEGEND / KEY IDEAS ================= -->
+  <rect x="668" y="560" width="492" height="150" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="692" y="592" font-size="18" font-weight="700">重點觀念</text>
+  <text x="692" y="622" font-size="14" fill="#334155">• 每個節點只記「相對上一節點的變化(diff)」，超省空間</text>
+  <text x="692" y="648" font-size="14" fill="#334155">• 地點/NPC 各自帶著經歷演進（存在→已毀→改變…）</text>
+  <text x="692" y="674" font-size="14" fill="#334155">• 玩家角色進度是「另一層」，餵養團所在的節點</text>
+  <text x="692" y="700" font-size="14" fill="#334155">• 死亡回溯／穿越 = 從某節點開分支，不是倒帶時間線</text>
+
+  <!-- color legend row -->
+  <rect x="40" y="740" width="18" height="18" rx="4" fill="#dbeafe" stroke="#1d4ed8"/>
+  <text x="66" y="755" font-size="13.5" fill="#334155">主線紀元節點</text>
+  <rect x="210" y="740" width="18" height="18" rx="4" fill="#fff7ed" stroke="#d97706"/>
+  <text x="236" y="755" font-size="13.5" fill="#334155">分支/平行世界</text>
+  <rect x="380" y="740" width="18" height="18" rx="4" fill="#ecfdf5" stroke="#059669"/>
+  <text x="406" y="755" font-size="13.5" fill="#334155">團（錨定在某節點）</text>
+  <line x1="560" y1="749" x2="600" y2="749" stroke="#d97706" stroke-width="3" stroke-dasharray="8 5"/>
+  <text x="610" y="755" font-size="13.5" fill="#334155">fork（DM 開分支）</text>
+</svg>
+</div>
+</body>
+</html>
