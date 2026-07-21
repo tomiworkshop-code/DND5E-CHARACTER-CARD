@@ -5,12 +5,14 @@
 ## 檔案
 - `world-era-tree.(png|html)` + `draw_era_tree.py`：世界紀元樹（主線/分支/團錨定/DM 決策）。
 - `era-layers.png` + `draw_layers.py`：三層互動（玩家角色記錄 × 紀元樹節點 × 任務 × NPC/地點）。
+- `dm-management-map.png` + `draw_dm_map.py`：DM 管理地圖（世界層/素材庫/設計冒險/開團運行 + 紀元樹回饋）。
 
 ## 重繪
 需系統有 NotoSansTC 字型（`~/.fonts/NotoSansTC-{Bold,Regular}.otf`）與 Python Pillow：
 ```
 python3 draw_era_tree.py
 python3 draw_layers.py
+python3 draw_dm_map.py
 ```
 
 對應規格：`concepts/dm-v2-spec.md` §10（世界紀元樹）、§9.6（landing）、§7（玩家快照）。
