@@ -9,7 +9,7 @@
   "use strict";
 
   /* DM v2 版本字串（與玩家端獨立；Build 號遞增） */
-  var APP_VERSION = "DM v2.3.2 (Build 0721.7)";
+  var APP_VERSION = "DM v2.4.0 (Build 0721.8)";
 
   /* ============================================================
      §6 資料隔離：前綴命名空間 storage adapter（Step 1.5，維持有效）
@@ -667,6 +667,90 @@
         if (!rec || !rec.latest) return;
         selectedPlayer.value = Object.assign({}, rec.latest, { pid: rec.pid || "", _record: rec });
       }
+
+      /* ============================================================
+         §3 提案 → 定案（Step 3.3）
+         契約：玩家快照 = 「提案」；DM = 機制面 version_m 權威；未定案不動 DM 正史。
+         DM 正史存於 world.charSaves[characterId]（dmv2 隱離）；未定案 = charSaves 無此角。
+         ⚠️ 回送只送「最小 partial save」（僅 DM 改動的 schema 欄位 + _sync），
+            因 applyZone 只套「存在的 key」，不會用摘要版覆蓋玩家完整的
+            技能/背包/魔寵（避免損壞玩家資料）。
+         ============================================================ */
+      function charSaveFor(cid) {
+        var cs = (activeWorld.value && activeWorld.value.charSaves) || {};
+        return cid ? (cs[cid] || null) : null;
+      }
+      /* version_m/n 基準 = max(玩家提案版, DM 正史版) */
+      function versionBase(player, cid) {
+        var pv = (player && player.full && player.full.sync) ? player.full.sync : { version_m: 0, version_n: 0 };
+        var canon = charSaveFor(cid);
+        var cv = (canon && canon._sync) ? canon._sync : { version_m: 0, version_n: 0 };
+        return { version_m: Math.max(pv.version_m || 0, cv.version_m || 0), version_n: Math.max(pv.version_n || 0, cv.version_n || 0) };
+      }
+
+      /* 📥 採納為世界存檔：接受玩家提案為 DM 正史（不改版本、不回送，因玩家端無需變更）。 */
+      function adoptProposal(player) {
+        if (!player || !player.characterId) { roomError.value = "此玩家無 characterId，無法定案。"; return false; }
+        var cid = player.characterId;
+        var base = versionBase(player, cid);
+        return mutateActiveWorld(function (w) {
+          if (!w.charSaves || typeof w.charSaves !== "object") w.charSaves = {};
+          w.charSaves[cid] = {
+            characterId: cid, name: player.name || "", source: "adopted",
+            proposal: JSON.parse(JSON.stringify(player.full || {})),
+            hp: player.hp ? { current: Number(player.hp.current) || 0, max: Number(player.hp.max) || 0, temp: Number(player.hp.temp) || 0 } : null,
+            ac: (player.ac != null ? Number(player.ac) : null),
+            _sync: { version_m: base.version_m, version_n: base.version_n },
+            adoptedAt: Date.now(), updatedAt: Date.now()
+          };
+        });
+      }
+
+      /* ✒️ 就地編輯定案：只開放 HP(current/max/temp) 與 AC（快照可靠提供的欄位）。
+       * 不開放 xp/技能/背包 — 快照未帶或為摘要，避免回送時誤歸零/截斷玩家資料。 */
+      var editForm = ref({ open: false, characterId: "", name: "", hp: { current: 0, max: 0, temp: 0 }, ac: 10, _player: null });
+      function openEditFinalize(player) {
+        if (!player || !player.characterId) { roomError.value = "此玩家無 characterId，無法定案。"; return; }
+        var canon = charSaveFor(player.characterId);
+        var hp = (canon && canon.hp) || player.hp || { current: 0, max: 0, temp: 0 };
+        var ac = (canon && canon.ac != null) ? canon.ac : (player.ac != null ? player.ac : 10);
+        editForm.value = {
+          open: true, characterId: player.characterId, name: player.name || "", _player: player,
+          hp: { current: Number(hp.current) || 0, max: Number(hp.max) || 0, temp: Number(hp.temp) || 0 },
+          ac: Number(ac) || 10
+        };
+      }
+      function closeEditFinalize() { editForm.value = Object.assign({}, editForm.value, { open: false }); }
+      function submitEditFinalize() {
+        var f = editForm.value;
+        if (!f.open || !f.characterId) return false;
+        var cid = f.characterId;
+        var base = versionBase(f._player, cid);
+        var newVm = (base.version_m || 0) + 1;   /* DM 權威推進 version_m */
+        var partial = {
+          hp: { current: Number(f.hp.current) || 0, max: Number(f.hp.max) || 0, temp: Number(f.hp.temp) || 0 },
+          ac: Number(f.ac) || 10,
+          _sync: { version_m: newVm, version_n: base.version_n }
+        };
+        /* 1) 寫 DM 正史 canon */
+        mutateActiveWorld(function (w) {
+          if (!w.charSaves || typeof w.charSaves !== "object") w.charSaves = {};
+          var prev = w.charSaves[cid] || { characterId: cid };
+          w.charSaves[cid] = Object.assign({}, prev, {
+            characterId: cid, name: f.name || prev.name || "", source: "edited",
+            hp: partial.hp, ac: partial.ac, _sync: partial._sync,
+            finalizedAt: Date.now(), updatedAt: Date.now()
+          });
+        });
+        /* 2) 回送玩家（僅開房 + Firebase 可用；否則只落 DM 正史）—— 只送 partial，不損玩家完整資料 */
+        var pushed = false;
+        if (fb && fb.db && ROOM && ROOM.setSave && roomId.value) {
+          try { ROOM.setSave(fb.db, roomId.value, cid, partial); pushed = true; }
+          catch (e) { roomError.value = "回送失敗：" + (e && e.message ? e.message : e); }
+        }
+        editForm.value = { open: false, characterId: "", name: "", hp: { current: 0, max: 0, temp: 0 }, ac: 10, _player: null };
+        return pushed;
+      }
       function unsubscribeRoster() {
         if (rosterUnsub) { try { rosterUnsub(); } catch (e) {} rosterUnsub = null; }
         rosterMap.value = {};
@@ -848,7 +932,14 @@
         /* Step 3.4 玩家快照備份 */
         archiveRoster: archiveRoster,
         playerRecords: playerRecords,
-        openPlayerRecord: openPlayerRecord
+        openPlayerRecord: openPlayerRecord,
+        /* Step 3.3 提案/定案 */
+        charSaveFor: charSaveFor,
+        adoptProposal: adoptProposal,
+        editForm: editForm,
+        openEditFinalize: openEditFinalize,
+        closeEditFinalize: closeEditFinalize,
+        submitEditFinalize: submitEditFinalize
       };
     }
   });

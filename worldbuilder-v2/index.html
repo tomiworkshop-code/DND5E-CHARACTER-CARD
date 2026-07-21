@@ -364,8 +364,9 @@
                     <span>❤️ {{ (p.hp && p.hp.current) || 0 }}/{{ (p.hp && p.hp.max) || 0 }}</span>
                     <span>🛡️ {{ p.ac || 10 }}</span>
                   </div>
-                  <div class="text-xs mt-1" :style="p.full ? 'color:var(--accent);' : 'color:var(--text-muted);'">
-                    {{ p.full ? '點看完整資料 ›' : '（僅 Tier1）' }}
+                  <div class="flex items-center justify-between text-xs mt-1">
+                    <span :style="p.full ? 'color:var(--accent);' : 'color:var(--text-muted);'">{{ p.full ? '點看完整資料 ›' : '（僅 Tier1）' }}</span>
+                    <span data-testid="roster-finalize-badge" :style="charSaveFor(p.characterId) ? 'color:var(--accent);' : 'color:var(--text-muted);'">{{ charSaveFor(p.characterId) ? '✅定案' : '📝未定案' }}</span>
                   </div>
                 </button>
               </div>
@@ -442,6 +443,24 @@
                 <div class="text-xs" style="color:var(--text-muted);">被動察覺</div>
                 <div class="font-bold" style="color:var(--text);">{{ selectedPlayer.full ? selectedPlayer.full.passivePerception : '—' }}</div>
               </div>
+            </div>
+
+            <!-- Step 3.3 提案/定案行動列（只需 characterId；玩家記錄回看 _record 不顯示） -->
+            <div v-if="selectedPlayer.characterId && !selectedPlayer._record" data-testid="finalize-bar"
+                 class="mb-4 p-3 rounded-lg" style="background:var(--panel); border:1px solid var(--border);">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs" style="color:var(--text-muted);">定案狀態</span>
+                <span class="text-xs font-medium" :style="charSaveFor(selectedPlayer.characterId) ? 'color:var(--accent);' : 'color:var(--text-muted);'">
+                  {{ charSaveFor(selectedPlayer.characterId) ? ('✅ 已定案 (v_m ' + charSaveFor(selectedPlayer.characterId)._sync.version_m + ')') : '📝 未定案（玩家提案）' }}
+                </span>
+              </div>
+              <div class="flex gap-2">
+                <button @click="adoptProposal(selectedPlayer)" data-testid="adopt-btn"
+                        class="flex-1 py-2 rounded-lg text-sm" style="background:var(--accent); color:#fff;">📥 採納為世界存檔</button>
+                <button @click="openEditFinalize(selectedPlayer)" data-testid="edit-finalize-btn"
+                        class="flex-1 py-2 rounded-lg text-sm" style="border:1px solid var(--border); color:var(--text);">✒️ 就地編輯定案</button>
+              </div>
+              <p class="text-xs mt-2" style="color:var(--text-muted);">未定案前不影響世界正史；採納＝接受提案，就地編輯＝DM 改 HP/AC 並回送玩家。</p>
             </div>
 
             <div v-if="!selectedPlayer.full" class="p-4 rounded-lg text-xs text-center"
@@ -524,6 +543,29 @@
                 📌 此為玩家「提案」（唯讀）；採納／就地定案與「回送恢復」於 Step 3.3。
               </div>
             </template>
+          </div>
+        </div>
+
+        <!-- Step 3.3 就地編輯定案 modal -->
+        <div v-if="editForm.open" data-testid="edit-finalize-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div class="absolute inset-0" style="background:rgba(0,0,0,.5);" @click="closeEditFinalize"></div>
+          <div class="relative w-full max-w-sm rounded-xl p-5" style="background:var(--bg); border:1px solid var(--border);">
+            <h3 class="font-bold mb-1" style="color:var(--text);">✒️ 就地編輯定案 — {{ editForm.name }}</h3>
+            <p class="text-xs mb-3" style="color:var(--text-muted);">DM 權威：僅送出 HP/AC 變更（version_m 前進），玩家端自動採用；不動其他欄位。</p>
+            <div class="space-y-2 text-sm">
+              <label class="flex items-center justify-between gap-2" style="color:var(--text);">目前 HP
+                <input type="number" data-testid="ef-hp-current" v-model.number="editForm.hp.current" class="w-24 px-2 py-1 rounded" style="border:1px solid var(--border); background:var(--panel); color:var(--text);"></label>
+              <label class="flex items-center justify-between gap-2" style="color:var(--text);">最大 HP
+                <input type="number" data-testid="ef-hp-max" v-model.number="editForm.hp.max" class="w-24 px-2 py-1 rounded" style="border:1px solid var(--border); background:var(--panel); color:var(--text);"></label>
+              <label class="flex items-center justify-between gap-2" style="color:var(--text);">臨時 HP
+                <input type="number" data-testid="ef-hp-temp" v-model.number="editForm.hp.temp" class="w-24 px-2 py-1 rounded" style="border:1px solid var(--border); background:var(--panel); color:var(--text);"></label>
+              <label class="flex items-center justify-between gap-2" style="color:var(--text);">AC
+                <input type="number" data-testid="ef-ac" v-model.number="editForm.ac" class="w-24 px-2 py-1 rounded" style="border:1px solid var(--border); background:var(--panel); color:var(--text);"></label>
+            </div>
+            <div class="flex gap-2 mt-4">
+              <button @click="closeEditFinalize" class="flex-1 py-2 rounded-lg" style="border:1px solid var(--border); color:var(--text);">取消</button>
+              <button @click="submitEditFinalize" data-testid="edit-finalize-submit" class="flex-1 py-2 rounded-lg" style="background:var(--accent); color:#fff;">送出定案</button>
+            </div>
           </div>
         </div>
 

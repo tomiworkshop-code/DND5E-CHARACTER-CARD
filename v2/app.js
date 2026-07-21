@@ -845,7 +845,7 @@
             name: c.name || '冒險者',
             level: level,
             characterId: c.id || '',
-            hp: { current: (c.hp && Number(c.hp.current)) || 0, max: (c.hp && Number(c.hp.max)) || 0 },
+            hp: { current: (c.hp && Number(c.hp.current)) || 0, max: (c.hp && Number(c.hp.max)) || 0, temp: (c.hp && Number(c.hp.temp)) || 0 },
             ac: (computedAC && computedAC.value) || c.ac || 10
           };
           try {
@@ -903,6 +903,13 @@
               narrative: narrative,
               updatedAt: Date.now()
             };
+            /* Step 3.3：附帶當前存檔的版本，供 DM 就地定案時判斷 version_m 基準
+             * （DM 回送的 version_m 需 >= 玩家本機才會靜默採用，否則轉衝突 UI）。 */
+            try {
+              var _wid = (room && room.meta && room.meta.worldId) ? room.meta.worldId : DEFAULT_WORLD_ID;
+              var _inst = STORE.loadInstances()[c.id + '@' + _wid];
+              snap.full.sync = { version_m: _inst ? (_inst.version_m || 0) : 0, version_n: _inst ? (_inst.version_n || 0) : 0 };
+            } catch (e2) { snap.full.sync = { version_m: 0, version_n: 0 }; }
           } catch (e) {
             /* 略過 full，退回純 Tier1（絕不中斷上傳） */
             try { console.warn('buildPlayerSnapshot full 區建構失敗，退回 Tier1：', e && e.message ? e.message : e); } catch (_) {}

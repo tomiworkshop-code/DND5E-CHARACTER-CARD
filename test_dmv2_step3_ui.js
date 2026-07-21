@@ -188,6 +188,33 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
   ok('cA history 記下前一版 (>=1)', recA && recA.history && recA.history.length >= 1);
   ok('history 欄位精簡 (ts/level/hp)', recA && recA.history[0] && typeof recA.history[0].ts === 'number' && 'level' in recA.history[0] && 'hp' in recA.history[0]);
 
+  /* ---- Step 3.3 提案 → 定案（房間仍開著） ---- */
+  ok('初始未定案 charSaveFor(cA)=null', vm.charSaveFor('cA') === null);
+  vm.adoptProposal(vm.rosterList[0]);   /* 阿強 cA */
+  await delay(20);
+  const csA = vm.charSaveFor('cA');
+  ok('採納後 charSaves 有 cA (adopted)', !!csA && csA.source === 'adopted');
+  ok('採納落 dmv2 (charSaves)', /charSaves/.test(shared['dmv2:dnd_worlds_v2'] || ''));
+  ok('採納不回送（saves/cA 未寫）', !fbMock.db._store['rooms/' + vm.roomId + '/saves/cA']);
+
+  vm.openEditFinalize(vm.rosterList[0]);
+  await delay(10);
+  ok('編輯表單開啟并帶入 cA', vm.editForm.open === true && vm.editForm.characterId === 'cA');
+  vm.editForm.hp.current = 12; vm.editForm.hp.max = 30; vm.editForm.ac = 18;
+  const pushed = vm.submitEditFinalize();
+  await delay(20);
+  const savePath = 'rooms/' + vm.roomId + '/saves/cA';
+  const sentSave = fbMock.db._store[savePath];
+  ok('定案回送 setSave 到 saves/cA', !!sentSave);
+  ok('回送為最小 partial（僅 hp/ac/_sync，無 skills/inventory）',
+    sentSave && sentSave.hp && sentSave.ac === 18 && sentSave._sync && !('skills' in sentSave) && !('inventory' in sentSave) && !('familiars' in sentSave));
+  ok('partial hp 含 temp（不掉 temp）', sentSave && 'temp' in sentSave.hp);
+  ok('version_m 前進 (>=1)', sentSave._sync.version_m >= 1);
+  ok('表單送出後關閉', vm.editForm.open === false);
+  const csA2 = vm.charSaveFor('cA');
+  ok('canon 更新為 edited + AC18', csA2 && csA2.source === 'edited' && csA2.ac === 18);
+  ok('roster 徒變已定案後 charSaveFor 非空', !!vm.charSaveFor('cA'));
+
   /* 玩家記錄分頁 → 開備份詳情（帶 _record + 歷史） */
   vm.goTab('players');
   vm.openPlayerRecord(recA);
