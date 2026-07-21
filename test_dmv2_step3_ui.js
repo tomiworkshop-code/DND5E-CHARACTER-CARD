@@ -163,6 +163,12 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
   ok('roster 依 joinedAt 排序（阿強在前）', vm.rosterList[0].name === '阿強');
   ok('roster 卡帶 pid', !!vm.rosterList[0].pid);
 
+  /* ---- Step 3.4 落地備份 ---- */
+  ok('playerRecords 落地 2 筆', vm.playerRecords.length === 2);
+  ok('備份以 characterId 為鍵', vm.playerRecords.every(function (r) { return !!r.characterId; }));
+  ok('備份落在 dmv2: 命名空間 (playerSaves)', /playerSaves/.test(shared['dmv2:dnd_worlds_v2'] || ''));
+  ok('玩家版世界 key 未被污染', !('dnd_worlds_v2' in shared));
+
   vm.openPlayerDetail(vm.rosterList[0]);
   await delay(10);
   ok('點卡開詳情抽尜', !!vm.selectedPlayer && vm.selectedPlayer.name === '阿強');
@@ -176,14 +182,27 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
   await delay(20);
   ok('抽尜跟隨即時 HP（20→5）', vm.selectedPlayer && vm.selectedPlayer.hp.current === 5);
 
+  /* HP 變動 → 備份 latest 更新 + 舊版進 history */
+  const recA = vm.playerRecords.find(function (r) { return r.characterId === 'cA'; });
+  ok('cA latest 更新為 HP5', recA && recA.latest && recA.latest.hp.current === 5);
+  ok('cA history 記下前一版 (>=1)', recA && recA.history && recA.history.length >= 1);
+  ok('history 欄位精簡 (ts/level/hp)', recA && recA.history[0] && typeof recA.history[0].ts === 'number' && 'level' in recA.history[0] && 'hp' in recA.history[0]);
+
+  /* 玩家記錄分頁 → 開備份詳情（帶 _record + 歷史） */
+  vm.goTab('players');
+  vm.openPlayerRecord(recA);
+  await delay(10);
+  ok('玩家記錄開抽尜帶 _record', vm.selectedPlayer && vm.selectedPlayer._record && vm.selectedPlayer._record.characterId === 'cA');
+
   vm.closePlayerDetail();
   await delay(10);
   ok('關抽尜 selectedPlayer = null', vm.selectedPlayer === null);
 
-  /* 關房 → roster 清空、退訂 */
+  /* 關房 → roster 清空、退訂；但備份應持久化保留（供恢復） */
   await vm.closeRoom();
   await delay(30);
   ok('關房後 rosterList 清空', vm.rosterList.length === 0);
+  ok('關房後 playerRecords 仍保留（備份不消失）', vm.playerRecords.length === 2);
 
   /* 自由團（不綁任務） */
   vm.sessionQuestId = '';

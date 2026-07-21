@@ -9,7 +9,7 @@
   "use strict";
 
   /* DM v2 版本字串（與玩家端獨立；Build 號遞增） */
-  var APP_VERSION = "DM v2.3.1 (Build 0721.6)";
+  var APP_VERSION = "DM v2.3.2 (Build 0721.7)";
 
   /* ============================================================
      §6 資料隔離：前綴命名空間 storage adapter（Step 1.5，維持有效）
@@ -170,7 +170,7 @@
          ⚙️ 世界設定卡點進切到 worldset 分頁（收世界觀設定模組）。 */
       var entryCards = [
         { key: "sessionlog", icon: "📜", label: "出團記錄", sub: "Step 2b 即將推出" },
-        { key: "players", icon: "👥", label: "玩家記錄", sub: "Step 3 即將推出" },
+        { key: "players", icon: "👥", label: "玩家記錄", sub: "快照備份", nav: "players" },
         { key: "worldset", icon: "⚙️", label: "世界設定", sub: "進入設定模組", nav: "worldset" }
       ];
 
@@ -189,6 +189,7 @@
         landing: "世界儀表板",
         session: "開團連線",
         worldset: "世界設定",
+        players: "玩家記錄",
         command: "指令中心",
         settings: "設定"
       };
@@ -596,6 +597,8 @@
         try {
           rosterUnsub = ROOM.onPlayers(fb.db, code, function (players) {
             rosterMap.value = players || {};
+            /* Step 3.4：每次名冊推播 → 落地備份到 dmv2: 命名空間（§7） */
+            archiveRoster();
             /* 抽尜開著時，跟隨更新選中玩家的即時快照 */
             var sp = selectedPlayer.value;
             if (sp && sp.pid && rosterMap.value[sp.pid]) {
@@ -603,6 +606,66 @@
             }
           });
         } catch (e) { /* 訂閱失敗不阻斷開房 */ }
+      }
+
+      /* ============================================================
+         §7 玩家快照落地備份（Step 3.4）
+         存於當前世界物件 world.playerSaves（走已注入的 dmv2: adapter）：
+           playerSaves[characterId] = { characterId, pid, name,
+             latest, latestTs, history:[{ts,level,hp}], firstSeen, lastSeen }
+         — 以 characterId 為鍵（跨重連穩定；pid 隨匿名局改變）。
+         — latest 僅在快照實際變動時更新（避免 HP 未變也寫入）；
+           舊 latest 推入 history（精簡：僅 ts/level/hp），上限 HISTORY_MAX。
+         ============================================================ */
+      var HISTORY_MAX = 10;
+      function archiveRoster() {
+        try {
+          if (!STORE || !STORE.upsertWorld || !activeWorld.value) return;
+          var w = getFullActiveWorld();
+          if (!w) return;
+          if (!w.playerSaves || typeof w.playerSaves !== "object") w.playerSaves = {};
+          var now = Date.now();
+          var changed = false;
+          rosterList.value.forEach(function (p) {
+            var cid = p.characterId;
+            if (!cid) return;   /* 無 characterId 不備份（無法穩定歸檔/恢復） */
+            var snap = JSON.parse(JSON.stringify(p));
+            delete snap.joinedAt;   /* 排除易變欄位，避免噪訊變更 */
+            var rec = w.playerSaves[cid];
+            if (!rec) {
+              rec = { characterId: cid, pid: p.pid || "", name: p.name || "", latest: null, latestTs: 0, history: [], firstSeen: now, lastSeen: now };
+              w.playerSaves[cid] = rec;
+              changed = true;
+            }
+            if (!Array.isArray(rec.history)) rec.history = [];
+            rec.pid = p.pid || rec.pid;
+            rec.name = p.name || rec.name;
+            rec.lastSeen = now;
+            var newJson = JSON.stringify(snap);
+            if (!rec.latest || JSON.stringify(rec.latest) !== newJson) {
+              if (rec.latest) {
+                rec.history.push({ ts: rec.latestTs || now, level: rec.latest.level, hp: rec.latest.hp });
+                if (rec.history.length > HISTORY_MAX) rec.history = rec.history.slice(-HISTORY_MAX);
+              }
+              rec.latest = snap;
+              rec.latestTs = now;
+              changed = true;
+            }
+          });
+          if (changed) { STORE.upsertWorld(w); refreshWorlds(); }
+        } catch (e) { /* 備份非關鍵：失敗不阻斷開房/名冊 */ }
+      }
+
+      /* 當前世界的玩家記錄（依 lastSeen 新→舊） */
+      var playerRecords = computed(function () {
+        var ps = (activeWorld.value && activeWorld.value.playerSaves) || {};
+        return Object.keys(ps).map(function (cid) { return ps[cid]; })
+          .sort(function (a, b) { return (b.lastSeen || 0) - (a.lastSeen || 0); });
+      });
+      /* 點玩家記錄 → 套用同一詳情抽尜（帶 _record 以顯示歷史） */
+      function openPlayerRecord(rec) {
+        if (!rec || !rec.latest) return;
+        selectedPlayer.value = Object.assign({}, rec.latest, { pid: rec.pid || "", _record: rec });
       }
       function unsubscribeRoster() {
         if (rosterUnsub) { try { rosterUnsub(); } catch (e) {} rosterUnsub = null; }
@@ -781,7 +844,11 @@
         rosterList: rosterList,
         selectedPlayer: selectedPlayer,
         openPlayerDetail: openPlayerDetail,
-        closePlayerDetail: closePlayerDetail
+        closePlayerDetail: closePlayerDetail,
+        /* Step 3.4 玩家快照備份 */
+        archiveRoster: archiveRoster,
+        playerRecords: playerRecords,
+        openPlayerRecord: openPlayerRecord
       };
     }
   });

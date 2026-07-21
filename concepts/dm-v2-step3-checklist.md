@@ -40,7 +40,8 @@
       `setSave(db,roomId,characterId,save)` 回送 → 玩家端 `handleRemoteSave` 做版本裁決/衝突 UI。
 - [ ] 未定案前**不影響** DM 世界正史（隔離）。
 
-### 3.4 玩家快照落地備份（§7 基礎）
+### 3.4 玩家快照落地備份（§7 基礎）— ✅ 完成 (DM v2.3.2 / Build 0721.7)
+實作：onPlayers 推播時 archiveRoster() → 寫入 world.playerSaves[characterId]={latest,latestTs,history[],firstSeen,lastSeen}（走 dmv2: adapter，不污染玩家版）；latest 僅變動時寫入、舊版進 history（精簡 ts/level/hp，上限 10）；characterId 為鍵；無 cid 不備份。「👥 玩家記錄」分頁列本世界快照 → 點入詳情抽尜+歷史；關房後備份仍保留。回送恢復 UI 順延 3.3/§7。測試 test_dmv2_step3_ui.js 共 32 項全綠。(以下原規劃項均已實作)
 - [ ] DM 收快照後寫入 DM 命名空間（`dmv2:`）：按 `世界 → 玩家(pid/characterId) → 快照` 歸檔。
 - [ ] 保留最新一份 + 精簡歷史（時間戳 + version_m/version_n）。
 - [ ] 「👥 玩家記錄」分頁：列此世界曾出現的玩家 → 點入看快照/歷程（恢復 UI 可挪 Step 3 尾或 Step 4）。

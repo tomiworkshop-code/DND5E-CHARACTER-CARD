@@ -380,6 +380,38 @@
           </div>
         </section>
 
+        <!-- Step 3.4 玩家記錄（快照備份） -->
+        <section v-show="currentTab === 'players'">
+          <div v-if="!activeWorld" class="p-6 rounded-xl border border-dashed text-center"
+               style="border-color:var(--border); color:var(--text-muted);">
+            <div class="text-4xl mb-2">🌍</div>
+            <p class="text-sm">請先於右上「換世界」選定一個世界。</p>
+          </div>
+          <div v-else data-testid="player-records">
+            <p class="text-sm mb-3" style="color:var(--text-muted);">
+              世界「<b>{{ activeWorld.name }}</b>」曾出現的玩家快照備份（DM 代管，供日後恢復）。
+            </p>
+            <div v-if="!playerRecords.length" class="p-6 rounded-xl border border-dashed text-center"
+                 style="border-color:var(--border); color:var(--text-muted);">
+              <div class="text-4xl mb-2">👥</div>
+              <p class="text-sm">尚無玩家快照。開團並讓玩家入座後，將自動落地備份。</p>
+            </div>
+            <div v-else class="space-y-2">
+              <button v-for="rec in playerRecords" :key="rec.characterId" @click="openPlayerRecord(rec)"
+                      data-testid="player-record-card" class="w-full text-left p-3 rounded-lg flex items-center justify-between"
+                      style="background:var(--panel); border:1px solid var(--border);">
+                <div>
+                  <div class="font-medium" style="color:var(--text);">{{ rec.name || '冒險者' }}</div>
+                  <div class="text-xs" style="color:var(--text-muted);">
+                    等級 {{ rec.latest ? rec.latest.level : '?' }} ・ 歷史 {{ (rec.history ? rec.history.length : 0) }} 筆
+                  </div>
+                </div>
+                <span class="text-xs" style="color:var(--accent);">檢視 ›</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
         <!-- Step 3.2 玩家詳情抽尜 -->
         <div v-if="selectedPlayer" data-testid="player-detail" class="fixed inset-0 z-40 flex justify-end">
           <div class="absolute inset-0" style="background:rgba(0,0,0,.5);" @click="closePlayerDetail"></div>
@@ -477,8 +509,19 @@
                 </div>
               </template>
 
+              <!-- 快照歷史（由玩家記錄進入時才帶 _record） -->
+              <template v-if="selectedPlayer._record && selectedPlayer._record.history && selectedPlayer._record.history.length">
+                <h4 class="text-sm font-semibold mb-1" style="color:var(--text);">快照歷史（近 {{ selectedPlayer._record.history.length }} 筆）</h4>
+                <div class="mb-4 space-y-1 text-xs" style="color:var(--text-muted);">
+                  <div v-for="(h,i) in selectedPlayer._record.history.slice().reverse()" :key="i" class="flex justify-between px-2 py-1 rounded" style="background:var(--panel);">
+                    <span>Lv{{ h.level }} ・ HP {{ (h.hp && h.hp.current) }}/{{ (h.hp && h.hp.max) }}</span>
+                    <span>{{ new Date(h.ts).toLocaleString() }}</span>
+                  </div>
+                </div>
+              </template>
+
               <div class="mt-4 p-2 rounded-lg text-xs text-center" style="border:1px dashed var(--border); color:var(--text-muted);">
-                📌 此為玩家「提案」（唯讀）；採納／就地定案於 Step 3.3。
+                📌 此為玩家「提案」（唯讀）；採納／就地定案與「回送恢復」於 Step 3.3。
               </div>
             </template>
           </div>
