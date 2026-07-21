@@ -9,7 +9,7 @@
   "use strict";
 
   /* DM v2 版本字串（與玩家端獨立；Build 號遞增） */
-  var APP_VERSION = "DM v2.6.1 (Build 0721.15)";
+  var APP_VERSION = "DM v2.6.2 (Build 0721.16)";
 
   /* ============================================================
      §6 資料隔離：前綴命名空間 storage adapter（Step 1.5，維持有效）
@@ -1182,7 +1182,11 @@
         var opts = {
           worldId: activeWorldId.value,
           eraId: currentEraId.value || "",
-          questId: sessionQuestId.value || ""
+          questId: sessionQuestId.value || "",
+          /* 將世界/任務/紀元「名稱」一併寫入 meta，玩家端進房後才能顯示友善名字而非 worldId */
+          worldName: (activeWorld.value && activeWorld.value.name) || "",
+          questName: entityNameById(sessionQuestId.value || ""),
+          eraName: eraNameById(currentEraId.value || "")
         };
         ROOM.signInAnon(fb.auth).then(function (dmUid) {
           opts.dmId = dmUid;

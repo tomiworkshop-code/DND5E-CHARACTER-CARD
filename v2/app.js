@@ -1104,7 +1104,9 @@
              * 保留任何既有 rules（如 DM 日後開啟），僅在缺欄時補 false。 */
             const _existW = (worlds.value || []).find((w) => w && (w.worldId === meta.worldId || w.id === meta.worldId));
             const _rules = Object.assign({ allowPactFamiliar: false }, (_existW && _existW.rules) || {});
-            STORE.upsertWorld({ worldId: meta.worldId, name: meta.worldId, type: 'dm', roomId: rid, dmId: meta.dmId || null, rules: _rules });
+            /* 名字優先序：DM 開房帶來的 meta.worldName → 既有本地世界名 → 退回 worldId（舊房相容）。 */
+            const _wname = meta.worldName || (_existW && _existW.name) || meta.worldId;
+            STORE.upsertWorld({ worldId: meta.worldId, name: _wname, type: 'dm', roomId: rid, dmId: meta.dmId || null, rules: _rules });
             worlds.value = STORE.loadWorlds() || worlds.value;
             if (selectedChar.value && selectedChar.value.id) {
               STORE.bindActiveWorld(selectedChar.value.id, meta.worldId);
@@ -1118,15 +1120,17 @@
               if (!_pc.worldProgress) _pc.worldProgress = {};
               const _wid = meta.worldId;
               const _now = Date.now();
+              const _pname = meta.worldName || _wid;
               if (!_pc.worldProgress[_wid]) {
                 _pc.worldProgress[_wid] = {
-                  name: _wid, location: '', time: '', quest: '',
+                  name: _pname, location: '', time: (meta.eraName || ''), quest: (meta.questName || ''),
                   records: { log: [], quest: [], npc: [], clue: [] },
                   lastPlayed: _now
                 };
               } else {
                 const _wp = _pc.worldProgress[_wid];
-                if (!_wp.name) _wp.name = _wid;
+                /* 名字：若原本是空的、或等於 worldId（舊房遺留），用 meta.worldName 補正。 */
+                if (!_wp.name || _wp.name === _wid) _wp.name = _pname;
                 if (!_wp.records) _wp.records = { log: [], quest: [], npc: [], clue: [] };
                 _wp.lastPlayed = _now;
               }

@@ -5,7 +5,7 @@
  * 掛在單一全域 window.DND5E_ROOM，避免污染命名空間。
  *
  * §3.1 通道：
- *   rooms/{roomId}/meta                 : {dmId, worldId, createdAt, status}
+ *   rooms/{roomId}/meta                 : {dmId, worldId, eraId, createdAt, status, questId?, worldName?, questName?, eraName?}
  *   rooms/{roomId}/broadcast/[]         : {from, text, ts}      DM 寫、全體讀
  *   rooms/{roomId}/inbox/{pid}/[]       : {from, text, ts}      DM 寫、該玩家+DM 讀
  *   rooms/{roomId}/commands/{pid}/[]    : {type, ..., ts}       DM 寫、該玩家讀
@@ -57,6 +57,11 @@
       status: "open"
     };
     if(opts.questId){ meta.questId = String(opts.questId); }
+    /* 顯示用名稱（只在有值時寫入，避免 undefined 被 RTDB 拒絕）。
+     * 玩家端進房後可用 worldName 顯示真實世界名，而非露出 worldId。 */
+    if(opts.worldName){ meta.worldName = String(opts.worldName); }
+    if(opts.questName){ meta.questName = String(opts.questName); }
+    if(opts.eraName){ meta.eraName = String(opts.eraName); }
     return db.ref("rooms/" + roomId + "/meta").set(meta).then(function(){ return roomId; });
   }
 

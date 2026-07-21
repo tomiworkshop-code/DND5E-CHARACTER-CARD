@@ -38,6 +38,10 @@
       --accent: #7c5a3a;
       --accent-soft: #efe4cf;
       --border: #e4d7bd;
+      /* 別名（介面大量使用 --bg/--panel/--text，若未定義會造成面板透明、文字讀不到） */
+      --bg: var(--bg-base);
+      --panel: var(--bg-surface);
+      --text: var(--text-main);
     }
     body { background-color: var(--bg-base); color: var(--text-main); font-family: sans-serif; }
     [v-cloak] { display: none !important; }
