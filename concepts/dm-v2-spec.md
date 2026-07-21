@@ -69,27 +69,36 @@
 - Firebase 回送通道：`rooms/{id}/saves/{characterId}`（`DND5E_ROOM.setSave/onSave`），內容為攤平 (flattened) char 欄位 + `_sync`。
 - 待辦（順延 §7 / Step 4）：快照「回送恢復」UI（DM 主動把備份推回玩家）；專用 proposal 雙向衝突審核（防作弊方向性）。
 
-## 4. 訊息模板系統（Step 4 詳規，先記錄方向）
-- 動機：DM 臨場不必逐字打；尤其「擲骰結果 → 對應訊息/效果」。
-- 模板資料形狀（草案，存 localStorage，之後可雲端化）：
+## 4. 訊息模板系統 + 遭遇模組（Step 4 定案，Tommy 2026-07-21）
+> 定案要點（已取代上方舊草案）：
+> - **不做骰子引擎**：現場擲實體骰。模板從 DM 的「訊息模板庫」選（另做模板設定功能）。
+> - **具名變數**：模板內寫任意 `{變數名}`（如 `{playerName} 對 {monsterName} 造成 {damage} 點 {damageType}，獲得 {priceList}`）。
+> - **軟過濾選單（不鎖死）**：套用時每個變數生獨立搜尋式選擇器，池子＝roster 玩家 + 世界實體(NPC/地點/任務/線索/事件) + 遭遇怪物 + 自由輸入；模板設定只給「預設提示過濾」，永遠可切「顯示全部/直接打字」（例：玩家突然對 NPC 放火球）。
+> - **按鈕後可修改**：套用 → 填變數 → **可編輯預覽框**（DM 最後手改）→ 確認送出。
+> - **B：變數綁指令**：對接玩家端 `applyCommand`（damage/heal/xp/gold/item）。
+>   【眼角】damage/heal 只能對「連線玩家」生效（指令在玩家裝置執行）；敘事變數（如 {monsterName}）純文字，
+>   「指令對象（誰被扣血）」另一個欄位，必須是 roster 玩家。
+
+### 4.0 遭遇 (Encounter) 模組 — 先做（怪物的家）
+- **三軸定位**：遭遇隸屬於 **任務 / 地點 / 時間點(era)** 底下，非平行獨立清單。
+  同一任務、同一地點，不同紀元分支可有不同遭遇（呼應 §10 平行線哲學）。
+- **資料模型**（新實體型別 `type:'encounter'`，存 `dmv2:` 隔離）：
   ```
-  {
-    id, name,                       // 模板名，如「陷阱：毒針」
-    kind: 'broadcast'|'inbox'|'command',
-    // 純訊息模板：
-    text: "你踩到了機關…",           // 可含變數 {roll} {player} {dmg}
-    // 擲骰驅動（roll table）：
-    dice: "1d20",                   // 可選；擲一次
-    outcomes: [                      // 依 roll 落在區間給不同訊息/指令
-      { min:1, max:9,  text:"你及時閃開，毫髮無傷。" },
-      { min:10,max:19, text:"你被劃傷，受 {dmg} 傷害。", command:{type:'damage', amount:"1d4"} },
-      { min:20,max:20, text:"大成功！你完美迴避並發現暗格。" }
-    ]
-  }
+  { id, type:'encounter', name,          // 如「哥布林突襲」
+    questId?, locationId?, eraId?,        // 三軸：屬哪任務/地點/時間點
+    monsters:[ { name, count, notes } ],  // 精簡版怪物子清單
+    story, notes, status }
   ```
-- UI：模板清單 + 一鍵套用（可先擲骰、顯示結果、預覽將發送的訊息/指令，DM 確認後送出）。
-- 骰子解析：需一個小的 dice roller（`XdY+Z`），可獨立成 `shared/dice.js` 供雙端重用。
-- 內建幾個範例模板（陷阱、隨機遭遇、技能檢定結果、寶箱）。
+- **UI**：在任務/地點/時間點詳情底下挂「遭遇」子區塊（列表 + 怪物子清單編輯）；新增時自動帶上對應 questId/locationId/eraId。
+- 模板 `{monsterName}` 選單 → 把所有遭遇的 `monsters` 攝平成可選清單（仍保自由輸入/選其他實體逸生門）。
+
+### 4.1~4.5 模板系統（遭遇模組完成後）
+- 4.1 模板資料模型（具名變數 + 軟過濾來源 + 可選綁指令）+ `dmv2:` 儲存 + 內建範例。
+- 4.2 模板設定 UI（CRUD）。
+- 4.3 套用流程（掃變數→生智慧選擇器/可編輯預覽→確認）。
+- 4.4 對接發送（broadcast/inbox/command）+ 指令執行 + roster/entity/遭遇選單串接。
+- 4.5 測試 + 回歸 + push。
+- 內建範例模板（攻擊命中、陷阱、寶箱奇遇、技能檢定結果）。
 
 ## 5. 不破壞現況
 - 舊 `worldbuilder/` 不動，持續可用。
