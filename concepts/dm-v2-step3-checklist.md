@@ -27,7 +27,8 @@
 - [x] 房間狀態：關房按鈕 → `setRoomStatus(db,roomId,'closed')`（room.js 新增 helper）。
 - 測試：`test_dmv2_step3_room.js`(18) + `test_dmv2_step3_ui.js`(15 jsdom 冒煙) 全綠；既有 worldset(71)/scaffold(19)/isolation(15) 無回歸。
 
-### 3.2 Roster 名冊（收完整快照）
+### 3.2 Roster 名冊（收完整快照）— ✅ 完成 (DM v2.3.1 / Build 0721.6)
+實作：onPlayers 訂閱 → rosterList（名/等/HP/AC、依 joinedAt 排序）；點卡開詳情抽尜（屬性/豁免熟練高亮/技能●★/被動察覺/魔寵/背包重點/敘事，唯讀）；舊版無 full 降級顯示；即時同步；關房退訂清空。測試 `test_dmv2_step3_ui.js` 共 23 項全綠。(以下原規劃項均已實作)
 - [ ] `onPlayers(db, roomId, cb)` 訂閱 → 名冊卡片列（頭像/名/等級/HP/AC 即時）。
 - [ ] 點卡片開「玩家詳情」抽屜：技能/豁免/被動察覺/魔寵(陣列)/背包重點（唯讀檢視）。
 - [ ] **依賴**：玩家端 `buildPlayerSnapshot` 擴充完整欄位（見 3.5）；DM 端解析一律走 `DND5E_CHAR`。

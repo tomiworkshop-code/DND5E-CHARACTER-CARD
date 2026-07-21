@@ -344,9 +344,31 @@
               <div>紀元：<b style="color:var(--text);">{{ currentEraName || '（無）' }}</b></div>
             </div>
 
-            <div class="mt-4 p-3 rounded-lg text-xs text-center"
-                 style="border:1px dashed var(--border); color:var(--text-muted);">
-              👥 玩家名冊（Roster）將於 Step 3.2 顯示；提案／定案於 3.3。
+            <!-- Step 3.2 Roster 名冊 -->
+            <div class="mt-5" data-testid="roster">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-medium" style="color:var(--text);">👥 玩家名冊</h3>
+                <span class="text-xs" style="color:var(--text-muted);">{{ rosterList.length }} 人入座</span>
+              </div>
+              <div v-if="!rosterList.length" class="p-4 rounded-lg text-xs text-center"
+                   style="border:1px dashed var(--border); color:var(--text-muted);">
+                等待玩家掃碼入座…
+              </div>
+              <div v-else class="grid grid-cols-2 gap-2">
+                <button v-for="p in rosterList" :key="p.pid" @click="openPlayerDetail(p)"
+                        data-testid="roster-card" class="text-left p-3 rounded-lg"
+                        style="background:var(--panel); border:1px solid var(--border);">
+                  <div class="font-medium truncate" style="color:var(--text);">{{ p.name || '冒險者' }}</div>
+                  <div class="text-xs mt-0.5" style="color:var(--text-muted);">等級 {{ p.level || 1 }}</div>
+                  <div class="flex gap-3 text-xs mt-1" style="color:var(--text);">
+                    <span>❤️ {{ (p.hp && p.hp.current) || 0 }}/{{ (p.hp && p.hp.max) || 0 }}</span>
+                    <span>🛡️ {{ p.ac || 10 }}</span>
+                  </div>
+                  <div class="text-xs mt-1" :style="p.full ? 'color:var(--accent);' : 'color:var(--text-muted);'">
+                    {{ p.full ? '點看完整資料 ›' : '（僅 Tier1）' }}
+                  </div>
+                </button>
+              </div>
             </div>
 
             <button @click="closeRoom" :disabled="roomBusy" data-testid="close-room-btn"
@@ -357,6 +379,110 @@
             <p v-if="roomError" class="text-xs mt-2 text-center" style="color:#f87171;">{{ roomError }}</p>
           </div>
         </section>
+
+        <!-- Step 3.2 玩家詳情抽尜 -->
+        <div v-if="selectedPlayer" data-testid="player-detail" class="fixed inset-0 z-40 flex justify-end">
+          <div class="absolute inset-0" style="background:rgba(0,0,0,.5);" @click="closePlayerDetail"></div>
+          <div class="relative w-full max-w-md h-full overflow-y-auto p-5"
+               style="background:var(--bg); border-left:1px solid var(--border);">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h2 class="text-lg font-bold" style="color:var(--text);">{{ selectedPlayer.name || '冒險者' }}</h2>
+                <p class="text-xs" style="color:var(--text-muted);">
+                  等級 {{ selectedPlayer.level || 1 }}
+                  <template v-if="selectedPlayer.full"> ・ {{ selectedPlayer.full.race }} ・ {{ selectedPlayer.full.alignment }}</template>
+                </p>
+              </div>
+              <button @click="closePlayerDetail" class="text-2xl leading-none" style="color:var(--text-muted);">×</button>
+            </div>
+
+            <!-- Tier1 核心 -->
+            <div class="grid grid-cols-3 gap-2 mb-4 text-center">
+              <div class="p-2 rounded-lg" style="background:var(--panel);">
+                <div class="text-xs" style="color:var(--text-muted);">HP</div>
+                <div class="font-bold" style="color:var(--text);">{{ (selectedPlayer.hp && selectedPlayer.hp.current) || 0 }}/{{ (selectedPlayer.hp && selectedPlayer.hp.max) || 0 }}</div>
+              </div>
+              <div class="p-2 rounded-lg" style="background:var(--panel);">
+                <div class="text-xs" style="color:var(--text-muted);">AC</div>
+                <div class="font-bold" style="color:var(--text);">{{ selectedPlayer.ac || 10 }}</div>
+              </div>
+              <div class="p-2 rounded-lg" style="background:var(--panel);">
+                <div class="text-xs" style="color:var(--text-muted);">被動察覺</div>
+                <div class="font-bold" style="color:var(--text);">{{ selectedPlayer.full ? selectedPlayer.full.passivePerception : '—' }}</div>
+              </div>
+            </div>
+
+            <div v-if="!selectedPlayer.full" class="p-4 rounded-lg text-xs text-center"
+                 style="border:1px dashed var(--border); color:var(--text-muted);">
+              此玩家僅傳 Tier1 快照（舊版玩家端），無完整資料。
+            </div>
+
+            <template v-else>
+              <!-- 屬性 -->
+              <h4 class="text-sm font-semibold mb-1" style="color:var(--text);">屬性 ・ 熟練+{{ selectedPlayer.full.profBonus }}</h4>
+              <div class="grid grid-cols-6 gap-1 mb-4 text-center text-xs">
+                <div v-for="(v,k) in selectedPlayer.full.abilities" :key="k" class="p-1 rounded" style="background:var(--panel); color:var(--text);">
+                  <div style="color:var(--text-muted);">{{ k }}</div><div class="font-bold">{{ v }}</div>
+                </div>
+              </div>
+
+              <!-- 豁免 -->
+              <h4 class="text-sm font-semibold mb-1" style="color:var(--text);">豁免檢定</h4>
+              <div class="grid grid-cols-3 gap-1 mb-4 text-xs">
+                <div v-for="s in selectedPlayer.full.saves" :key="s.key" class="flex justify-between px-2 py-1 rounded"
+                     :style="s.prof ? 'background:var(--accent);color:#fff;' : 'background:var(--panel);color:var(--text);'">
+                  <span>{{ s.zh }}</span><span class="font-bold">{{ s.value >= 0 ? '+' : '' }}{{ s.value }}</span>
+                </div>
+              </div>
+
+              <!-- 技能（熟練高亮） -->
+              <h4 class="text-sm font-semibold mb-1" style="color:var(--text);">技能</h4>
+              <div class="grid grid-cols-2 gap-1 mb-4 text-xs">
+                <div v-for="sk in selectedPlayer.full.skills" :key="sk.zh" class="flex justify-between px-2 py-1 rounded"
+                     :style="sk.proficient ? 'background:var(--panel);color:var(--accent);font-weight:600;' : 'color:var(--text-muted);'">
+                  <span>{{ sk.expertise ? '★' : (sk.proficient ? '●' : '○') }} {{ sk.zh }}</span>
+                  <span>{{ sk.value >= 0 ? '+' : '' }}{{ sk.value }}</span>
+                </div>
+              </div>
+
+              <!-- 魔寵 -->
+              <template v-if="selectedPlayer.full.familiars && selectedPlayer.full.familiars.length">
+                <h4 class="text-sm font-semibold mb-1" style="color:var(--text);">魔寵</h4>
+                <div class="mb-4 space-y-1">
+                  <div v-for="(f,i) in selectedPlayer.full.familiars" :key="i" class="p-2 rounded text-xs" style="background:var(--panel); color:var(--text);">
+                    <div class="font-medium">{{ f.name || '（未命名）' }} <span style="color:var(--text-muted);">{{ f.type }}</span></div>
+                    <div style="color:var(--text-muted);">HP {{ f.hp.current }}/{{ f.hp.max }} ・ AC {{ f.ac }}<span v-if="f.notes"> ・ {{ f.notes }}</span></div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- 背包重點 -->
+              <template v-if="selectedPlayer.full.inventory && selectedPlayer.full.inventory.length">
+                <h4 class="text-sm font-semibold mb-1" style="color:var(--text);">背包重點</h4>
+                <div class="mb-4 flex flex-wrap gap-1">
+                  <span v-for="(it,i) in selectedPlayer.full.inventory" :key="i" class="px-2 py-0.5 rounded text-xs"
+                        :style="it.equipped ? 'background:var(--accent);color:#fff;' : 'background:var(--panel);color:var(--text);'">
+                    {{ it.equipped ? '✓ ' : '' }}{{ it.name }}<span v-if="it.qty > 1">×{{ it.qty }}</span>
+                  </span>
+                </div>
+              </template>
+
+              <!-- 敘事 -->
+              <template v-if="selectedPlayer.full.narrative">
+                <h4 class="text-sm font-semibold mb-1" style="color:var(--text);">敘事</h4>
+                <div class="text-xs space-y-1" style="color:var(--text-muted);">
+                  <p v-if="selectedPlayer.full.narrative.appearance"><b>外貌：</b>{{ selectedPlayer.full.narrative.appearance }}</p>
+                  <p v-if="selectedPlayer.full.narrative.personality"><b>性格：</b>{{ selectedPlayer.full.narrative.personality }}</p>
+                  <p v-if="selectedPlayer.full.narrative.backstory"><b>背景：</b>{{ selectedPlayer.full.narrative.backstory }}</p>
+                </div>
+              </template>
+
+              <div class="mt-4 p-2 rounded-lg text-xs text-center" style="border:1px dashed var(--border); color:var(--text-muted);">
+                📌 此為玩家「提案」（唯讀）；採納／就地定案於 Step 3.3。
+              </div>
+            </template>
+          </div>
+        </div>
 
         <!-- ③ §9.6 世界設定（收世界觀設定模組；本次僅佔位入口，CRUD 留 Step 2b） -->
         <section v-show="currentTab === 'worldset'">

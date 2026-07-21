@@ -9,7 +9,7 @@
   "use strict";
 
   /* DM v2 版本字串（與玩家端獨立；Build 號遞增） */
-  var APP_VERSION = "DM v2.3.0 (Build 0721.4)";
+  var APP_VERSION = "DM v2.3.1 (Build 0721.6)";
 
   /* ============================================================
      §6 資料隔離：前綴命名空間 storage adapter（Step 1.5，維持有效）
@@ -576,6 +576,45 @@
       var roomError = ref("");
       var qrBox = ref(null);   /* template ref：QR 容器 */
 
+      /* Step 3.2 Roster：onPlayers 訂閱 → 名冊；點卡開詳情抽尜。 */
+      var rosterMap = ref({});     /* { pid: snapshot } 原始 */
+      var rosterUnsub = null;      /* 退訂函式 */
+      var selectedPlayer = ref(null);  /* 抽尜：{ pid, ...snapshot } 或 null */
+
+      var rosterList = computed(function () {
+        var m = rosterMap.value || {};
+        var arr = Object.keys(m).map(function (pid) {
+          return Object.assign({ pid: pid }, m[pid] || {});
+        });
+        arr.sort(function (a, b) { return (a.joinedAt || 0) - (b.joinedAt || 0); });
+        return arr;
+      });
+
+      function subscribeRoster(code) {
+        if (rosterUnsub) { try { rosterUnsub(); } catch (e) {} rosterUnsub = null; }
+        if (!fb || !fb.db || !ROOM || !ROOM.onPlayers) return;
+        try {
+          rosterUnsub = ROOM.onPlayers(fb.db, code, function (players) {
+            rosterMap.value = players || {};
+            /* 抽尜開著時，跟隨更新選中玩家的即時快照 */
+            var sp = selectedPlayer.value;
+            if (sp && sp.pid && rosterMap.value[sp.pid]) {
+              selectedPlayer.value = Object.assign({ pid: sp.pid }, rosterMap.value[sp.pid]);
+            }
+          });
+        } catch (e) { /* 訂閱失敗不阻斷開房 */ }
+      }
+      function unsubscribeRoster() {
+        if (rosterUnsub) { try { rosterUnsub(); } catch (e) {} rosterUnsub = null; }
+        rosterMap.value = {};
+        selectedPlayer.value = null;
+      }
+      function openPlayerDetail(p) {
+        if (!p) return;
+        selectedPlayer.value = Object.assign({}, p);
+      }
+      function closePlayerDetail() { selectedPlayer.value = null; }
+
       /* 當前世界的任務清單（entity type = quest） */
       var worldQuests = computed(function () {
         return worldEntities.value.filter(function (e) { return e && e.type === "quest"; });
@@ -627,6 +666,7 @@
         }).then(function (code) {
           roomId.value = code;
           roomBusy.value = false;
+          subscribeRoster(code);   /* Step 3.2：開房後訂閱名冊 */
           if (nextTick) nextTick(function () { renderQr(code); });
           else renderQr(code);
         }).catch(function (e) {
@@ -643,6 +683,7 @@
         var done = function () {
           roomBusy.value = false;
           roomId.value = "";
+          unsubscribeRoster();   /* Step 3.2：關房退訂名冊 */
           if (qrBox.value) { try { qrBox.value.innerHTML = ""; } catch (e) {} }
         };
         if (fb && fb.db && ROOM && ROOM.setRoomStatus) {
@@ -735,7 +776,12 @@
         currentEraName: currentEraName,
         openRoom: openRoom,
         closeRoom: closeRoom,
-        copyRoomCode: copyRoomCode
+        copyRoomCode: copyRoomCode,
+        /* Step 3.2 Roster */
+        rosterList: rosterList,
+        selectedPlayer: selectedPlayer,
+        openPlayerDetail: openPlayerDetail,
+        closePlayerDetail: closePlayerDetail
       };
     }
   });

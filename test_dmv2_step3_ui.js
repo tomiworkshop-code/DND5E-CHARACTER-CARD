@@ -16,8 +16,14 @@ function ok(name, cond) { if (cond) { pass++; console.log('  \u2713', name); } e
 /* ---- mock firebase（compat 形狀）：以路徑樹狀 store 記錄寫入 ---- */
 function makeFirebaseMock() {
   const store = {};
+  const handlers = {};   /* path -> { event -> [cb] } */
   const db = {
     _store: store,
+    /* 對外：模擬 RTDB 推播（觸發某 path 的某事件 handler） */
+    _emit: function (p, event, val) {
+      const h = handlers[p] && handlers[p][event];
+      if (h) h.forEach(function (cb) { cb({ val: function () { return val; }, exists: function () { return val !== undefined && val !== null; }, key: 'k' }); });
+    },
     ref: function (p) {
       return {
         set: function (v) { store[p] = JSON.parse(JSON.stringify(v)); return Promise.resolve(); },
@@ -26,7 +32,9 @@ function makeFirebaseMock() {
           return Promise.resolve({ exists: function () { return val !== undefined; }, val: function () { return val === undefined ? null : val; } });
         },
         push: function (v) { store[p] = (store[p] || []); store[p].push(v); return Promise.resolve({ key: 'k' + store[p].length }); },
-        on: function () {}, off: function () {}, remove: function () { return Promise.resolve(); }
+        on: function (event, cb) { handlers[p] = handlers[p] || {}; (handlers[p][event] = handlers[p][event] || []).push(cb); return cb; },
+        off: function (event, cb) { if (handlers[p] && handlers[p][event]) handlers[p][event] = handlers[p][event].filter(function (x) { return x !== cb; }); },
+        remove: function () { return Promise.resolve(); }
       };
     }
   };
@@ -135,6 +143,47 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
   await delay(50);
   ok('關房後 roomId 清空', vm.roomId === '');
   ok('meta/status = closed', fbMock.db._store[metaKey + '/status'] === 'closed');
+
+  /* ---- Step 3.2 Roster：模擬玩家入座推播 ---- */
+  vm.sessionQuestId = questId;
+  await vm.openRoom();
+  await delay(50);
+  const playersPath = 'rooms/' + vm.roomId + '/players';
+  fbMock.db._emit(playersPath, 'value', {
+    pidA: { name: '阿強', level: 3, characterId: 'cA', joinedAt: 100, hp: { current: 20, max: 24 }, ac: 16,
+      full: { race: '矮人', alignment: '中立', profBonus: 2, abilities: { str: 16, dex: 12, con: 15, int: 8, wis: 10, cha: 9 },
+        passivePerception: 12, saves: [{ key: 'str', zh: '力量', value: 5, prof: true }],
+        skills: [{ zh: '運動', attr: 'str', value: 5, proficient: true, expertise: false }],
+        familiars: [{ name: '熊', type: '野獸', ac: 11, hp: { current: 10, max: 10 }, notes: '' }],
+        inventory: [{ name: '戰锨', qty: 1, equipped: true }], narrative: { appearance: '高大', backstory: '' } } },
+    pidB: { name: '小美', level: 2, characterId: 'cB', joinedAt: 200, hp: { current: 8, max: 8 }, ac: 12 }  /* 無 full（舊版） */
+  });
+  await delay(30);
+  ok('rosterList 收到 2 人', vm.rosterList.length === 2);
+  ok('roster 依 joinedAt 排序（阿強在前）', vm.rosterList[0].name === '阿強');
+  ok('roster 卡帶 pid', !!vm.rosterList[0].pid);
+
+  vm.openPlayerDetail(vm.rosterList[0]);
+  await delay(10);
+  ok('點卡開詳情抽尜', !!vm.selectedPlayer && vm.selectedPlayer.name === '阿強');
+  ok('詳情帶 full（完整資料）', !!vm.selectedPlayer.full && vm.selectedPlayer.full.passivePerception === 12);
+
+  /* 即時更新：玩家 HP 變動 → 選中快照跟隨 */
+  fbMock.db._emit(playersPath, 'value', {
+    pidA: { name: '阿強', level: 3, characterId: 'cA', joinedAt: 100, hp: { current: 5, max: 24 }, ac: 16, full: { passivePerception: 12 } },
+    pidB: { name: '小美', level: 2, characterId: 'cB', joinedAt: 200, hp: { current: 8, max: 8 }, ac: 12 }
+  });
+  await delay(20);
+  ok('抽尜跟隨即時 HP（20→5）', vm.selectedPlayer && vm.selectedPlayer.hp.current === 5);
+
+  vm.closePlayerDetail();
+  await delay(10);
+  ok('關抽尜 selectedPlayer = null', vm.selectedPlayer === null);
+
+  /* 關房 → roster 清空、退訂 */
+  await vm.closeRoom();
+  await delay(30);
+  ok('關房後 rosterList 清空', vm.rosterList.length === 0);
 
   /* 自由團（不綁任務） */
   vm.sessionQuestId = '';
