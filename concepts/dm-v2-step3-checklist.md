@@ -15,16 +15,17 @@
 
 ## 施工項目
 
-### 3.1 DM 開房（createRoom + QR）
-- [ ] 「開團」分頁：DM 匿名登入（`signInAnon`）→ `createRoom(db, opts)`。
-- [ ] **主流程 = 選任務開團**（Tommy 2026-07-21 定案）：DM 從當前世界選一個任務(quest)開團 →
+### 3.1 DM 開房（createRoom + QR）— ✅ 完成 (DM v2.3.0 / Build 0721.4)
+- [x] 「開團」分頁：DM 匿名登入（`signInAnon`）→ `createRoom(db, opts)`。
+- [x] **主流程 = 選任務開團**（Tommy 2026-07-21 定案）：DM 從當前世界選一個任務(quest)開團 →
       `worldId` 由該任務自動帶出（不必手選世界）。
-- [ ] `questId` **設為可選**：允許「不綁任務的自由團 / session zero / 開場團」也能開房。
-- [ ] `eraId` **獨立保留**（不由任務推導）：預設 = 該世界 `currentEraId`（canon tip），DM 可覆寫錨到別的節點。
+- [x] `questId` **設為可選**：允許「不綁任務的自由團 / session zero / 開場團」也能開房。
+- [x] `eraId` **獨立保留**（不由任務推導）：預設 = 該世界 `currentEraId`（canon tip），DM 可覆寫錨到別的節點。
       原因：同一任務可在不同 era 分支跑（§10 平行線哲學），quest 與 era 是正交兩軸。
-- [ ] room.meta 資料契約：`{ worldId, questId?, eraId, dmId, createdAt, status }`。
-- [ ] 顯示 5 碼房號（大字、可複製）+ QR（玩家掃碼帶房號進玩家版 join）。
-- [ ] 房間狀態列：open/關房；關房時更新 meta.status。
+- [x] room.meta 資料契約：`{ worldId, questId?, eraId, dmId, createdAt, status }`（room.js createRoom 已擴充）。
+- [x] 顯示 5 碼房號（大字、可複製）+ QR（qrcodejs，編碼 `../v2/index.html?room=CODE`）。
+- [x] 房間狀態：關房按鈕 → `setRoomStatus(db,roomId,'closed')`（room.js 新增 helper）。
+- 測試：`test_dmv2_step3_room.js`(18) + `test_dmv2_step3_ui.js`(15 jsdom 冒煙) 全綠；既有 worldset(71)/scaffold(19)/isolation(15) 無回歸。
 
 ### 3.2 Roster 名冊（收完整快照）
 - [ ] `onPlayers(db, roomId, cb)` 訂閱 → 名冊卡片列（頭像/名/等級/HP/AC 即時）。

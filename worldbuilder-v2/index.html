@@ -24,6 +24,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
   <script src="../shared/firebase-config.js"></script>
   <script src="../shared/room.js"></script>
+  <!-- QR 產生器（開團房號 → 玩家掃碼 join）。純前端、無外呼。 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
     :root {
@@ -279,16 +281,80 @@
           </div>
         </section>
 
-        <!-- ② 開團連線（placeholder） -->
+        <!-- ② 開團連線（Step 3.1：createRoom + QR。Roster/提案定案留 3.2+） -->
         <section v-show="currentTab === 'session'">
-          <!-- TODO(dm-v2-spec Step 3)：createRoom + QR、roster 吃「完整快照」、
-               提案 vs 定案流程（adoptWorldSave / DM 就地編輯回送 saves 通道）。 -->
-          <div class="p-6 rounded-xl border border-dashed text-center"
+          <!-- 未選世界 -->
+          <div v-if="!activeWorld" class="p-6 rounded-xl border border-dashed text-center"
                style="border-color:var(--border); color:var(--text-muted);">
-            <div class="text-4xl mb-2">🛰️</div>
-            <p class="font-medium mb-1">即將推出</p>
-            <p class="text-sm">firebase 已備妥；開團（createRoom + QR + Roster）將於 Step 3 實作。</p>
-            <p class="text-xs mt-2">firebase 狀態：{{ firebaseReady ? '✅ 已初始化' : '（尚未初始化）' }}</p>
+            <div class="text-4xl mb-2">🌍</div>
+            <p class="text-sm">請先於右上「換世界」選定或新增一個世界，才能開團。</p>
+          </div>
+
+          <!-- 已選世界：開房前設定 -->
+          <div v-else-if="!roomId" data-testid="session-setup">
+            <p class="text-sm mb-4" style="color:var(--text-muted);">
+              於世界「<b>{{ activeWorld.name }}</b>」開一場團。選一個任務來跑（可留空＝自由團）。
+            </p>
+
+            <label class="block text-xs mb-1" style="color:var(--text-muted);">🎯 任務（可選）</label>
+            <select v-model="sessionQuestId" data-testid="session-quest"
+                    class="w-full mb-4 px-3 py-2 rounded-lg"
+                    style="background:var(--panel); border:1px solid var(--border); color:var(--text);">
+              <option value="">— 不綁任務（自由團 / session zero）—</option>
+              <option v-for="q in worldQuests" :key="q.id" :value="q.id">{{ q.name }}</option>
+            </select>
+
+            <div class="mb-4 text-xs px-3 py-2 rounded-lg"
+                 style="background:var(--panel); border:1px solid var(--border); color:var(--text-muted);">
+              🕰️ 錨定紀元：<b style="color:var(--text);">{{ currentEraName || '（此世界尚無紀元，將以空紀元開團）' }}</b>
+              <span class="block mt-1">紀元為獨立一軸，預設當前紀元；需要分支請先於「世界設定」切換當前紀元。</span>
+            </div>
+
+            <button @click="openRoom" :disabled="roomBusy || !firebaseReady" data-testid="open-room-btn"
+                    class="w-full py-3 rounded-xl font-medium"
+                    style="background:var(--accent); color:#fff;"
+                    :style="(roomBusy || !firebaseReady) ? 'opacity:.5;cursor:not-allowed;' : ''">
+              <span v-if="roomBusy">開房中…</span>
+              <span v-else>🚪 開房</span>
+            </button>
+            <p v-if="!firebaseReady" class="text-xs mt-2 text-center" style="color:var(--text-muted);">
+              firebase 尚未就緒，暫時無法開房。<button class="underline" @click="retryFirebase">重試連線</button>
+            </p>
+            <p v-if="roomError" class="text-xs mt-2 text-center" style="color:#f87171;">{{ roomError }}</p>
+          </div>
+
+          <!-- 已開房：房號 + QR -->
+          <div v-else data-testid="session-open">
+            <div class="p-5 rounded-xl text-center" style="background:var(--panel); border:1px solid var(--border);">
+              <p class="text-xs mb-1" style="color:var(--text-muted);">房號（玩家輸入或掃碼加入）</p>
+              <div class="flex items-center justify-center gap-2 mb-3">
+                <span data-testid="room-code" class="text-3xl font-bold tracking-widest"
+                      style="color:var(--accent); letter-spacing:.25em;">{{ roomId }}</span>
+                <button @click="copyRoomCode" class="text-sm px-2 py-1 rounded"
+                        style="border:1px solid var(--border); color:var(--text-muted);">📋</button>
+              </div>
+              <div ref="qrBox" data-testid="room-qr" class="inline-block p-3 bg-white rounded-lg"></div>
+              <p class="text-xs mt-3" style="color:var(--text-muted);">掃碼開玩家版並自動帶入房號</p>
+            </div>
+
+            <div class="mt-4 text-xs px-3 py-2 rounded-lg"
+                 style="background:var(--panel); border:1px solid var(--border); color:var(--text-muted);">
+              <div>世界：<b style="color:var(--text);">{{ activeWorld.name }}</b></div>
+              <div>任務：<b style="color:var(--text);">{{ sessionQuestName || '（自由團）' }}</b></div>
+              <div>紀元：<b style="color:var(--text);">{{ currentEraName || '（無）' }}</b></div>
+            </div>
+
+            <div class="mt-4 p-3 rounded-lg text-xs text-center"
+                 style="border:1px dashed var(--border); color:var(--text-muted);">
+              👥 玩家名冊（Roster）將於 Step 3.2 顯示；提案／定案於 3.3。
+            </div>
+
+            <button @click="closeRoom" :disabled="roomBusy" data-testid="close-room-btn"
+                    class="w-full mt-4 py-3 rounded-xl font-medium"
+                    style="border:1px solid #f87171; color:#f87171;">
+              🛑 關閉房間
+            </button>
+            <p v-if="roomError" class="text-xs mt-2 text-center" style="color:#f87171;">{{ roomError }}</p>
           </div>
         </section>
 

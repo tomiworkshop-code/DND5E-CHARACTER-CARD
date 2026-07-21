@@ -47,13 +47,22 @@
   function createRoom(db, opts){
     opts = opts || {};
     const roomId = normRoomId(opts.roomId) || genRoomId();
+    /* §10.1② 開團錨定：worldId(必) + questId(可選，自由團略) + eraId(獨立一軸，預設 currentEra)。
+     * questId 只在有值時寫入（避免 undefined 被 RTDB 拒絕，且自由團不落空鍵）。 */
     const meta = {
       dmId: opts.dmId || null,
       worldId: opts.worldId || "",
+      eraId: opts.eraId || "",
       createdAt: Date.now(),
       status: "open"
     };
+    if(opts.questId){ meta.questId = String(opts.questId); }
     return db.ref("rooms/" + roomId + "/meta").set(meta).then(function(){ return roomId; });
+  }
+
+  /* 更新房間狀態（open/closed）— 關房用。只改 meta/status，不動其餘欄位。 */
+  function setRoomStatus(db, roomId, status){
+    return db.ref("rooms/" + normRoomId(roomId) + "/meta/status").set(String(status || "open"));
   }
 
   /* 讀房間 meta（玩家加入前確認房間存在）。回傳 meta 物件或 null。 */
@@ -183,7 +192,7 @@
   global.DND5E_ROOM = {
     ROOM_ID_ALPHABET, genRoomId, normRoomId,
     init, signInAnon,
-    createRoom, roomMeta, joinRoom,
+    createRoom, roomMeta, setRoomStatus, joinRoom,
     sendBroadcast, onBroadcast,
     sendInbox, onInbox, onPlayers,
     sendCommand, onCommand,

@@ -9,7 +9,7 @@
   "use strict";
 
   /* DM v2 版本字串（與玩家端獨立；Build 號遞增） */
-  var APP_VERSION = "DM v2.2.0 (Build 0721.3)";
+  var APP_VERSION = "DM v2.3.0 (Build 0721.4)";
 
   /* ============================================================
      §6 資料隔離：前綴命名空間 storage adapter（Step 1.5，維持有效）
@@ -150,6 +150,7 @@
       var ref = Vue.ref;
       var computed = Vue.computed;
       var onMounted = Vue.onMounted;
+      var nextTick = Vue.nextTick;
 
       /* ---- 導覽分頁（landing 為主畫面；圖示對照集中此處 §9.4） ---- */
       var tabs = [
@@ -549,17 +550,118 @@
         if (key === "worldset") worldsetView.value = "";   /* 進入世界設定回到模組格 */
       }
 
-      /* ---- firebase：只「備妥」不開團（Step 3 才 createRoom） ---- */
+      /* ---- firebase：Step 3.1 起真正 init（保留 {app,auth,db} 供開房用） ---- */
       var firebaseReady = ref(false);
+      var fb = null;   /* { app, auth, db } */
       function initFirebase() {
         try {
           if (typeof firebase === "undefined" || !window.DND5E_FIREBASE || !ROOM) return;
-          ROOM.init(window.DND5E_FIREBASE.firebaseConfig);
-          firebaseReady.value = true;
+          fb = ROOM.init(window.DND5E_FIREBASE.firebaseConfig);
+          firebaseReady.value = !!(fb && fb.db);
         } catch (e) {
-          /* 靜默：Step 2a 不需要連線，僅備妥 SDK */
+          fb = null;
           firebaseReady.value = false;
         }
+      }
+      function retryFirebase() { initFirebase(); }
+
+      /* ============================================================
+         §3 / §10.1② 開團連線（Step 3.1：createRoom + QR）
+         主流程：選任務開團 → worldId 自動帶出；questId 可選；
+         eraId 獨立一軸（預設 currentEraId）。roster/提案定案留 3.2+。
+         ============================================================ */
+      var sessionQuestId = ref("");
+      var roomId = ref("");
+      var roomBusy = ref(false);
+      var roomError = ref("");
+      var qrBox = ref(null);   /* template ref：QR 容器 */
+
+      /* 當前世界的任務清單（entity type = quest） */
+      var worldQuests = computed(function () {
+        return worldEntities.value.filter(function (e) { return e && e.type === "quest"; });
+      });
+      var sessionQuestName = computed(function () {
+        var q = worldQuests.value.find(function (x) { return x.id === sessionQuestId.value; });
+        return q ? (q.name || "") : "";
+      });
+      var currentEraName = computed(function () {
+        var id = currentEraId.value;
+        var e = worldEras.value.find(function (x) { return x.id === id; });
+        return e ? (e.name || "") : "";
+      });
+
+      /* 玩家版 join URL（QR 編碼）：../v2/index.html?room=CODE（玩家端已支援 ?room= 自帶入） */
+      function playerJoinUrl(code) {
+        try {
+          var u = new URL("../v2/index.html", (typeof location !== "undefined" ? location.href : "http://localhost/"));
+          u.search = "?room=" + encodeURIComponent(code);
+          return u.href;
+        } catch (e) { return "?room=" + code; }
+      }
+
+      function renderQr(code) {
+        try {
+          var box = qrBox.value;
+          if (!box || typeof window === "undefined" || typeof window.QRCode === "undefined") return;
+          box.innerHTML = "";
+          new window.QRCode(box, {
+            text: playerJoinUrl(code), width: 168, height: 168,
+            correctLevel: window.QRCode.CorrectLevel ? window.QRCode.CorrectLevel.M : undefined
+          });
+        } catch (e) { /* QR 非關鍵：失敗仍顯示房號文字 */ }
+      }
+
+      function openRoom() {
+        roomError.value = "";
+        if (!activeWorld.value) { roomError.value = "請先選定世界。"; return; }
+        if (!fb || !fb.db || !ROOM) { roomError.value = "firebase 未就緒，無法開房。"; return; }
+        roomBusy.value = true;
+        var opts = {
+          worldId: activeWorldId.value,
+          eraId: currentEraId.value || "",
+          questId: sessionQuestId.value || ""
+        };
+        ROOM.signInAnon(fb.auth).then(function (dmUid) {
+          opts.dmId = dmUid;
+          return ROOM.createRoom(fb.db, opts);
+        }).then(function (code) {
+          roomId.value = code;
+          roomBusy.value = false;
+          if (nextTick) nextTick(function () { renderQr(code); });
+          else renderQr(code);
+        }).catch(function (e) {
+          roomBusy.value = false;
+          roomError.value = "開房失敗：" + (e && e.message ? e.message : e);
+        });
+      }
+
+      function closeRoom() {
+        roomError.value = "";
+        var code = roomId.value;
+        if (!code) { return; }
+        roomBusy.value = true;
+        var done = function () {
+          roomBusy.value = false;
+          roomId.value = "";
+          if (qrBox.value) { try { qrBox.value.innerHTML = ""; } catch (e) {} }
+        };
+        if (fb && fb.db && ROOM && ROOM.setRoomStatus) {
+          ROOM.setRoomStatus(fb.db, code, "closed").then(done).catch(function (e) {
+            /* 關房寫失敗仍本地收尾（避免卡在開房態） */
+            roomError.value = "關房回寫失敗（已本地離開）：" + (e && e.message ? e.message : e);
+            done();
+          });
+        } else { done(); }
+      }
+
+      function copyRoomCode() {
+        var code = roomId.value;
+        if (!code) return;
+        try {
+          if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(code);
+          }
+        } catch (e) { /* no-op */ }
       }
 
       onMounted(function () {
@@ -620,7 +722,20 @@
         cancelAddWorld: cancelAddWorld,
         switchWorld: switchWorld,
         openEntry: openEntry,
-        firebaseReady: firebaseReady
+        firebaseReady: firebaseReady,
+        retryFirebase: retryFirebase,
+        /* Step 3.1 開團 */
+        sessionQuestId: sessionQuestId,
+        roomId: roomId,
+        roomBusy: roomBusy,
+        roomError: roomError,
+        qrBox: qrBox,
+        worldQuests: worldQuests,
+        sessionQuestName: sessionQuestName,
+        currentEraName: currentEraName,
+        openRoom: openRoom,
+        closeRoom: closeRoom,
+        copyRoomCode: copyRoomCode
       };
     }
   });
