@@ -1,0 +1,69 @@
+# DM v2 — Step 3 開團連線 + Roster 施工清單
+
+> 目標：DM v2 第一次真正接上 Firebase。開房 → 玩家 join → roster 收「完整快照」→
+> 提案/定案流程 → 玩家快照落地備份。依 dm-v2-spec §3 / §7。
+> 原則：玩家=提案、DM=權威；未定案不動 DM 正史。每步語法檢查 + 測試全綠 + commit push。
+
+## 現況盤點（已就緒 / 待補）
+- ✅ `shared/room.js` API 完整：`createRoom / joinRoom / onPlayers / sendBroadcast /
+  setSave / getSave / onSave / sendCommand / onCommand / sendRequest / onRequests`。
+- ✅ DM v2 `initFirebase()` 已「備妥不開團」、`firebaseReady` flag 已在。
+- ✅ 分頁佔位：「🔗 開團」「👥 玩家記錄（Step 3 即將推出）」。
+- ⚠️ 玩家端 `buildPlayerSnapshot`（v2/app.js:836）目前**只送 Tier1**（name/level/hp/ac/characterId）
+  → Step 3 需擴充送「完整 mechanical + narrative」或走 saves proposal 通道（§3 依賴項）。
+- ⚠️ DM v2 尚無 roster / 提案定案 / 快照備份 的 UI 與邏輯（本步主體）。
+
+## 施工項目
+
+### 3.1 DM 開房（createRoom + QR）
+- [ ] 「開團」分頁：DM 匿名登入（`signInAnon`）→ `createRoom(db, opts)`。
+- [ ] **主流程 = 選任務開團**（Tommy 2026-07-21 定案）：DM 從當前世界選一個任務(quest)開團 →
+      `worldId` 由該任務自動帶出（不必手選世界）。
+- [ ] `questId` **設為可選**：允許「不綁任務的自由團 / session zero / 開場團」也能開房。
+- [ ] `eraId` **獨立保留**（不由任務推導）：預設 = 該世界 `currentEraId`（canon tip），DM 可覆寫錨到別的節點。
+      原因：同一任務可在不同 era 分支跑（§10 平行線哲學），quest 與 era 是正交兩軸。
+- [ ] room.meta 資料契約：`{ worldId, questId?, eraId, dmId, createdAt, status }`。
+- [ ] 顯示 5 碼房號（大字、可複製）+ QR（玩家掃碼帶房號進玩家版 join）。
+- [ ] 房間狀態列：open/關房；關房時更新 meta.status。
+
+### 3.2 Roster 名冊（收完整快照）
+- [ ] `onPlayers(db, roomId, cb)` 訂閱 → 名冊卡片列（頭像/名/等級/HP/AC 即時）。
+- [ ] 點卡片開「玩家詳情」抽屜：技能/豁免/被動察覺/魔寵(陣列)/背包重點（唯讀檢視）。
+- [ ] **依賴**：玩家端 `buildPlayerSnapshot` 擴充完整欄位（見 3.5）；DM 端解析一律走 `DND5E_CHAR`。
+
+### 3.3 提案 → 定案流程（§3 核心）
+- [ ] 玩家送來 = 「提案」，roster 標示「未定案」。
+- [ ] 「📥 採納為世界存檔」：直接套用提案到 DM 世界存檔（實作/沿用 `adoptWorldSave` 雛形）。
+- [ ] 「✏️ 就地編輯後定案」：DM 改數值 → 存 DM 權威版（`version_m` 前進）→
+      `setSave(db,roomId,characterId,save)` 回送 → 玩家端 `handleRemoteSave` 做版本裁決/衝突 UI。
+- [ ] 未定案前**不影響** DM 世界正史（隔離）。
+
+### 3.4 玩家快照落地備份（§7 基礎）
+- [ ] DM 收快照後寫入 DM 命名空間（`dmv2:`）：按 `世界 → 玩家(pid/characterId) → 快照` 歸檔。
+- [ ] 保留最新一份 + 精簡歷史（時間戳 + version_m/version_n）。
+- [ ] 「👥 玩家記錄」分頁：列此世界曾出現的玩家 → 點入看快照/歷程（恢復 UI 可挪 Step 3 尾或 Step 4）。
+
+### 3.5 玩家端配合（v2/app.js，跨端小改）
+- [ ] 擴充 `buildPlayerSnapshot`：Tier1 之外補 mechanical(技能/豁免/被動/魔寵/背包重點) + narrative 摘要。
+- [ ] 或改走 `rooms/{id}/saves/{characterId}` 的 proposal 欄位（沿用現有 players[pid].proposal.m/n）。
+- [ ] 確保不破壞玩家版現有 join/handleRemoteSave 流程（既有測試全綠）。
+
+### 3.6 測試 & 收尾
+- [ ] 新增 `test_dmv2_step3_*.js`：mock db（記憶體）驗 createRoom/onPlayers/setSave 契約 + 快照備份寫入 `dmv2:` key。
+- [ ] `node --check` 全綠 + 既有測試(含 71 項 worldset)不回歸。
+- [ ] 手機/平板響應式檢查（roster 卡片、QR、抽屜）。
+- [ ] 版本徽章 bump → commit + `git push origin main`。
+
+## 風險/注意
+- Firebase Spark 免費方案：注意併發/流量；先只做 room 通道，勿灌大 payload。
+- 安全靠 Realtime DB 規則（FIREBASE-SETUP.md 第 5 步），非前端 config。
+- 提案/定案務必保持「未定案不動正史」的隔離，避免污染 DM 世界存檔。
+- 跨端改動（3.5）要同時顧玩家版回歸測試，避免動到別人正在用的野團流程。
+
+## 建議施作順序（可獨立驗證的小段）
+1. 3.1 開房 + QR（先能開房、看到房號）
+2. 3.5 玩家端完整快照（讓 roster 有料可收）
+3. 3.2 Roster 檢視（唯讀）
+4. 3.4 快照落地備份
+5. 3.3 提案/定案（最需謹慎，最後做）
+6. 3.6 測試 + push
