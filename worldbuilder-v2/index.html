@@ -752,6 +752,11 @@
             模板內寫 <code>{變數名}</code>，套用時逐變數填值（可從玩家/世界/遭遇選或自由輸入）。⚙️ 指令型可直接對連線玩家扣血⼀給獎。
           </p>
 
+          <div v-if="sendState.lastResult" class="p-2 rounded-lg border mb-3 text-sm" style="border-color:#2e7d32; color:#2e7d32;" data-testid="tpl-send-ok">
+            ✅ 已發送（{{ tplKindMeta(sendState.lastResult.kind).label }}）{{ sendState.lastResult.command ? '，並對 ' + sendState.lastResult.target + ' 執行指令' : (sendState.lastResult.target ? '（→ ' + sendState.lastResult.target + '）' : '') }}
+          </div>
+          <div v-if="sendState.error && !showApplyForm" class="p-2 rounded-lg border mb-3 text-sm" style="border-color:#c0392b; color:#c0392b;" data-testid="tpl-send-warn">⚠️ {{ sendState.error }}</div>
+
           <div v-if="!templates.length" class="p-6 rounded-xl border border-dashed text-center text-sm"
                style="border-color:var(--border); color:var(--text-muted);" data-testid="tpl-empty">
             尚無模板，點右上「新增」建立第一個。
@@ -1051,6 +1056,16 @@
             <span class="status-badge st-hidden ml-auto">{{ tplKindMeta(applyState.kind).icon }} {{ tplKindMeta(applyState.kind).label }}</span>
           </div>
 
+          <!-- inbox 收件玩家（僅 kind=inbox） -->
+          <div v-if="applyState.kind === 'inbox'" class="mb-3 p-2 rounded-lg border" style="border-color:var(--border);" data-testid="apply-inbox-picker">
+            <label class="block text-xs mb-1" style="color:var(--text-muted);">✉️ 私訊收件玩家</label>
+            <select v-model="applyState.inboxPid" data-testid="apply-inbox-pid"
+                    class="w-full px-2 py-1 rounded border text-sm" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+              <option value="">（選一位連線玩家）</option>
+              <option v-for="p in rosterList" :key="p.pid" :value="p.pid">{{ p.name || ('玩家' + p.pid) }}</option>
+            </select>
+          </div>
+
           <!-- 逐變數：搜尋式選擇器（軟過濾 + 顯示全部 + 自由輸入） -->
           <div v-for="v in applyState.vars" :key="v.name" class="mb-3 p-2 rounded-lg border" style="border-color:var(--border);" data-testid="apply-var-block">
             <div class="flex items-center gap-2 mb-1">
@@ -1092,15 +1107,17 @@
               <span v-else-if="applyCommandPreview.targetName" style="color:#c0392b;" data-testid="apply-cmd-warn">⚠️ 非連線玩家（指令無法執行）</span></div>
           </div>
 
+          <p v-if="sendState.error" class="text-xs mb-2" style="color:#c0392b;" data-testid="apply-send-error">⚠️ {{ sendState.error }}</p>
+          <p v-if="!roomId" class="text-xs mb-2" style="color:#c0392b;" data-testid="apply-noroom">⚠️ 尚未開房，發送前請先到「開團連線」開房。</p>
           <div class="flex gap-2">
-            <button class="icon-btn icon-btn-primary icon-btn-block" data-testid="apply-confirm" @click="confirmApply">
-              <span class="ib-icon">✅</span><span>確認（待發送）</span>
+            <button class="icon-btn icon-btn-primary icon-btn-block" :disabled="sendState.busy || !roomId" data-testid="apply-confirm" @click="applyAndSend">
+              <span class="ib-icon">📤</span><span>{{ sendState.busy ? '發送中…' : '確認發送' }}</span>
             </button>
             <button class="icon-btn" @click="cancelApply">
               <span class="ib-icon">✕</span><span>取消</span>
             </button>
           </div>
-          <p class="text-xs mt-2" style="color:var(--text-muted);">ℹ️ 實際發送與指令執行將於 4.4 接上。</p>
+          <p class="text-xs mt-2" style="color:var(--text-muted);">ℹ️ command 模板會廣播敍事文字並對連線玩家執行指令（扣血/給獎）。</p>
         </div>
       </div>
     </transition>

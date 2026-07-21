@@ -9,7 +9,7 @@
   "use strict";
 
   /* DM v2 版本字串（與玩家端獨立；Build 號遞增） */
-  var APP_VERSION = "DM v2.5.3 (Build 0721.12)";
+  var APP_VERSION = "DM v2.5.4 (Build 0721.13)";
 
   /* ============================================================
      §6 資料隔離：前綴命名空間 storage adapter（Step 1.5，維持有效）
@@ -495,8 +495,10 @@
       var stagedApply = ref(null);   /* 4.3 暗定結果；4.4 接手發送 */
       var applyState = Vue.reactive({
         tplId: "", name: "", kind: "broadcast", text: "", vars: [], command: null,
-        values: {}, search: {}, showAll: {}, finalText: "", edited: false
+        values: {}, search: {}, showAll: {}, finalText: "", edited: false,
+        inboxPid: ""   /* kind='inbox' 時的收件玩家 pid */
       });
+      var sendState = Vue.reactive({ busy: false, error: "", lastResult: null });
       function openApplyTemplate(t) {
         if (!t || !TPL) return;
         applyState.tplId = t.id || "";
@@ -510,6 +512,8 @@
         applyState.showAll = {};
         applyState.finalText = t.text || "";
         applyState.edited = false;
+        applyState.inboxPid = "";
+        sendState.error = "";
         showApplyForm.value = true;
       }
       function cancelApply() { showApplyForm.value = false; }
@@ -589,16 +593,91 @@
       function confirmApply() {
         if (!TPL) return;
         var cp = applyCommandPreview.value;
+        var inbox = null;
+        if (applyState.kind === "inbox" && applyState.inboxPid) {
+          var rp = (rosterList.value || []).find(function (p) { return p.pid === applyState.inboxPid; });
+          inbox = { pid: applyState.inboxPid, name: rp ? (rp.name || "") : "" };
+        }
         stagedApply.value = {
           tplId: applyState.tplId,
           kind: applyState.kind,
           text: applyState.finalText,
           values: JSON.parse(JSON.stringify(applyState.values)),
+          inbox: inbox,
           command: cp ? { type: cp.type, amount: cp.amount, targetName: cp.targetName, targetIsRoster: cp.targetIsRoster, pid: cp.target ? cp.target.pid : "", characterId: cp.target ? cp.target.characterId : "" } : null,
           at: Date.now()
         };
         showApplyForm.value = false;
         return stagedApply.value;
+      }
+
+      /* ============================================================
+         Step 4.4 對接發送 + 指令執行
+         - broadcast：全體廣播。command 亦一併廣播敍事文字（桌上共見）。
+         - inbox：私訊單一玩家（需 inboxPid）。
+         - command：對 roster 玩家送 applyCommand（damage/heal/xp/gold/item）。
+         紅線：指令對象必為連線玩家（pid + targetIsRoster）。
+         deps 可注入（測試）：{ db, code, room }。
+         ============================================================ */
+      function buildCommandPayload(staged) {
+        var c = staged && staged.command; if (!c) return null;
+        if (c.type === "item") {
+          return { type: "give-item", itemName: String(c.amount || "物品"), qty: 1, note: staged.text || "" };
+        }
+        return { type: c.type, amount: Number(c.amount) || 0, note: staged.text || "" };
+      }
+      function sendStaged(staged, deps) {
+        deps = deps || {};
+        staged = staged || stagedApply.value;
+        var db = deps.db || (fb && fb.db);
+        var code = deps.code || roomId.value;
+        var room = deps.room || ROOM;
+        sendState.error = ""; sendState.lastResult = null;
+        if (!staged) { sendState.error = "沒有待發送內容。"; return Promise.resolve(false); }
+        if (!db || !room || !code) { sendState.error = "尚未開房，無法發送。"; return Promise.resolve(false); }
+        var jobs = [];
+        var result = { kind: staged.kind, text: staged.text, message: false, command: false, target: "" };
+        if (staged.kind === "inbox") {
+          if (staged.inbox && staged.inbox.pid) {
+            jobs.push(room.sendInbox(db, code, staged.inbox.pid, "dm", staged.text));
+            result.message = true; result.target = staged.inbox.name || staged.inbox.pid;
+          } else { sendState.error = "私訊未選收件玩家。"; return Promise.resolve(false); }
+        } else {
+          jobs.push(room.sendBroadcast(db, code, "dm", staged.text));
+          result.message = true;
+        }
+        if (staged.kind === "command" && staged.command) {
+          if (!staged.command.targetIsRoster || !staged.command.pid) {
+            sendState.error = "指令對象非連線玩家，已略過指令（訊息仍送出）。";
+          } else {
+            jobs.push(room.sendCommand(db, code, staged.command.pid, buildCommandPayload(staged)));
+            result.command = true; result.target = staged.command.targetName || staged.command.pid;
+          }
+        }
+        sendState.busy = true;
+        return Promise.all(jobs).then(function () {
+          sendState.busy = false;
+          sendState.lastResult = result;
+          stagedApply.value = null;
+          return result;
+        }).catch(function (e) {
+          sendState.busy = false;
+          sendState.error = "發送失敗：" + (e && e.message ? e.message : e);
+          return false;
+        });
+      }
+      /* 套用 Modal 「確認發送」：守衛 + 暗定 + 發送 */
+      function applyAndSend() {
+        sendState.error = "";
+        if (applyState.kind === "command") {
+          var cp = applyCommandPreview.value;
+          if (!cp || !cp.targetName) { sendState.error = "指令模板需指定對象（連線玩家）。"; return Promise.resolve(false); }
+          if (!cp.targetIsRoster) { sendState.error = "指令對象「" + cp.targetName + "」不是連線玩家，無法執行指令。請改選連線玩家，或改用廣播模板。"; return Promise.resolve(false); }
+        }
+        if (applyState.kind === "inbox" && !applyState.inboxPid) { sendState.error = "請選私訊收件玩家。"; return Promise.resolve(false); }
+        if (applyMissing.value.length) { sendState.error = "尚有未填變數：" + applyMissing.value.map(function (n) { return "{" + n + "}"; }).join("、"); return Promise.resolve(false); }
+        var s = confirmApply();
+        return sendStaged(s);
       }
 
       /* ---- entity CRUD ---- */
@@ -1204,6 +1283,11 @@
         applyMissing: applyMissing,
         applyCommandPreview: applyCommandPreview,
         confirmApply: confirmApply,
+        /* 4.4 發送/執行 */
+        sendState: sendState,
+        buildCommandPayload: buildCommandPayload,
+        sendStaged: sendStaged,
+        applyAndSend: applyAndSend,
         showEntityForm: showEntityForm,
         editingEntity: editingEntity,
         openAddEntity: openAddEntity,

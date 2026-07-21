@@ -37,10 +37,11 @@
 - [x] 測試 + push。
 - 實作：🎯 套用 Modal — 逐變數搜尋式選擇器(依hint取候選池:roster玩家/世界實體/遭遇怪物;showAll切全部;search過濾;可自由輸入) + 即時代入可編輯預覽(手改鎖edited不覆蓋/↺重新代入) + applyMissing缺值提示 + command預覽(解析對象必為roster+數值,非roster顯紅字警告) + confirmApply→stagedApply(4.4才真發送)。踩坑:Vue computed 裡 hasOwnProperty 不觸發追蹤→改直接讀 vals[n]。test `test_dmv2_step4_apply.js`(23)。
 
-## 4.4 對接發送 + 指令執行
-- [ ] broadcast/inbox/command 三通道；指令對象＝roster 玩家；`{monsterName}` 接遭遇攤平清單。
-- [ ] 送訊息 +（可選）送指令；確認護欄。
-- [ ] 測試 + push。
+## 4.4 對接發送 + 指令執行 — ✅ 完成 (DM v2.5.4 / Build 0721.13)
+- [x] broadcast/inbox/command 三通道；指令對象＝roster 玩家；`{monsterName}` 接遭遇攤平清單。
+- [x] 送訊息 +（可選）送指令；確認護欄。
+- [x] 測試 + push。
+- 實作：sendStaged(staged,deps注入) 三通道 — broadcast(sendBroadcast) / inbox(sendInbox,需收件pid) / command(sendCommand 對roster玩家:damage/heal/xp/gold/give-item)；command 亦一併廣播敘事；buildCommandPayload(item→give-item{itemName,qty});applyAndSend 守衛(缺對象/非roster/缺變數/未開房阻擋)+可編輯預覽確認發送+發送結果banner+inbox收件選擇器。test `test_dmv2_step4_send.js`(26,真實room.js+mock db,不觸網)。
 
 ## 4.5 收尾
 - [ ] 內建範例模板（攻擊命中、陷阱、寶箱奇遇、技能檢定結果）。
