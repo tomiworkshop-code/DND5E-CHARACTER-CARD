@@ -659,6 +659,22 @@
               </button>
             </div>
 
+            <!-- Step 4.0 遭遇三軸篩選（屬於…底下的瀏覽） -->
+            <div v-if="worldsetView === 'encounter'" class="flex flex-wrap gap-2 mb-3" data-testid="encounter-filter">
+              <select v-model="encounterFilter.questId" class="px-2 py-1 rounded-lg border text-xs" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+                <option value="">📜 任務：全部</option>
+                <option v-for="q in questOptions" :key="q.id" :value="q.id">{{ q.name }}</option>
+              </select>
+              <select v-model="encounterFilter.locationId" class="px-2 py-1 rounded-lg border text-xs" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+                <option value="">📍 地點：全部</option>
+                <option v-for="l in locationOptions" :key="l.id" :value="l.id">{{ l.name }}</option>
+              </select>
+              <select v-model="encounterFilter.eraId" class="px-2 py-1 rounded-lg border text-xs" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+                <option value="">⏳ 時間點：全部</option>
+                <option v-for="er in worldEras" :key="er.id" :value="er.id">{{ er.name }}</option>
+              </select>
+            </div>
+
             <div v-if="!currentEntities.length" class="p-6 rounded-xl border border-dashed text-center text-sm"
                  style="border-color:var(--border); color:var(--text-muted);" data-testid="entity-empty">
               尚無【{{ currentTypeMeta ? currentTypeMeta.label : '' }}】，點右上「新增」建立第一筆。
@@ -675,6 +691,14 @@
                   <p v-if="e.type === 'location' && e.region" class="text-xs mt-0.5" style="color:var(--text-muted);">🗺️ {{ e.region }}</p>
                   <p v-if="e.type === 'quest' && e.objective" class="text-xs mt-0.5" style="color:var(--text-muted);">🎯 {{ e.objective }}</p>
                   <p v-if="e.type === 'event' && e.trigger" class="text-xs mt-0.5" style="color:var(--text-muted);">⚡ {{ e.trigger }}</p>
+                  <p v-if="e.type === 'encounter'" class="text-xs mt-0.5 flex flex-wrap gap-x-2" style="color:var(--text-muted);" data-testid="encounter-axes">
+                    <span v-if="e.questId">📜 {{ entityNameById(e.questId) }}</span>
+                    <span v-if="e.locationId">📍 {{ entityNameById(e.locationId) }}</span>
+                    <span v-if="e.eraId">⏳ {{ eraNameById(e.eraId) }}</span>
+                  </p>
+                  <p v-if="e.type === 'encounter' && e.monsters && e.monsters.length" class="text-xs mt-0.5" style="color:var(--text-muted);" data-testid="encounter-monsters">
+                    🐉 {{ e.monsters.map(function(m){ return m.name + (m.count > 1 ? ('×' + m.count) : ''); }).join('、') }}
+                  </p>
                   <p v-if="e.story" class="text-xs mt-1 whitespace-pre-line line-clamp-2" style="color:var(--text-muted);">{{ e.story }}</p>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
@@ -825,6 +849,51 @@
             <label class="block text-xs mb-1" style="color:var(--text-muted);">觸發 trigger</label>
             <input v-model="editingEntity.trigger" type="text"
                    class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border);">
+          </template>
+
+          <!-- 遭遇專屬欄位（Step 4.0：三軸定位 + 怪物子清單） -->
+          <template v-if="editingEntity.type === 'encounter'">
+            <div class="grid grid-cols-1 gap-2 mb-2" data-testid="encounter-axis-fields">
+              <div>
+                <label class="block text-xs mb-1" style="color:var(--text-muted);">📜 所屬任務</label>
+                <select v-model="editingEntity.questId" data-testid="ef-questId"
+                        class="w-full px-3 py-2 rounded-lg border text-base" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+                  <option value="">（不指定）</option>
+                  <option v-for="q in questOptions" :key="q.id" :value="q.id">{{ q.name }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs mb-1" style="color:var(--text-muted);">📍 發生地點</label>
+                <select v-model="editingEntity.locationId" data-testid="ef-locationId"
+                        class="w-full px-3 py-2 rounded-lg border text-base" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+                  <option value="">（不指定）</option>
+                  <option v-for="l in locationOptions" :key="l.id" :value="l.id">{{ l.name }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs mb-1" style="color:var(--text-muted);">⏳ 時間點（紀元）</label>
+                <select v-model="editingEntity.eraId" data-testid="ef-eraId"
+                        class="w-full px-3 py-2 rounded-lg border text-base" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+                  <option value="">（不指定）</option>
+                  <option v-for="er in worldEras" :key="er.id" :value="er.id">{{ er.name }}</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs" style="color:var(--text-muted);">🐉 怪物清單</label>
+              <button type="button" class="icon-btn icon-btn-ghost text-xs" data-testid="monster-add" @click="addMonsterRow">＋ 加怪物</button>
+            </div>
+            <div v-if="!editingEntity.monsters || !editingEntity.monsters.length" class="text-xs mb-2" style="color:var(--text-muted);">尚未加怪物。</div>
+            <div v-for="(m, mi) in editingEntity.monsters" :key="mi" class="flex gap-1 mb-1 items-center" data-testid="monster-row">
+              <input v-model="m.name" type="text" placeholder="怪物名" data-testid="monster-name"
+                     class="flex-1 px-2 py-1 rounded border text-sm" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+              <input v-model.number="m.count" type="number" min="1" placeholder="數" data-testid="monster-count"
+                     class="w-14 px-2 py-1 rounded border text-sm" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+              <input v-model="m.notes" type="text" placeholder="備註" data-testid="monster-notes"
+                     class="flex-1 px-2 py-1 rounded border text-sm" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+              <button type="button" class="icon-btn icon-btn-ghost icon-btn-icon-only" title="移除" data-testid="monster-remove" @click="removeMonsterRow(mi)">🗑️</button>
+            </div>
           </template>
 
           <label class="block text-xs mb-1" style="color:var(--text-muted);">經歷／故事 story</label>

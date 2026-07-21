@@ -11,12 +11,12 @@
 - 按鈕後 → 填變數 → **可編輯預覽框** → 確認送出。
 - B：變數綁指令（damage/heal/xp/gold/item）；damage/heal 只對「連線玩家」；指令對象另設欄位＝roster 玩家。
 
-## 4.0 遭遇 (Encounter) 模組 — 先做
-- [ ] 資料模型：新實體型別 `type:'encounter'`，三軸 `questId?/locationId?/eraId?` + `monsters:[{name,count,notes}]` + `story/notes/status`。
-- [ ] 儲存走現有 entity 管線（world.entities，`dmv2:` 隔離）。
-- [ ] UI：任務/地點/時間點詳情底下掛「遭遇」子區塊（列表 + 怪物子清單編輯）；新增自動帶對應三軸 id。
-- [ ] 提供 `encounterMonsters` 攤平清單（給 4.4 `{monsterName}` 選單用）。
-- [ ] 測試（模型/三軸關聯/怪物子清單 CRUD）+ 回歸 + push。
+## 4.0 遭遇 (Encounter) 模組 — ✅ 完成 (DM v2.5.0 / Build 0721.9)
+- [x] 資料模型：新實體型別 `type:'encounter'`，三軸 `questId?/locationId?/eraId?` + `monsters:[{name,count,notes}]` + `story/notes/status`。
+- [x] 儲存走現有 entity 管線（world.entities，`dmv2:` 隔離）。
+- [x] UI：任務/地點/時間點詳情底下掛「遭遇」子區塊（列表 + 怪物子清單編輯）；新增自動帶對應三軸 id。
+- [x] 提供 `encounterMonsters` 攤平清單（給 4.4 `{monsterName}` 選單用）。
+- [x] 測試（模型/三軸關聯/怪物子清單 CRUD）+ 回歸 + push。
 
 ## 4.1 模板資料模型
 - [ ] `{ id, name, kind:'broadcast'|'inbox'|'command', text, vars:[{name,hint?}], command? }`。

@@ -9,7 +9,7 @@
   "use strict";
 
   /* DM v2 版本字串（與玩家端獨立；Build 號遞增） */
-  var APP_VERSION = "DM v2.4.0 (Build 0721.8)";
+  var APP_VERSION = "DM v2.5.0 (Build 0721.9)";
 
   /* ============================================================
      §6 資料隔離：前綴命名空間 storage adapter（Step 1.5，維持有效）
@@ -85,7 +85,8 @@
     location: { icon: "📍", label: "地點" },
     quest:    { icon: "📜", label: "任務" },
     clue:     { icon: "🔍", label: "線索" },
-    event:    { icon: "⚡", label: "事件" }
+    event:    { icon: "⚡", label: "事件" },
+    encounter:{ icon: "⚔️", label: "遭遇" }
   };
   /* §10.2 status 列舉：active(存在)/changed(已質變)/destroyed(已毀)/hidden(未登場) */
   var STATUS_OPTIONS = [
@@ -181,6 +182,7 @@
         { key: "clue", icon: "🔍", label: "線索" },
         { key: "place", icon: "📍", label: "地點" },
         { key: "event", icon: "⚡", label: "事件" },
+        { key: "encounter", icon: "⚔️", label: "遭遇" },
         { key: "rules", icon: "📏", label: "世界規則" }
       ];
 
@@ -340,9 +342,34 @@
         return (activeWorld.value && Array.isArray(activeWorld.value.entities))
           ? activeWorld.value.entities : [];
       });
+      /* 遭遇三軸篩選（任務/地點/時間點）— 達成「屬於…底下」的瀏覽感 */
+      var encounterFilter = ref({ questId: "", locationId: "", eraId: "" });
       var currentEntities = computed(function () {
         var t = worldsetView.value;
-        return worldEntities.value.filter(function (e) { return e && e.type === t; });
+        var list = worldEntities.value.filter(function (e) { return e && e.type === t; });
+        if (t === "encounter") {
+          var f = encounterFilter.value || {};
+          if (f.questId) list = list.filter(function (e) { return e.questId === f.questId; });
+          if (f.locationId) list = list.filter(function (e) { return e.locationId === f.locationId; });
+          if (f.eraId) list = list.filter(function (e) { return e.eraId === f.eraId; });
+        }
+        return list;
+      });
+      /* 三軸下拉選項來源 */
+      var questOptions = computed(function () { return worldEntities.value.filter(function (e) { return e.type === "quest"; }); });
+      var locationOptions = computed(function () { return worldEntities.value.filter(function (e) { return e.type === "location"; }); });
+      function entityNameById(id) { if (!id) return ""; var e = worldEntities.value.find(function (x) { return x.id === id; }); return e ? (e.name || "") : ""; }
+      /* 所有遭遇的怪物攝平成可選清單（供 4.4 模板 {monsterName} 選單） */
+      var encounterMonsters = computed(function () {
+        var out = [];
+        worldEntities.value.forEach(function (e) {
+          if (e && e.type === "encounter" && Array.isArray(e.monsters)) {
+            e.monsters.forEach(function (m) {
+              if (m && m.name) out.push({ name: m.name, count: m.count || 1, notes: m.notes || "", encounterId: e.id, encounterName: e.name || "" });
+            });
+          }
+        });
+        return out;
       });
       var currentTypeMeta = computed(function () {
         return ENTITY_TYPES[worldsetView.value] || null;
@@ -357,14 +384,25 @@
           id: "", type: type, name: "", status: "active", story: "", notes: "",
           objective: "", reward: "", state: "進行中",   /* quest */
           region: "",                                     /* location */
-          trigger: ""                                      /* event */
+          trigger: "",                                     /* event */
+          questId: "", locationId: "", eraId: "", monsters: []  /* encounter 三軸 + 怪物子清單 */
         };
+      }
+      /* 怪物子清單編輯（作用於 editingEntity 工作副本） */
+      function addMonsterRow() {
+        var e = editingEntity.value; if (!e) return;
+        if (!Array.isArray(e.monsters)) e.monsters = [];
+        e.monsters.push({ name: "", count: 1, notes: "" });
+      }
+      function removeMonsterRow(i) {
+        var e = editingEntity.value; if (!e || !Array.isArray(e.monsters)) return;
+        e.monsters.splice(i, 1);
       }
 
       function openModule(m) {
         if (!m) return;
         if (m.key === "rules") { worldsetView.value = "rules"; return; }
-        var typeMap = { npc: "npc", quest: "quest", clue: "clue", place: "location", event: "event" };
+        var typeMap = { npc: "npc", quest: "quest", clue: "clue", place: "location", event: "event", encounter: "encounter" };
         worldsetView.value = typeMap[m.key] || m.key;
       }
       function closeWorldsetView() { worldsetView.value = ""; }
@@ -386,6 +424,10 @@
         copy.state = e.state || "進行中";
         copy.region = e.region || "";
         copy.trigger = e.trigger || "";
+        copy.questId = e.questId || "";
+        copy.locationId = e.locationId || "";
+        copy.eraId = e.eraId || "";
+        copy.monsters = Array.isArray(e.monsters) ? JSON.parse(JSON.stringify(e.monsters)) : [];
         editingEntity.value = copy;
         showEntityForm.value = true;
       }
@@ -420,6 +462,15 @@
             rec.region = e.region || "";
           } else if (e.type === "event") {
             rec.trigger = e.trigger || "";
+          } else if (e.type === "encounter") {
+            rec.questId = e.questId || "";
+            rec.locationId = e.locationId || "";
+            rec.eraId = e.eraId || "";
+            rec.monsters = Array.isArray(e.monsters)
+              ? e.monsters.map(function (m) {
+                  return { name: (m.name || "").trim(), count: Number(m.count) || 1, notes: (m.notes || "").trim() };
+                }).filter(function (m) { return m.name; })
+              : [];
           }
         });
         showEntityForm.value = false;
@@ -454,6 +505,7 @@
       var currentEraId = computed(function () {
         return activeWorld.value ? (activeWorld.value.currentEraId || "") : "";
       });
+      function eraNameById(id) { if (!id) return ""; var e = worldEras.value.find(function (x) { return x.id === id; }); return e ? (e.name || "") : ""; }
       var newEraName = ref("");
       var newEraSummary = ref("");
 
@@ -877,6 +929,15 @@
         currentTypeMeta: currentTypeMeta,
         worldEntities: worldEntities,
         currentEntities: currentEntities,
+        /* Step 4.0 遭遇模組 */
+        encounterFilter: encounterFilter,
+        questOptions: questOptions,
+        locationOptions: locationOptions,
+        entityNameById: entityNameById,
+        eraNameById: eraNameById,
+        encounterMonsters: encounterMonsters,
+        addMonsterRow: addMonsterRow,
+        removeMonsterRow: removeMonsterRow,
         showEntityForm: showEntityForm,
         editingEntity: editingEntity,
         openAddEntity: openAddEntity,
