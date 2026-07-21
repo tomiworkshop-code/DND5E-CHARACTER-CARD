@@ -69,7 +69,7 @@
 - Firebase 回送通道：`rooms/{id}/saves/{characterId}`（`DND5E_ROOM.setSave/onSave`），內容為攤平 (flattened) char 欄位 + `_sync`。
 - 待辦（順延 §7 / Step 4）：快照「回送恢復」UI（DM 主動把備份推回玩家）；專用 proposal 雙向衝突審核（防作弊方向性）。
 
-## 4. 訊息模板系統 + 遭遇模組（Step 4 定案，Tommy 2026-07-21）
+## 4. 訊息模板系統 + 遭遇模組 — ✅ 已實作 (Step 4，2026-07-21)
 > 定案要點（已取代上方舊草案）：
 > - **不做骰子引擎**：現場擲實體骰。模板從 DM 的「訊息模板庫」選（另做模板設定功能）。
 > - **具名變數**：模板內寫任意 `{變數名}`（如 `{playerName} 對 {monsterName} 造成 {damage} 點 {damageType}，獲得 {priceList}`）。

@@ -43,6 +43,7 @@
 - [x] 測試 + push。
 - 實作：sendStaged(staged,deps注入) 三通道 — broadcast(sendBroadcast) / inbox(sendInbox,需收件pid) / command(sendCommand 對roster玩家:damage/heal/xp/gold/give-item)；command 亦一併廣播敘事；buildCommandPayload(item→give-item{itemName,qty});applyAndSend 守衛(缺對象/非roster/缺變數/未開房阻擋)+可編輯預覽確認發送+發送結果banner+inbox收件選擇器。test `test_dmv2_step4_send.js`(26,真實room.js+mock db,不觸網)。
 
-## 4.5 收尾
-- [ ] 內建範例模板（攻擊命中、陷阱、寶箱奇遇、技能檢定結果）。
-- [ ] 完整回歸全綠；spec/checklist 標記完成；push。
+## 4.5 收尾 — ✅ 完成 (DM v2.6.0 / Build 0721.14)
+- [x] 內建範例模板（攻擊命中、陷阱、寶箱奇遇、技能檢定結果）。
+- [x] 完整回歸全綠；spec/checklist 標記完成；push。
+- 實作：內建範例於 4.1 已補齊；完整回歸全綠；更新標記與版號。全套 Step 4 完成。
