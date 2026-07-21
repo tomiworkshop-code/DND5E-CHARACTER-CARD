@@ -832,7 +832,11 @@
           if (_r && ROOM) room.inputRoomId = ROOM.normRoomId(_r);
         } catch (e) {}
 
-        /* players 快照：當前選定角色的 name/level/characterId + Tier1 關鍵數值（HP/AC） */
+        /* players 快照：Tier1（name/level/characterId/hp/ac）＋ Step 3.5「完整快照」
+         * full 區（mechanical + narrative 摘要），供 DM v2 roster 檢視（dm-v2-spec §3）。
+         * ⚠️ 相容不破壞：Tier1 頂層欄位維持原樣（既有玩家版/roster 讀取不受影響）；
+         *   full 為「新增」巢狀欄位，且整段以 try/catch 包住 —— 任何計算異常都只是
+         *   略過 full、退回純 Tier1，絕不讓 join/快照上傳流程中斷。 */
         const buildPlayerSnapshot = () => {
           const c = selectedChar.value;
           if (!c) return { name: '(未選角色)', level: 1 };
@@ -844,6 +848,65 @@
             hp: { current: (c.hp && Number(c.hp.current)) || 0, max: (c.hp && Number(c.hp.max)) || 0 },
             ac: (computedAC && computedAC.value) || c.ac || 10
           };
+          try {
+            const clamp = (s, n) => { s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n) : s; };
+            const abilities = {};
+            ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach((k) => { abilities[k] = abilityTotal(k); });
+            /* 豁免（六大屬性；含熟練旗標） */
+            const saves = SAVE_LIST.map((s) => ({
+              key: s.key, zh: s.zh, value: saveValue(s.key),
+              prof: !!(c.profSaves && c.profSaves[s.key])
+            }));
+            /* 技能（全 18 項；帶熟練/專精旗標，DM 一眼看出強項） */
+            const skills = (coreRules.SKILLS || []).map((def) => {
+              const sk = (c.skills && c.skills[def.zh]) || {};
+              return {
+                zh: def.zh, attr: def.attr, value: skillValue(def.zh),
+                proficient: !!sk.proficient, expertise: !!sk.expertise
+              };
+            });
+            /* 魔寵（陣列；相容單一 familiar 舊存檔） */
+            let famArr = Array.isArray(c.familiars) ? c.familiars : (c.familiar ? [c.familiar] : []);
+            const familiars = famArr.slice(0, 8).map((f) => ({
+              name: (f && f.name) || '', type: (f && f.type) || '',
+              ac: (f && f.ac) || 10,
+              hp: { current: (f && f.hp && Number(f.hp.current)) || 0, max: (f && f.hp && Number(f.hp.max)) || 0 },
+              notes: clamp(f && f.notes, 200)
+            }));
+            /* 背包重點：已裝備優先，其餘補齊，最多 40 筆（避免 payload 過大） */
+            const inv = Array.isArray(c.inventory) ? c.inventory : [];
+            const normItem = (it) => (typeof it === 'string')
+              ? { name: it, qty: 1, equipped: false }
+              : { name: (it && it.name) || '', qty: (it && Number(it.qty)) || 1, equipped: !!(it && it.equipped) };
+            const invNorm = inv.map(normItem);
+            const inventory = invNorm.filter((i) => i.equipped)
+              .concat(invNorm.filter((i) => !i.equipped)).slice(0, 40);
+            /* 敘事摘要（各欄位截斷，避免超大文字上雲） */
+            const st = c.story || {};
+            const narrative = {
+              appearance: clamp(st.appearance, 500), personality: clamp(st.personality, 500),
+              ideals: clamp(st.ideals, 300), bonds: clamp(st.bonds, 300),
+              flaws: clamp(st.flaws, 300), backstory: clamp(st.backstory, 1200)
+            };
+            snap.full = {
+              race: c.race || '', subrace: c.subrace || '', alignment: c.alignment || '',
+              background: c.background || '', speed: c.speed || '',
+              classes: (c.classes || []).map((cl) => ({ name: (cl && cl.name) || '', level: (cl && Number(cl.level)) || 0 })),
+              profBonus: profBonus.value,
+              initiative: Number(c.initiative) || abilityMod(abilities.dex),
+              abilities: abilities,
+              passivePerception: 10 + skillValue('察覺'),
+              saves: saves,
+              skills: skills,
+              familiars: familiars,
+              inventory: inventory,
+              narrative: narrative,
+              updatedAt: Date.now()
+            };
+          } catch (e) {
+            /* 略過 full，退回純 Tier1（絕不中斷上傳） */
+            try { console.warn('buildPlayerSnapshot full 區建構失敗，退回 Tier1：', e && e.message ? e.message : e); } catch (_) {}
+          }
           return snap;
         };
 

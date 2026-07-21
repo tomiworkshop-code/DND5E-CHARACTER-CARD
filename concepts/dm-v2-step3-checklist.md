@@ -44,10 +44,16 @@
 - [ ] 保留最新一份 + 精簡歷史（時間戳 + version_m/version_n）。
 - [ ] 「👥 玩家記錄」分頁：列此世界曾出現的玩家 → 點入看快照/歷程（恢復 UI 可挪 Step 3 尾或 Step 4）。
 
-### 3.5 玩家端配合（v2/app.js，跨端小改）
-- [ ] 擴充 `buildPlayerSnapshot`：Tier1 之外補 mechanical(技能/豁免/被動/魔寵/背包重點) + narrative 摘要。
-- [ ] 或改走 `rooms/{id}/saves/{characterId}` 的 proposal 欄位（沿用現有 players[pid].proposal.m/n）。
-- [ ] 確保不破壞玩家版現有 join/handleRemoteSave 流程（既有測試全綠）。
+### 3.5 玩家端配合（v2/app.js，跨端小改）— ✅ 完成 (玩家版 v2.2.4 / Build 0721.5)
+- [x] 擴充 `buildPlayerSnapshot`：Tier1 頂層不變，新增巢狀 `full` 區：
+      abilities(6)/profBonus/initiative/saves(6+prof)/skills(18+熟練專精)/passivePerception/
+      familiars(陣列)/inventory(已裝備優先、上限40)/narrative(截斷)/classes/race…。
+- [x] 相容性：舊單一 `c.familiar` → familiars 陣列；字串背包 → 正規化物件。
+- [x] 安全：full 整段 try/catch，建構丟例外→退回純 Tier1（絕不中斷 join/上傳）。
+- [x] Tier1 頂層欄位原樣保留 → 玩家版 roster/現有顯示不受影響。
+- 測試：`test_dmv2_step3_snapshot.js`(25，逐字擷取真碼)；玩家版回歸全綠
+      (p2b_onsave 49 / p2b_jsdom 10 / skills_saves 24 / familiars 2 / migration / jsdom)。
+- 後續：「proposal/saves 通道定案」仍依§3 於 3.3 處理；本步先讓 players 快照帶完整資料供 3.2 roster 收。
 
 ### 3.6 測試 & 收尾
 - [ ] 新增 `test_dmv2_step3_*.js`：mock db（記憶體）驗 createRoom/onPlayers/setSave 契約 + 快照備份寫入 `dmv2:` key。
