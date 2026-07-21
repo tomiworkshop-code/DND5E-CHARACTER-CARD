@@ -72,7 +72,7 @@
     /* 先判專一類別（npc/monster），避免 'npc' 內的 'pc' 被 roster 規則誤中 */
     if (/npc|人物/.test(n)) return "npc";
     if (/monster|enemy|mob|怪|敵|魔/.test(n)) return "monster";
-    if (/player|\bpc\b|char|role|target|玩家|角色|對象|目標/.test(n)) return "roster";
+    if (/player|\bpc\b|char|role|target|\bwho\b|玩家|角色|對象|目標|誰/.test(n)) return "roster";
     if (/loc|place|scene|地點|場景|位置/.test(n)) return "location";
     if (/quest|mission|任務/.test(n)) return "quest";
     if (/clue|線索/.test(n)) return "clue";

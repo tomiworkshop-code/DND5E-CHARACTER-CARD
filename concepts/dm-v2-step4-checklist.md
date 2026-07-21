@@ -26,9 +26,10 @@
 - [x] 測試 + push。
 - 實作：純邏輯 `shared/templates.js`(DND5E_TEMPLATES: scanVars/guessHint/normalize/applyValues/missingVars/builtins/parseLibrary) + DM app 儲存層(`dmv2:dnd_templates_v2` 全域、首載 seed 5 內建、upsert/delete/reset)。test `test_dmv2_step4_templates.js`(44)。
 
-## 4.2 模板設定 UI（CRUD）
-- [ ] 模板清單、新增/編輯/刪除；變數自動偵測 + 每變數標 hint；指令綁定設定。
-- [ ] 測試 + push。
+## 4.2 模板設定 UI（CRUD）— ✅ 完成 (DM v2.5.2 / Build 0721.11)
+- [x] 模板清單、新增/編輯/刪除；變數自動偵測 + 每變數標 hint；指令綁定設定。
+- [x] 測試 + push。
+- 實作：⚔️ 指令中心分頁=模板庫（卡片列：kind badge/command badge/內文/變數chips + 編輯/刪除 + 回復內建）；新增/編輯 Modal（名稱/類型/內文 + 變數即時偵測逐項標 hint + command綁定type/amountVar/targetVar，附紅線提示）。test `test_dmv2_step4_tpl_ui.js`(26)。
 
 ## 4.3 套用流程
 - [ ] 選模板 → 掃出 `{變數}` → 每變數生搜尋式選擇器（依 hint 預設過濾，可切全部/自由輸入；`{playerName}` 自動帶入已選 roster 目標）。

@@ -739,15 +739,50 @@
           </div>
         </section>
 
-        <!-- ④ 指令中心（placeholder） -->
-        <section v-show="currentTab === 'command'">
-          <!-- TODO(dm-v2-spec Step 4)：扣血/治療/XP/金幣/給物品/情報 + 即時血條回饋、
-               訊息模板系統（roll table，需 shared/dice.js）。 -->
-          <div class="p-6 rounded-xl border border-dashed text-center"
-               style="border-color:var(--border); color:var(--text-muted);">
-            <div class="text-4xl mb-2">⚔️</div>
-            <p class="font-medium mb-1">即將推出</p>
-            <p class="text-sm">扣血／治療／給物品與訊息模板系統將於 Step 4 實作。</p>
+        <!-- ④ 指令中心：訊息模板庫（Step 4.2 CRUD） -->
+        <section v-show="currentTab === 'command'" data-testid="template-manager">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-lg">⚔️</span>
+            <h3 class="font-bold">訊息模板庫</h3>
+            <button class="icon-btn icon-btn-primary ml-auto" data-testid="tpl-add" @click="openAddTemplate">
+              <span class="ib-icon">＋</span><span>新增</span>
+            </button>
+          </div>
+          <p class="text-xs mb-3" style="color:var(--text-muted);">
+            模板內寫 <code>{變數名}</code>，套用時逐變數填值（可從玩家/世界/遭遇選或自由輸入）。⚙️ 指令型可直接對連線玩家扣血⼀給獎。
+          </p>
+
+          <div v-if="!templates.length" class="p-6 rounded-xl border border-dashed text-center text-sm"
+               style="border-color:var(--border); color:var(--text-muted);" data-testid="tpl-empty">
+            尚無模板，點右上「新增」建立第一個。
+          </div>
+
+          <div v-else class="space-y-2" data-testid="tpl-cards">
+            <div v-for="t in templates" :key="t.id" class="entity-card" :data-tpl-id="t.id">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-semibold truncate">{{ t.name || '(未命名)' }}</span>
+                  <span class="status-badge st-hidden">{{ tplKindMeta(t.kind).icon }} {{ tplKindMeta(t.kind).label }}</span>
+                  <span v-if="t.command" class="status-badge st-active" data-testid="tpl-cmd-badge">⚙️ {{ tplCmdMeta(t.command.type).icon }} {{ tplCmdMeta(t.command.type).label }}</span>
+                </div>
+                <p class="text-xs mt-1 whitespace-pre-line" style="color:var(--text-muted);">{{ t.text }}</p>
+                <div v-if="t.vars && t.vars.length" class="flex flex-wrap gap-1 mt-1" data-testid="tpl-var-chips">
+                  <span v-for="v in t.vars" :key="v.name" class="status-badge st-hidden" style="font-size:11px;">
+                    {{ '{' + v.name + '}' }} · {{ tplHintMeta(v.hint).icon }}{{ tplHintMeta(v.hint).label }}
+                  </span>
+                </div>
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                <button class="icon-btn icon-btn-ghost icon-btn-icon-only" title="編輯"
+                        data-testid="tpl-edit" @click="openEditTemplate(t)">✏️</button>
+                <button class="icon-btn icon-btn-ghost icon-btn-icon-only" title="刪除"
+                        data-testid="tpl-delete" @click="removeTemplate(t)">🗑️</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 text-center">
+            <button class="icon-btn icon-btn-ghost text-xs" data-testid="tpl-reset" @click="resetTemplatesToBuiltin">♻️ 回復內建範例</button>
           </div>
         </section>
 
@@ -914,6 +949,86 @@
               <span class="ib-icon">✅</span><span>儲存</span>
             </button>
             <button class="icon-btn" @click="cancelEntityForm">
+              <span class="ib-icon">✕</span><span>取消</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ===== 訊息模板 新增／編輯 Modal（Step 4.2） ===== -->
+    <transition name="overlay">
+      <div v-if="showTemplateForm && editingTemplate" class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+           data-testid="tpl-form-modal">
+        <div class="fixed inset-0 bg-black/40" @click="cancelTemplateForm"></div>
+        <div class="relative z-10 w-full max-w-md p-4 rounded-xl border shadow-2xl overflow-y-auto"
+             style="background:var(--bg-surface); border-color:var(--border); max-height:88vh;">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xl">⚔️</span>
+            <h3 class="font-bold">{{ editingTemplate.id ? '編輯' : '新增' }}模板</h3>
+          </div>
+
+          <label class="block text-xs mb-1" style="color:var(--text-muted);">模板名稱</label>
+          <input v-model="editingTemplate.name" type="text" placeholder="例：攻擊命中" data-testid="tpl-name"
+                 class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border);">
+
+          <label class="block text-xs mb-1" style="color:var(--text-muted);">類型</label>
+          <select v-model="editingTemplate.kind" data-testid="tpl-kind"
+                  class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+            <option v-for="k in TPL_KINDS" :key="k.v" :value="k.v">{{ k.icon }} {{ k.label }}</option>
+          </select>
+
+          <label class="block text-xs mb-1" style="color:var(--text-muted);">內文（寫 <code>{變數}</code>）</label>
+          <textarea v-model="editingTemplate.text" rows="3" data-testid="tpl-text"
+                    placeholder="{playerName} 對 {monsterName} 造成 {damage} 點傷害！"
+                    class="w-full px-3 py-2 rounded-lg border mb-2 text-base" style="border-color:var(--border);"></textarea>
+
+          <!-- 自動偵測到的變數 + 逐變數來源(hint) -->
+          <div v-if="editVarNames.length" class="mb-2" data-testid="tpl-vars-editor">
+            <label class="block text-xs mb-1" style="color:var(--text-muted);">偵測到的變數（設預設來源，套用時仍可改）</label>
+            <div v-for="n in editVarNames" :key="n" class="flex items-center gap-2 mb-1" data-testid="tpl-var-row">
+              <code class="text-xs shrink-0" style="min-width:96px;">{{ '{' + n + '}' }}</code>
+              <select :value="hintFor(n)" @change="setHint(n, $event.target.value)" data-testid="tpl-var-hint"
+                      class="flex-1 px-2 py-1 rounded border text-sm" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+                <option v-for="h in TPL_HINTS" :key="h.v" :value="h.v">{{ h.icon }} {{ h.label }}</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 指令綁定（僅 command 類型） -->
+          <div v-if="editingTemplate.kind === 'command'" class="p-2 rounded-lg border mb-2" style="border-color:var(--border);" data-testid="tpl-command-editor">
+            <label class="block text-xs mb-1" style="color:var(--text-muted);">⚙️ 指令綁定</label>
+            <select v-model="editingTemplate.command.type" data-testid="tpl-cmd-type"
+                    class="w-full px-2 py-1 rounded border text-sm mb-1" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+              <option value="">（不綁指令，純訊息）</option>
+              <option v-for="c in TPL_COMMAND_TYPES" :key="c.v" :value="c.v">{{ c.icon }} {{ c.label }}</option>
+            </select>
+            <template v-if="editingTemplate.command.type">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs shrink-0" style="min-width:96px; color:var(--text-muted);">數值/物品變數</span>
+                <select v-model="editingTemplate.command.amountVar" data-testid="tpl-cmd-amount"
+                        class="flex-1 px-2 py-1 rounded border text-sm" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+                  <option value="">（選一個變數）</option>
+                  <option v-for="n in editVarNames" :key="n" :value="n">{{ '{' + n + '}' }}</option>
+                </select>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs shrink-0" style="min-width:96px; color:var(--text-muted);">🧑 指令對象</span>
+                <select v-model="editingTemplate.command.targetVar" data-testid="tpl-cmd-target"
+                        class="flex-1 px-2 py-1 rounded border text-sm" style="border-color:var(--border); background:var(--panel); color:var(--text);">
+                  <option value="">（選一個變數）</option>
+                  <option v-for="n in editVarNames" :key="n" :value="n">{{ '{' + n + '}' }}</option>
+                </select>
+              </div>
+              <p class="text-xs mt-1" style="color:var(--text-muted);">⚠️ 指令對象套用時必須選連線玩家（扣血/給獎在玩家裝置執行）。</p>
+            </template>
+          </div>
+
+          <div class="flex gap-2 mt-1">
+            <button class="icon-btn icon-btn-primary icon-btn-block" data-testid="tpl-save" @click="submitTemplateForm">
+              <span class="ib-icon">✅</span><span>儲存</span>
+            </button>
+            <button class="icon-btn" @click="cancelTemplateForm">
               <span class="ib-icon">✕</span><span>取消</span>
             </button>
           </div>

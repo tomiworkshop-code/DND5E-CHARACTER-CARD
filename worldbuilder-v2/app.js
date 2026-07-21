@@ -9,7 +9,7 @@
   "use strict";
 
   /* DM v2 版本字串（與玩家端獨立；Build 號遞增） */
-  var APP_VERSION = "DM v2.5.1 (Build 0721.10)";
+  var APP_VERSION = "DM v2.5.2 (Build 0721.11)";
 
   /* ============================================================
      §6 資料隔離：前綴命名空間 storage adapter（Step 1.5，維持有效）
@@ -420,6 +420,71 @@
         templates.value = TPL.builtins();
         persistTemplates();
       }
+
+      /* ---- 4.2 模板設定表單（CRUD UI） ---- */
+      var showTemplateForm = ref(false);
+      var editingTemplate = ref(null);   /* 工作副本：{id,name,kind,text,hints{},command{}} */
+      function blankTemplateForm() {
+        return { id: "", name: "", kind: "broadcast", text: "", hints: {},
+                 command: { type: "", amountVar: "", targetVar: "" } };
+      }
+      /* 依 text 即時掃出的變數名（表單內用；響應 editingTemplate.text） */
+      var editVarNames = computed(function () {
+        var e = editingTemplate.value;
+        if (!e || !TPL) return [];
+        return TPL.scanVars(e.text);
+      });
+      function hintFor(name) {
+        var e = editingTemplate.value; if (!e) return "free";
+        if (e.hints && e.hints[name]) return e.hints[name];
+        return TPL ? TPL.guessHint(name) : "free";
+      }
+      function setHint(name, v) {
+        var e = editingTemplate.value; if (!e) return;
+        if (!e.hints) e.hints = {};
+        e.hints[name] = v;
+      }
+      function openAddTemplate() {
+        editingTemplate.value = blankTemplateForm();
+        showTemplateForm.value = true;
+      }
+      function openEditTemplate(t) {
+        if (!t) return;
+        var hints = {};
+        (Array.isArray(t.vars) ? t.vars : []).forEach(function (v) { if (v && v.name) hints[v.name] = v.hint || "free"; });
+        editingTemplate.value = {
+          id: t.id || "", name: t.name || "", kind: t.kind || "broadcast", text: t.text || "",
+          hints: hints,
+          command: {
+            type: (t.command && t.command.type) || "",
+            amountVar: (t.command && t.command.amountVar) || "",
+            targetVar: (t.command && t.command.targetVar) || ""
+          }
+        };
+        showTemplateForm.value = true;
+      }
+      function cancelTemplateForm() { showTemplateForm.value = false; editingTemplate.value = null; }
+      function submitTemplateForm() {
+        var e = editingTemplate.value; if (!e || !TPL) return;
+        var name = (e.name || "").trim();
+        if (!name && !(e.text || "").trim()) return;
+        var names = TPL.scanVars(e.text);
+        var payload = {
+          id: e.id, name: name, kind: e.kind, text: e.text,
+          vars: names.map(function (n) { return { name: n, hint: (e.hints && e.hints[n]) || TPL.guessHint(n) }; })
+        };
+        if (e.kind === "command" && e.command && e.command.type) {
+          payload.command = { type: e.command.type, amountVar: e.command.amountVar || "", targetVar: e.command.targetVar || "", targetIsRoster: true };
+        }
+        upsertTemplate(payload);
+        showTemplateForm.value = false;
+        editingTemplate.value = null;
+      }
+      function removeTemplate(t) { if (t && t.id) deleteTemplate(t.id); }
+      /* 顯示用 meta 查詢 */
+      function tplKindMeta(v) { var a = TPL ? TPL.KINDS : []; for (var i = 0; i < a.length; i++) if (a[i].v === v) return a[i]; return { v: v, label: v, icon: "" }; }
+      function tplHintMeta(v) { var a = TPL ? TPL.HINTS : []; for (var i = 0; i < a.length; i++) if (a[i].v === v) return a[i]; return { v: v, label: v, icon: "" }; }
+      function tplCmdMeta(v) { var a = TPL ? TPL.COMMAND_TYPES : []; for (var i = 0; i < a.length; i++) if (a[i].v === v) return a[i]; return { v: v, label: v, icon: "" }; }
 
       /* ---- entity CRUD ---- */
       var showEntityForm = ref(false);
@@ -994,6 +1059,20 @@
         upsertTemplate: upsertTemplate,
         deleteTemplate: deleteTemplate,
         resetTemplatesToBuiltin: resetTemplatesToBuiltin,
+        /* 4.2 模板設定 UI */
+        showTemplateForm: showTemplateForm,
+        editingTemplate: editingTemplate,
+        editVarNames: editVarNames,
+        hintFor: hintFor,
+        setHint: setHint,
+        openAddTemplate: openAddTemplate,
+        openEditTemplate: openEditTemplate,
+        cancelTemplateForm: cancelTemplateForm,
+        submitTemplateForm: submitTemplateForm,
+        removeTemplate: removeTemplate,
+        tplKindMeta: tplKindMeta,
+        tplHintMeta: tplHintMeta,
+        tplCmdMeta: tplCmdMeta,
         showEntityForm: showEntityForm,
         editingEntity: editingEntity,
         openAddEntity: openAddEntity,
