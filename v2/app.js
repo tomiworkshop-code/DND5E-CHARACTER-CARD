@@ -840,7 +840,12 @@
           if (_authInited) return true;
           _authInited = true;
           try {
-            AUTH.onAuthChanged((u) => { authState.user = toUserSnap(u); authState.ready = true; });
+            AUTH.onAuthChanged((u) => {
+              authState.user = toUserSnap(u);
+              authState.ready = true;
+              /* TC-A3：登入後讀雲端 meta 顯示「最後雲端同步」；登出則清空。 */
+              if (authState.user) { refreshCloudMeta(); } else { authState.lastCloudSync = null; }
+            });
             await AUTH.initAuth(window.DND5E_FIREBASE.firebaseConfig);
           } catch (e) {
             authState.error = '登入模組初始化失敗：' + (e && e.message ? e.message : e);
@@ -868,8 +873,105 @@
           authState.busy = true; authState.error = '';
           try { await AUTH.signOut(); authState.user = null; }
           catch (e) { authState.error = '登出失敗：' + (e && e.message ? e.message : e); }
-          finally { authState.busy = false; }
+          finally { authState.busy = false; authState.lastCloudSync = null; }
         };
+
+        /* ===== TC-A3：手動雲備份 / 還原（設定頁 ☁️） =====
+         * service = shared/services/cloud-backup.js（window.DND5E_CLOUD），沿用 DND5E_AUTH 的 db + uid。
+         * 安全鐵律 R4：「從雲端還原」執行前【強制先自動做一份本地保險】（下載 JSON + 存 LS 快照）。
+         * 安全鐵律 R3：一律走 DND5E_BACKUP.mergeBackup（version-aware），merge 完成才落地寫入。 */
+        const CLOUD = (typeof window !== 'undefined') ? window.DND5E_CLOUD : null;
+        const cloudState = Vue.reactive({ busy: false, error: '' });
+        const LS_CLOUD_RESTORE_BACKUP = 'dnd_cloud_restore_backup';
+
+        /* 把 ISO / 毫秒時間格式化為「YYYY-MM-DD HH:mm」供設定頁顯示。 */
+        const fmtSyncTime = (v) => {
+          if (!v) return null;
+          const d = new Date(v);
+          if (isNaN(d.getTime())) return null;
+          const pad = (n) => String(n).padStart(2, '0');
+          return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        };
+        /* 讀雲端 meta.exportedAt → 更新設定頁「最後雲端同步」（未登入/失敗則清空）。 */
+        const refreshCloudMeta = async () => {
+          if (!CLOUD || !AUTH || !AUTH.currentUid || !AUTH.currentUid()) { authState.lastCloudSync = null; return; }
+          try {
+            const meta = await CLOUD.loadMeta({});
+            authState.lastCloudSync = meta ? fmtSyncTime(meta.exportedAt) : null;
+          } catch (e) { /* 顯示用途，失敗靜默 */ }
+        };
+
+        /* ☁️ 備份到雲端：buildBackupPayload → 寫 users/{uid}/backup/payload+meta。 */
+        const backupToCloudUI = async () => {
+          if (!CLOUD) { cloudState.error = '雲備份模組未載入'; return; }
+          if (!AUTH || !AUTH.currentUid || !AUTH.currentUid()) { cloudState.error = '請先用 Google 登入'; return; }
+          if (cloudState.busy) return;
+          cloudState.busy = true; cloudState.error = '';
+          try {
+            const res = await CLOUD.saveToCloud({ appVersion: (typeof window !== 'undefined' && window.APP_VERSION) || '' });
+            authState.lastCloudSync = fmtSyncTime(res && res.meta && res.meta.exportedAt) || fmtSyncTime(new Date());
+            alert('已備份到雲端 ☁️');
+          } catch (e) {
+            cloudState.error = '雲端備份失敗：' + (e && e.message ? e.message : e);
+          } finally {
+            cloudState.busy = false;
+          }
+        };
+
+        /* ☁️ 從雲端還原：R4 先自動保險備份 → 讀雲端 → 衝突對照 → mergeBackup → 落地 reload。 */
+        const restoreFromCloudUI = async () => {
+          if (!CLOUD) { cloudState.error = '雲備份模組未載入'; return; }
+          if (!AUTH || !AUTH.currentUid || !AUTH.currentUid()) { cloudState.error = '請先用 Google 登入'; return; }
+          if (cloudState.busy) return;
+          cloudState.busy = true; cloudState.error = '';
+          try {
+            const BK = window.DND5E_BACKUP;
+            /* R4｜防誤救回：還原前【強制先自動做一份本地保險】——
+             *   ① 存一份 dnd_cloud_restore_backup 到 localStorage（就地快照）；
+             *   ② 觸發既有本地匯出邏輯下載一份 JSON（雙保險）。 */
+            try {
+              const snap = BK.buildBackupPayload((k) => localStorage.getItem(k));
+              localStorage.setItem(LS_CLOUD_RESTORE_BACKUP, JSON.stringify(snap));
+            } catch (e) { /* LS 快照失敗不擋還原下載，但記錄 */ }
+            try { exportData(); } catch (e) {}
+
+            /* 讀雲端並取回 imported/local（不落地）。 */
+            const cloud = await CLOUD.loadFromCloud({});
+            if (!cloud || !cloud.found) {
+              alert('雲端目前沒有備份可還原。');
+              cloudState.busy = false; return;
+            }
+            const imported = cloud.imported;
+            const local = cloud.local;
+
+            /* 衝突對照（沿用既有 confirm 對照 UI 語意；R3：mergeBackup 不無腦覆蓋）。 */
+            const conflicts = BK.detectConflicts(local, imported);
+            const resolutions = {};
+            for (const c of conflicts) {
+              const keep = !confirm('角色【' + (c.name || c.characterId) + '】已存在本機，且雲端進度不同。\n\n按「確定」：用雲端版本覆蓋本機這個角色；\n按「取消」：不覆蓋，改依版本自動合併（DM／較新的機制進度仍受保護）。');
+              if (!keep) resolutions[c.characterId] = 'overwrite';
+            }
+
+            /* R3：merge 完成才落地。mergeBackup 回傳新物件，不動 local 快照。 */
+            const merged = BK.mergeBackup(local, imported, { resolutions });
+            const setJSON = (key, val) => {
+              if (val === null || val === undefined) return;
+              localStorage.setItem(key, JSON.stringify(val));
+            };
+            setJSON(LS_IDENTITIES, merged.identities);
+            setJSON(LS_INSTANCES,  merged.instances);
+            if (merged.worlds) setJSON(LS_WORLDS, merged.worlds);
+            if (merged.activeWorld) localStorage.setItem(LS_ACTIVE_WORLD, merged.activeWorld);
+
+            const importedCount = (imported.identities || []).length;
+            alert('已從雲端還原（合併 ' + importedCount + ' 個角色，衝突 ' + conflicts.length + ' 個）！\n（還原前已自動下載一份本機保險備份）即將重新載入。');
+            location.reload();
+          } catch (e) {
+            cloudState.error = '雲端還原失敗：' + (e && e.message ? e.message : e);
+            cloudState.busy = false;
+          }
+        };
+
         const room = Vue.reactive({
           status: 'idle',      // idle | connecting | connected | error
           roomId: '', showConflict: false, conflictSave: null,
@@ -1374,6 +1476,9 @@
           authState,
           signInGoogleUI,
           signOutUI,
+          cloudState,
+          backupToCloudUI,
+          restoreFromCloudUI,
           conflictDiff,
           addRequestForm,
           submitAddRequest,

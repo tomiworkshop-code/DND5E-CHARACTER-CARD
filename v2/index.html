@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="冒險者之書">
-  <script>window.APP_ID='adventurer';window.APP_VERSION='v2.2.9 · Build 0806.2';</script>
+  <script>window.APP_ID='adventurer';window.APP_VERSION='v2.2.10 · Build 0806.3';</script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-5HRH4CH1N7"></script>
   <script>
     window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
@@ -32,6 +32,7 @@
   <script src="../shared/firebase-config.js"></script>
   <script src="../shared/room.js"></script>
   <script src="../shared/services/auth.js"></script>
+  <script src="../shared/services/cloud-backup.js"></script>
   <script src="../shared/familiar-presets.js"></script>
   <style>
     /* 基礎模塊化變數，不預設立場，先用乾淨的灰階與安全色 */
@@ -227,7 +228,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.2.9 · Build 0806.2
+          v2.2.10 · Build 0806.3
         </div>
       </div>
     </transition>
@@ -1498,7 +1499,7 @@
           <h2 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2"><span>👤</span> 帳號與登入</h2>
           <!-- 未登入 -->
           <template v-if="!authState.user">
-            <p class="text-xs text-gray-500 mb-3">登入後可跨裝置雲端備份角色資料（雲備份功能即將推出）。不登入也能正常使用與跑團，登入只是加值。</p>
+            <p class="text-xs text-gray-500 mb-3">登入後可跨裝置雲端備份角色資料。不登入也能正常使用與跑團，登入只是加值。</p>
             <button @click="signInGoogleUI" :disabled="authState.busy" class="px-4 py-2 text-sm flex items-center justify-center gap-2 text-gray-700 bg-white border border-gray-300 rounded-lg w-full font-medium shadow-sm hover:bg-gray-50 transition disabled:opacity-50">
               <span>🔐</span> {{ authState.busy ? '登入中…' : '使用 Google 登入' }}
             </button>
@@ -1532,8 +1533,22 @@
               ⬆️ 匯入備份（選擇 JSON）
               <input type="file" accept="application/json,.json" @change="importData" class="hidden">
             </label>
+
+            <!-- TC-A3：☁️ 個人雲備份 / 還原（登入才亮）-->
+            <div class="border-t border-dashed border-gray-200 my-2"></div>
+            <div class="flex flex-col gap-2">
+              <button @click="backupToCloudUI" :disabled="!authState.user || cloudState.busy" class="px-4 py-2 text-sm flex items-center justify-center gap-2 text-white rounded-lg w-full font-medium shadow-sm hover:opacity-90 transition disabled:opacity-50" style="background-color:#0ea5e9;">
+                ☁️ {{ cloudState.busy ? '處理中…' : '備份到雲端' }}
+              </button>
+              <button @click="restoreFromCloudUI" :disabled="!authState.user || cloudState.busy" class="px-4 py-2 text-sm flex items-center justify-center gap-2 text-gray-700 bg-white border border-sky-300 rounded-lg w-full font-medium shadow-sm hover:bg-sky-50 transition disabled:opacity-50">
+                ☁️ {{ cloudState.busy ? '處理中…' : '從雲端還原' }}
+              </button>
+            </div>
+            <p v-if="!authState.user" class="text-[11px] text-gray-400">請先用 Google 登入才能使用雲端備份／還原。</p>
+            <p v-if="authState.user && authState.lastCloudSync" class="text-[11px] text-gray-400">最後雲端同步：{{ authState.lastCloudSync }}</p>
+            <p v-if="cloudState.error" class="text-[11px] text-red-500 leading-relaxed">{{ cloudState.error }}</p>
           </div>
-          <p class="text-[11px] text-gray-400 mt-3 leading-relaxed">提示：匯入前建議先匯出一份現有資料以備不時之需。</p>
+          <p class="text-[11px] text-gray-400 mt-3 leading-relaxed">提示：還原前會自動先下載一份本機保險備份；雲端還原一律走版本合併，不會直接覆蓋。</p>
         </div>
 
         <!-- 關於 / 鳴謝 -->
@@ -1549,7 +1564,7 @@
             </a>
           </div>
 
-          <h3 class="text-base font-bold text-gray-800 mb-2 mt-4 border-t pt-4 flex items-center gap-2"><span>📖</span> 冒險者之書（5E）<span class="text-xs font-normal text-gray-400">v2.2.9</span></h3>
+          <h3 class="text-base font-bold text-gray-800 mb-2 mt-4 border-t pt-4 flex items-center gap-2"><span>📖</span> 冒險者之書（5E）<span class="text-xs font-normal text-gray-400">v2.2.10</span></h3>
 
           <div class="text-sm text-gray-700 mb-3">
             <div class="font-bold text-gray-800 mb-1">💡 功能許願 / 意見回饋</div>
