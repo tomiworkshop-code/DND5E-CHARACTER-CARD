@@ -522,8 +522,9 @@
             dataState.races = data.races || data || [];
             reconcileSettings();
           }).catch(e => { console.error("無法讀取種族資料", e); });
-          /* TC-A2：載入時輕量初始化 auth —— 收尾 redirect 登入並反映既有登入狀態（不開 RTDB）。 */
-          try { ensureAuthInit(); } catch (e) {}
+          /* TC-A2：載入時輕量初始化 auth —— 收尾 redirect 登入並反映既有登入狀態（不開 RTDB）。
+           * fire-and-forget：ensureAuthInit 內部已吞例外並回傳 false，這裡再 .catch 防未捕獲 rejection。 */
+          ensureAuthInit().catch(() => {});
           
           migrateToV2();
           let identities = JSON.parse(localStorage.getItem(LS_IDENTITIES) || "[]");
@@ -838,27 +839,33 @@
         const ensureAuthInit = async () => {
           if (!AUTH || !window.DND5E_FIREBASE) return false;
           if (_authInited) return true;
-          _authInited = true;
           try {
+            /* 順序鐵律：務必「先」await initAuth 建立 _auth（並收尾 redirect 登入），
+             * 「成功後」才註冊 onAuthChanged——因 auth.js 的 onAuthChanged 在 _auth 未建立時會 throw。 */
+            await AUTH.initAuth(window.DND5E_FIREBASE.firebaseConfig);
             AUTH.onAuthChanged((u) => {
               authState.user = toUserSnap(u);
               authState.ready = true;
               /* TC-A3：登入後讀雲端 meta 顯示「最後雲端同步」；登出則清空。 */
               if (authState.user) { refreshCloudMeta(); } else { authState.lastCloudSync = null; }
             });
-            await AUTH.initAuth(window.DND5E_FIREBASE.firebaseConfig);
+            _authInited = true;   // 成功後才鎖定；失敗時保持 false，讓使用者可再次點擊重試
+            authState.ready = true;
+            authState.error = '';
+            return true;
           } catch (e) {
+            _authInited = false;  // 不卡死：允許重試
             authState.error = '登入模組初始化失敗：' + (e && e.message ? e.message : e);
+            return false;
           }
-          authState.ready = true;
-          return true;
         };
         const signInGoogleUI = async () => {
           if (!AUTH) { authState.error = '登入模組未載入'; return; }
           if (authState.busy) return;
           authState.busy = true; authState.error = '';
           try {
-            await ensureAuthInit();
+            const ok = await ensureAuthInit();
+            if (!ok) { throw new Error(authState.error || '登入模組尚未就緒'); }
             const res = await AUTH.signInGoogle();
             // redirect fallback：res.user 為 null，重導回來後由 getRedirectResult + onAuthChanged 更新
             if (res && res.user) authState.user = toUserSnap(res.user);
