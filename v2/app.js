@@ -522,6 +522,8 @@
             dataState.races = data.races || data || [];
             reconcileSettings();
           }).catch(e => { console.error("無法讀取種族資料", e); });
+          /* TC-A2：載入時輕量初始化 auth —— 收尾 redirect 登入並反映既有登入狀態（不開 RTDB）。 */
+          try { ensureAuthInit(); } catch (e) {}
           
           migrateToV2();
           let identities = JSON.parse(localStorage.getItem(LS_IDENTITIES) || "[]");
@@ -814,6 +816,60 @@
         const ROOM = (typeof window !== 'undefined') ? window.DND5E_ROOM : null;
         let fbApp = null;
         let roomUnsubs = [];
+
+        /* ===== TC-A2：Google 登入（設定頁） =====
+         * auth 沿用「閉包」由 DND5E_AUTH 持有（比照 fbApp，不放進 Vue ref）。
+         * authState 只存「純資料快照」供 UI 顯示；匿名帳號視為「未登入」（user=null）。
+         * 安全鐵律 R3：本步只做登入，絕不觸碰本地 identities/instances/worlds 資料。 */
+        const AUTH = (typeof window !== 'undefined') ? window.DND5E_AUTH : null;
+        const authState = Vue.reactive({
+          ready: false,          // initAuth 是否完成（含 redirect 收尾）
+          user: null,            // { uid, email, displayName, photoURL } 或 null（含匿名）
+          busy: false,
+          error: '',
+          lastCloudSync: null    // 預留：TC-A3 雲備份最後同步時間（本步隱藏）
+        });
+        let _authInited = false;
+        /* 只把「已用 Google 登入」視為 user；匿名/未登入一律 null（跑團匿名不算登入）。 */
+        const toUserSnap = (u) => (u && !u.isAnonymous) ? {
+          uid: u.uid, email: u.email || '', displayName: u.displayName || '', photoURL: u.photoURL || ''
+        } : null;
+        /* 延遲初始化：僅初始化 auth（不開 RTDB），註冊狀態監聽並收尾 redirect 登入。 */
+        const ensureAuthInit = async () => {
+          if (!AUTH || !window.DND5E_FIREBASE) return false;
+          if (_authInited) return true;
+          _authInited = true;
+          try {
+            AUTH.onAuthChanged((u) => { authState.user = toUserSnap(u); authState.ready = true; });
+            await AUTH.initAuth(window.DND5E_FIREBASE.firebaseConfig);
+          } catch (e) {
+            authState.error = '登入模組初始化失敗：' + (e && e.message ? e.message : e);
+          }
+          authState.ready = true;
+          return true;
+        };
+        const signInGoogleUI = async () => {
+          if (!AUTH) { authState.error = '登入模組未載入'; return; }
+          if (authState.busy) return;
+          authState.busy = true; authState.error = '';
+          try {
+            await ensureAuthInit();
+            const res = await AUTH.signInGoogle();
+            // redirect fallback：res.user 為 null，重導回來後由 getRedirectResult + onAuthChanged 更新
+            if (res && res.user) authState.user = toUserSnap(res.user);
+          } catch (e) {
+            authState.error = '登入失敗：' + (e && e.message ? e.message : e);
+          } finally {
+            authState.busy = false;
+          }
+        };
+        const signOutUI = async () => {
+          if (!AUTH) return;
+          authState.busy = true; authState.error = '';
+          try { await AUTH.signOut(); authState.user = null; }
+          catch (e) { authState.error = '登出失敗：' + (e && e.message ? e.message : e); }
+          finally { authState.busy = false; }
+        };
         const room = Vue.reactive({
           status: 'idle',      // idle | connecting | connected | error
           roomId: '', showConflict: false, conflictSave: null,
@@ -1148,7 +1204,10 @@
           room.status = 'connecting'; room.error = '';
           try {
             if (!fbApp) fbApp = ROOM.init(window.DND5E_FIREBASE.firebaseConfig);
-            const uid = await ROOM.signInAnon(fbApp.auth);
+            /* TC-A2：若已登入（Google 或匿名）沿用穩定 uid，否則才匿名登入。
+             * rooms/* 契約完全不變；匿名照舊可玩，登入是加值（uid 跨裝置一致）。 */
+            let uid = (fbApp.auth && fbApp.auth.currentUser) ? fbApp.auth.currentUser.uid : null;
+            if (!uid) uid = await ROOM.signInAnon(fbApp.auth);
             room.playerId = uid;
             const meta = await ROOM.roomMeta(fbApp.db, rid);
             if (!meta) { room.status = 'error'; room.error = '找不到房間「' + rid + '」，請確認房號是否正確。'; return; }
@@ -1312,6 +1371,9 @@
           askImportFamiliarPreset,
           confirmImportFamiliarPreset,
           room,
+          authState,
+          signInGoogleUI,
+          signOutUI,
           conflictDiff,
           addRequestForm,
           submitAddRequest,
