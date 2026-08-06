@@ -944,6 +944,236 @@
       function retryFirebase() { initFirebase(); }
 
       /* ============================================================
+         TC-A2（DM 版）：Google 登入（設定頁）
+         ------------------------------------------------------------
+         複用 shared/services/auth.js（window.DND5E_AUTH），不另造。
+         auth 由 DND5E_AUTH 以「閉包」持有（比照 fb，不放進 Vue ref：
+         Vue Proxy 包裹 firebase 物件會壞）。authState 只存純資料快照供 UI 顯示；
+         匿名帳號視為「未登入」（user=null）。
+         安全鐵律 R3：本步只做登入，絕不觸碰本地 dmv2: 資料。
+         ============================================================ */
+      var AUTH = (typeof window !== "undefined") ? window.DND5E_AUTH : null;
+      var authState = Vue.reactive({
+        ready: false,        /* initAuth 是否完成（含 redirect 收尾） */
+        user: null,          /* { uid, email, displayName, photoURL } 或 null（含匿名） */
+        busy: false,
+        error: "",
+        lastCloudSync: null  /* 雲備份最後同步時間（讀 meta.exportedAt） */
+      });
+      var _authInited = false;
+      /* 只把「已用 Google 登入」視為 user；匿名/未登入一律 null（跑團匿名不算登入）。 */
+      function toUserSnap(u) {
+        return (u && !u.isAnonymous) ? {
+          uid: u.uid, email: u.email || "", displayName: u.displayName || "", photoURL: u.photoURL || ""
+        } : null;
+      }
+      /* 延遲初始化：僅初始化 auth（不額外開 RTDB），註冊狀態監聽並收尾 redirect 登入。
+       * 順序鐵律：務必「先」await initAuth 建立 _auth（並收尾 redirect），
+       * 「成功後」才註冊 onAuthChanged——auth.js 的 onAuthChanged 在 _auth 未建立時會 throw。 */
+      function ensureAuthInit() {
+        if (!AUTH || !window.DND5E_FIREBASE) return Promise.resolve(false);
+        if (_authInited) return Promise.resolve(true);
+        return Promise.resolve(AUTH.initAuth(window.DND5E_FIREBASE.firebaseConfig)).then(function () {
+          AUTH.onAuthChanged(function (u) {
+            authState.user = toUserSnap(u);
+            authState.ready = true;
+            if (authState.user) { refreshCloudMeta(); } else { authState.lastCloudSync = null; }
+          });
+          _authInited = true;   /* 成功後才鎖定；失敗保持 false，讓使用者可再次點擊重試 */
+          authState.ready = true;
+          authState.error = "";
+          return true;
+        }).catch(function (e) {
+          _authInited = false;  /* 不卡死：允許重試 */
+          authState.error = "登入模組初始化失敗：" + (e && e.message ? e.message : e);
+          return false;
+        });
+      }
+      function signInGoogleUI() {
+        if (!AUTH) { authState.error = "登入模組未載入"; return; }
+        if (authState.busy) return;
+        authState.busy = true; authState.error = "";
+        ensureAuthInit().then(function (okInit) {
+          if (!okInit) { throw new Error(authState.error || "登入模組尚未就緒"); }
+          return AUTH.signInGoogle();
+        }).then(function (res) {
+          /* redirect fallback：res.user 為 null，重導回來後由 getRedirectResult + onAuthChanged 更新 */
+          if (res && res.user) authState.user = toUserSnap(res.user);
+        }).catch(function (e) {
+          authState.error = "登入失敗：" + (e && e.message ? e.message : e);
+        }).then(function () { authState.busy = false; });
+      }
+      function signOutUI() {
+        if (!AUTH) return;
+        authState.busy = true; authState.error = "";
+        Promise.resolve(AUTH.signOut()).then(function () { authState.user = null; })
+          .catch(function (e) { authState.error = "登出失敗：" + (e && e.message ? e.message : e); })
+          .then(function () { authState.busy = false; authState.lastCloudSync = null; });
+      }
+
+      /* ============================================================
+         DM 個人雲備份 / 還原 + 本地匯出 / 匯入（設定頁）
+         ------------------------------------------------------------
+         service = shared/services/dm-cloud-backup.js（window.DND5E_DM_CLOUD），
+         沿用 DND5E_AUTH 的 db + uid；DM 資料模型不同構，採【整個 dmv2: 命名空間快照】。
+         安全鐵律 R4：「從雲端還原」執行前【強制先自動做一份本地保險快照】
+           （① 下載一份 JSON；② 另存 localStorage rollback key），且跳確認 dialog 對照兩邊。
+         ============================================================ */
+      var DMCLOUD = (typeof window !== "undefined") ? window.DND5E_DM_CLOUD : null;
+      var cloudState = Vue.reactive({ busy: false, error: "" });
+      var LS_CLOUD_RESTORE_ROLLBACK = DMV2_LS_PREFIX + "__cloud_restore_rollback";
+
+      /* 把 ISO / 毫秒時間格式化為「YYYY-MM-DD HH:mm」供設定頁顯示。 */
+      function fmtSyncTime(v) {
+        if (!v) return null;
+        var d = new Date(v);
+        if (isNaN(d.getTime())) return null;
+        function pad(n) { return String(n).padStart(2, "0"); }
+        return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
+          " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+      }
+      /* 讀雲端 meta.exportedAt → 更新設定頁「最後雲端同步」（未登入/失敗則清空）。 */
+      function refreshCloudMeta() {
+        if (!DMCLOUD || !AUTH || !AUTH.currentUid || !AUTH.currentUid()) { authState.lastCloudSync = null; return; }
+        Promise.resolve(DMCLOUD.loadMeta({})).then(function (meta) {
+          authState.lastCloudSync = meta ? fmtSyncTime(meta.exportedAt) : null;
+        }).catch(function () { /* 顯示用途，失敗靜默 */ });
+      }
+
+      /* 觸發下載一份 JSON（本地匯出 / 還原前保險共用）。 */
+      function downloadJson(obj, filename) {
+        try {
+          var text = JSON.stringify(obj, null, 2);
+          var blob = new Blob([text], { type: "application/json" });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement("a");
+          a.href = url; a.download = filename;
+          document.body.appendChild(a); a.click();
+          document.body.removeChild(a);
+          setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 0);
+          return true;
+        } catch (e) { return false; }
+      }
+      function backupFilename() {
+        var d = new Date();
+        function pad(n) { return String(n).padStart(2, "0"); }
+        return "dnd-dm-backup-" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) +
+          "-" + pad(d.getHours()) + pad(d.getMinutes()) + ".json";
+      }
+
+      /* ⬇️ 本地匯出備份（不需登入）：整個 dmv2: 命名空間打包成 JSON 下載。 */
+      function exportBackup() {
+        if (!DMCLOUD) { cloudState.error = "雲備份模組未載入"; return; }
+        cloudState.error = "";
+        try {
+          var payload = DMCLOUD.buildDmPayload({ appVersion: APP_VERSION });
+          var ok = downloadJson(payload, backupFilename());
+          if (!ok) { cloudState.error = "匯出失敗（瀏覽器不支援下載）"; }
+        } catch (e) {
+          cloudState.error = "匯出失敗：" + (e && e.message ? e.message : e);
+        }
+      }
+
+      /* ⬆️ 本地匯入備份（不需登入）：選 JSON → 保險快照 → 確認 → 覆蓋式還原 → reload。 */
+      var importInput = ref(null);   /* template ref：隱藏 <input type=file> */
+      function triggerImport() {
+        cloudState.error = "";
+        if (importInput.value && importInput.value.click) importInput.value.click();
+      }
+      function onImportFile(ev) {
+        var file = ev && ev.target && ev.target.files && ev.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          try {
+            var payload = JSON.parse(String(reader.result));
+            applyRestore(payload, "匯入檔案");
+          } catch (e) {
+            cloudState.error = "匯入失敗：檔案非有效備份 JSON";
+          } finally {
+            try { ev.target.value = ""; } catch (e2) {}
+          }
+        };
+        reader.onerror = function () { cloudState.error = "匯入失敗：讀檔錯誤"; };
+        reader.readAsText(file);
+      }
+
+      /* 還原核心（雲端/匯入共用）：R4 先保險快照(下載+LS) → 確認對照 → 覆蓋式還原 → reload。 */
+      function applyRestore(payload, sourceLabel) {
+        if (!DMCLOUD) { cloudState.error = "雲備份模組未載入"; return; }
+        if (!payload || payload.__type !== "dnd5e-dm-backup" || !payload.data) {
+          cloudState.error = "還原失敗：來源不是有效的 DM 備份";
+          return;
+        }
+        /* R4｜防誤救回：還原前【強制先自動做一份本地保險快照】——
+         *   ① 存一份 rollback 到 localStorage（就地快照）；② 觸發下載一份 JSON（雙保險）。 */
+        var rollback = null;
+        try {
+          rollback = DMCLOUD.buildDmPayload({ appVersion: APP_VERSION });
+          if (typeof window !== "undefined" && window.localStorage) {
+            window.localStorage.setItem(LS_CLOUD_RESTORE_ROLLBACK, JSON.stringify(rollback));
+          }
+        } catch (e) { /* rollback 建立失敗不阻斷下載，但要讓使用者知道 */ }
+        var dl = rollback ? downloadJson(rollback, "dnd-dm-rollback-" + backupFilename().replace(/^dnd-dm-backup-/, "")) : false;
+
+        /* 確認對照：顯示兩邊 exportedAt 與粗略數量，由使用者確認「以來源覆蓋本地」。 */
+        var cloudCounts = DMCLOUD.countData(payload.data, DMV2_LS_PREFIX);
+        var localCounts = rollback ? DMCLOUD.countData(rollback.data, DMV2_LS_PREFIX) : { worlds: "?", entries: "?" };
+        var msg = "⚠️ 即將以「" + sourceLabel + "」覆蓋本機所有 DM 資料（世界/條目/模板…）。\n\n" +
+          "來源時間：" + (fmtSyncTime(payload.exportedAt) || "未知") +
+          "（世界 " + cloudCounts.worlds + " / 條目 " + cloudCounts.entries + "）\n" +
+          "本機時間：" + (rollback ? (fmtSyncTime(rollback.exportedAt) || "現在") : "現在") +
+          "（世界 " + localCounts.worlds + " / 條目 " + localCounts.entries + "）\n\n" +
+          (dl ? "（已自動下載一份本機保險備份）\n" : "") +
+          "按「確定」以來源覆蓋本地；按「取消」放棄。";
+        if (!confirm(msg)) { cloudState.busy = false; return; }
+
+        try {
+          DMCLOUD.applyPayloadToLocal(payload, { prefix: DMV2_LS_PREFIX });
+          alert("還原完成！本機保險備份已存於 localStorage（key: " + LS_CLOUD_RESTORE_ROLLBACK + "）" +
+            (dl ? "並已下載一份 rollback JSON" : "") + "。\n即將重新載入以套用。");
+          if (typeof location !== "undefined" && location.reload) location.reload();
+        } catch (e) {
+          cloudState.error = "還原失敗：" + (e && e.message ? e.message : e);
+          cloudState.busy = false;
+        }
+      }
+
+      /* ☁️ 備份到雲端：buildDmPayload → 寫 users/{uid}/dm_backup/payload+meta。 */
+      function backupToCloudUI() {
+        if (!DMCLOUD) { cloudState.error = "雲備份模組未載入"; return; }
+        if (!AUTH || !AUTH.currentUid || !AUTH.currentUid()) { cloudState.error = "請先用 Google 登入"; return; }
+        if (cloudState.busy) return;
+        cloudState.busy = true; cloudState.error = "";
+        Promise.resolve(DMCLOUD.saveToCloud({ appVersion: APP_VERSION })).then(function (res) {
+          authState.lastCloudSync = fmtSyncTime(res && res.meta && res.meta.exportedAt) || fmtSyncTime(new Date());
+          alert("已備份到雲端 ☁️");
+        }).catch(function (e) {
+          cloudState.error = "雲端備份失敗：" + (e && e.message ? e.message : e);
+        }).then(function () { cloudState.busy = false; });
+      }
+
+      /* ☁️ 從雲端還原：讀回 payload（不落地）→ 交 applyRestore 走保險+確認+覆蓋+reload。 */
+      function restoreFromCloudUI() {
+        if (!DMCLOUD) { cloudState.error = "雲備份模組未載入"; return; }
+        if (!AUTH || !AUTH.currentUid || !AUTH.currentUid()) { cloudState.error = "請先用 Google 登入"; return; }
+        if (cloudState.busy) return;
+        cloudState.busy = true; cloudState.error = "";
+        Promise.resolve(DMCLOUD.loadFromCloud({})).then(function (res) {
+          if (!res || !res.found) {
+            alert("雲端目前沒有備份可還原。");
+            cloudState.busy = false; return;
+          }
+          applyRestore(res.payload, "雲端備份");
+          /* applyRestore 內部若使用者取消或失敗會自行處理 busy；成功則 reload。 */
+          if (cloudState.busy) cloudState.busy = false;
+        }).catch(function (e) {
+          cloudState.error = "雲端還原失敗：" + (e && e.message ? e.message : e);
+          cloudState.busy = false;
+        });
+      }
+
+      /* ============================================================
          §3 / §10.1② 開團連線（Step 3.1：createRoom + QR）
          主流程：選任務開團 → worldId 自動帶出；questId 可選；
          eraId 獨立一軸（預設 currentEraId）。roster/提案定案留 3.2+。
@@ -1188,7 +1418,11 @@
           questName: entityNameById(sessionQuestId.value || ""),
           eraName: eraNameById(currentEraId.value || "")
         };
-        ROOM.signInAnon(fb.auth).then(function (dmUid) {
+        /* dmId 決策：若已 Google 登入 → 以該 uid 當 dmId（跨裝置一致、可接回自己的房）；
+         * 未登入則維持既有匿名流程（signInAnon）。不破壞 rooms/* 契約與開房行為。 */
+        var _googleUid = (authState.user && AUTH && AUTH.currentUid) ? AUTH.currentUid() : null;
+        var _dmUidP = _googleUid ? Promise.resolve(_googleUid) : ROOM.signInAnon(fb.auth);
+        _dmUidP.then(function (dmUid) {
           opts.dmId = dmUid;
           return ROOM.createRoom(fb.db, opts);
         }).then(function (code) {
@@ -1237,10 +1471,24 @@
         refreshWorlds();
         loadTemplates();
         initFirebase();
+        /* TC-A2：載入時靜默預熱 auth（收尾 redirect 登入 + 反映既有登入狀態，不開 RTDB）。
+         * fire-and-forget：ensureAuthInit 內部已吞例外並回傳 false，這裡再 .catch 防未捕獲 rejection。 */
+        ensureAuthInit().catch(function () {});
       });
 
       return {
         APP_VERSION: APP_VERSION,
+        /* TC-A2 登入 + DM 雲備份/本地備份 */
+        authState: authState,
+        cloudState: cloudState,
+        signInGoogleUI: signInGoogleUI,
+        signOutUI: signOutUI,
+        backupToCloudUI: backupToCloudUI,
+        restoreFromCloudUI: restoreFromCloudUI,
+        exportBackup: exportBackup,
+        triggerImport: triggerImport,
+        onImportFile: onImportFile,
+        importInput: importInput,
         tabs: tabs,
         currentTab: currentTab,
         drawerOpen: drawerOpen,

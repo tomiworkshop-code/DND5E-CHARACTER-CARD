@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="敘事者之書 DM">
-  <script>window.APP_ID='narrator';window.APP_VERSION='v2.6.3 · Build 0806.1';</script>
+  <script>window.APP_ID='narrator';window.APP_VERSION='v2.6.4 · Build 0806.5';</script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-5HRH4CH1N7"></script>
   <script>
     window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
@@ -34,6 +34,10 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
   <script src="../shared/firebase-config.js"></script>
   <script src="../shared/room.js"></script>
+  <!-- Google 登入模組（複用玩家版 window.DND5E_AUTH）+ DM 專屬個人雲備份 service。
+       ⚠️ 載入順序：room.js → auth.js（依賴 DND5E_ROOM.init）→ dm-cloud-backup.js（沿用 DND5E_AUTH 的 db/uid）。 -->
+  <script src="../shared/services/auth.js"></script>
+  <script src="../shared/services/dm-cloud-backup.js"></script>
   <!-- QR 產生器（開團房號 → 玩家掃碼 join）。純前端、無外呼。 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
@@ -808,6 +812,70 @@
 
         <!-- ⑤ 設定 -->
         <section v-show="currentTab === 'settings'">
+
+          <!-- 👤 帳號與登入 -->
+          <div class="p-4 rounded-xl border space-y-3 text-sm mb-3"
+               style="background:var(--bg-surface); border-color:var(--border);" data-testid="account-section">
+            <div class="flex items-center gap-2 font-bold"><span>👤</span><span>帳號與登入</span></div>
+            <!-- 未登入 -->
+            <template v-if="!authState.user">
+              <p class="text-xs" style="color:var(--text-muted);">登入後可跨裝置雲備份世界／條目／模板資料，並讓開的房綁定你的帳號。</p>
+              <button class="icon-btn icon-btn-primary" :disabled="authState.busy"
+                      @click="signInGoogleUI" data-testid="signin-google-btn">
+                <span class="ib-icon">🔑</span><span>使用 Google 登入</span>
+              </button>
+            </template>
+            <!-- 已登入 -->
+            <template v-else>
+              <div class="flex items-center gap-3">
+                <img v-if="authState.user.photoURL" :src="authState.user.photoURL" alt=""
+                     class="w-9 h-9 rounded-full border" style="border-color:var(--border);">
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium truncate" data-testid="account-email">{{ authState.user.email || authState.user.displayName || '(已登入)' }}</div>
+                  <div class="text-xs" style="color:var(--text-muted);">
+                    最後雲端同步：{{ authState.lastCloudSync || '尚未備份' }}
+                  </div>
+                </div>
+                <button class="icon-btn" :disabled="authState.busy" @click="signOutUI" data-testid="signout-btn">
+                  <span class="ib-icon">🚪</span><span>登出</span>
+                </button>
+              </div>
+            </template>
+            <p v-if="authState.error" class="text-xs" style="color:#b4462e;">{{ authState.error }}</p>
+          </div>
+
+          <!-- 💾 資料備份與還原 -->
+          <div class="p-4 rounded-xl border space-y-3 text-sm mb-3"
+               style="background:var(--bg-surface); border-color:var(--border);" data-testid="backup-section">
+            <div class="flex items-center gap-2 font-bold"><span>💾</span><span>資料備份與還原</span></div>
+            <p class="text-xs" style="color:var(--text-muted);">備份範圍：本機所有 DM 資料（世界／條目／NPC／怪物／任務／模板等）。</p>
+            <!-- 本地（不需登入） -->
+            <div class="flex flex-wrap gap-2">
+              <button class="icon-btn" @click="exportBackup" data-testid="export-backup-btn">
+                <span class="ib-icon">⬇️</span><span>匯出備份</span>
+              </button>
+              <button class="icon-btn" @click="triggerImport" data-testid="import-backup-btn">
+                <span class="ib-icon">⬆️</span><span>匯入備份</span>
+              </button>
+              <input ref="importInput" type="file" accept="application/json,.json"
+                     class="hidden" style="display:none;" @change="onImportFile" data-testid="import-file-input">
+            </div>
+            <!-- 雲端（需登入） -->
+            <div class="flex flex-wrap gap-2 pt-1">
+              <button class="icon-btn icon-btn-primary" :disabled="!authState.user || cloudState.busy"
+                      @click="backupToCloudUI" data-testid="cloud-backup-btn">
+                <span class="ib-icon">☁️</span><span>備份到雲端</span>
+              </button>
+              <button class="icon-btn" :disabled="!authState.user || cloudState.busy"
+                      @click="restoreFromCloudUI" data-testid="cloud-restore-btn">
+                <span class="ib-icon">☁️</span><span>從雲端還原</span>
+              </button>
+            </div>
+            <p v-if="!authState.user" class="text-xs" style="color:var(--text-muted);">☁️ 雲端備份／還原需先用 Google 登入。</p>
+            <p v-if="cloudState.error" class="text-xs" style="color:#b4462e;">{{ cloudState.error }}</p>
+            <p class="text-xs" style="color:var(--text-muted);">⚠️ 還原為「整份覆蓋」本機資料；還原前會自動下載一份本機保險備份並保留 rollback。</p>
+          </div>
+
           <div class="p-4 rounded-xl border space-y-2 text-sm"
                style="background:var(--bg-surface); border-color:var(--border);">
             <div class="flex justify-between"><span style="color:var(--text-muted);">character-schema</span><span>{{ ready.char ? '✅' : '❌' }}</span></div>

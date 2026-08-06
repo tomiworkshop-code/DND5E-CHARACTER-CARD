@@ -1,5 +1,5 @@
 /* 敘事者之書 DM V2 · Service Worker（獨立快取，勿與舊版/玩家端衝突） */
-const CACHE = 'dnd-dm-v2-v4';
+const CACHE = 'dnd-dm-v2-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -15,6 +15,8 @@ const ASSETS = [
   '../shared/store.js',
   '../shared/firebase-config.js',
   '../shared/room.js',
+  '../shared/services/auth.js',
+  '../shared/services/dm-cloud-backup.js',
   'https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js',
