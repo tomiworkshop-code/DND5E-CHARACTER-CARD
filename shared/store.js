@@ -288,6 +288,94 @@
     _set(LS.SCHEMA_VER, "2");
   }
 
+  /* ===== 遷移：本地世界 id 統一 '__solo__' → DEFAULT_WORLD_ID（修 G3 / 決策點 D1） =====
+   * 背景：UI 預設世界 id 舊為 '__solo__'，但機制欄位落帳 instance 實際以
+   *   DEFAULT_WORLD_ID('w_local_default') 為 key，導致 worldProgress['__solo__'] 與
+   *   機制落帳 instance 不一致（隱性 bug）。Tommy 2026-08-09 定案 D1：統一採
+   *   'w_local_default'。本函式把舊 '__solo__' 進度併入新 id，冪等、不覆蓋。
+   * 安全：零破壞加法——只動到 legacy key 的資料；不影響任何 DM 世界 instance。
+   *   重複執行無副作用（legacy key 已不存在則 no-op）。
+   */
+  var LEGACY_LOCAL_WORLD_ID = "__solo__";
+
+  function _isEmptyProgress(p){
+    if(!p || typeof p !== "object") return true;
+    if(p.location || p.time || p.quest || p.name) return false;
+    var r = p.records || {};
+    return !["log","quest","npc","clue"].some(function(c){ return Array.isArray(r[c]) && r[c].length; });
+  }
+
+  function _mergeProgress(target, legacy){
+    var out = JSON.parse(JSON.stringify(target || {}));
+    var leg = legacy || {};
+    if(!out.location && leg.location) out.location = leg.location;
+    if(!out.time && leg.time) out.time = leg.time;
+    if(!out.quest && leg.quest) out.quest = leg.quest;
+    if(!out.name && leg.name) out.name = leg.name;
+    out.records = out.records || {};
+    var lr = leg.records || {};
+    ["log","quest","npc","clue"].forEach(function(c){
+      var a = Array.isArray(out.records[c]) ? out.records[c] : [];
+      var b = Array.isArray(lr[c]) ? lr[c] : [];
+      var seen = {};
+      a.forEach(function(x){ seen[JSON.stringify(x)] = true; });
+      b.forEach(function(x){ if(!seen[JSON.stringify(x)]){ a.push(x); seen[JSON.stringify(x)] = true; } });
+      out.records[c] = a;
+    });
+    return out;
+  }
+
+  function migrateSoloWorldId(){
+    var LEGACY = LEGACY_LOCAL_WORLD_ID;
+    var TARGET = DEFAULT_WORLD_ID;
+    var result = { migrated: 0 };
+    if(LEGACY === TARGET) return result;
+
+    /* 1) instances 內 worldProgress['__solo__'] 併入 ['w_local_default'] */
+    var instances = loadInstances();
+    var instChanged = false;
+    Object.keys(instances).forEach(function(key){
+      var inst = instances[key];
+      if(!inst || !inst.worldProgress) return;
+      var wp = inst.worldProgress;
+      if(!Object.prototype.hasOwnProperty.call(wp, LEGACY)) return;
+      var legacyWp = wp[LEGACY];
+      if(!Object.prototype.hasOwnProperty.call(wp, TARGET) || _isEmptyProgress(wp[TARGET])){
+        wp[TARGET] = legacyWp;
+      } else {
+        wp[TARGET] = _mergeProgress(wp[TARGET], legacyWp);
+      }
+      delete wp[LEGACY];
+      instChanged = true;
+      result.migrated++;
+    });
+    if(instChanged) saveInstances(instances);
+
+    /* 2) worlds 陣列去 legacy： id==='__solo__' 改為 TARGET（若已有 TARGET 則移除重複） */
+    var worlds = loadWorlds();
+    if(Array.isArray(worlds)){
+      var wChanged = false;
+      var hasTarget = worlds.some(function(w){ return w && (w.id === TARGET || w.worldId === TARGET); });
+      for(var i = 0; i < worlds.length; i++){
+        var w = worlds[i];
+        if(w && (w.id === LEGACY || w.worldId === LEGACY)){
+          if(hasTarget){ worlds.splice(i, 1); i--; }
+          else { w.id = TARGET; if(w.worldId) w.worldId = TARGET; hasTarget = true; }
+          wChanged = true;
+        }
+      }
+      if(wChanged) saveWorlds(worlds);
+    }
+
+    /* 3) active 指標修正 */
+    if(getActiveWorld() === LEGACY) setActiveWorld(TARGET);
+    var ai = getActiveInstance();
+    if(ai && ai.slice(-(LEGACY.length + 1)) === ("@" + LEGACY)){
+      setActiveInstance(ai.slice(0, ai.length - (LEGACY.length + 1)) + "@" + TARGET);
+    }
+    return result;
+  }
+
   /* ===== identities / instances / worlds / active 讀寫 ===== */
   function loadIdentities(){ return JSON.parse(_get(LS.IDENTITIES) || "[]"); }
   function saveIdentities(arr){ _set(LS.IDENTITIES, JSON.stringify(arr)); }
@@ -468,6 +556,8 @@
     composeC: composeC,
     decomposeC: decomposeC,
     migrateToV2: migrateToV2,
+    LEGACY_LOCAL_WORLD_ID: LEGACY_LOCAL_WORLD_ID,
+    migrateSoloWorldId: migrateSoloWorldId,
     loadIdentities: loadIdentities,
     saveIdentities: saveIdentities,
     loadInstances: loadInstances,

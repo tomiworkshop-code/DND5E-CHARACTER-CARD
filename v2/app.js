@@ -76,11 +76,11 @@
         const isMenuOpen = ref(false);
         const currentView = ref('dashboard');
         const chars = ref([]);
-        const worlds = ref(JSON.parse(localStorage.getItem(LS_WORLDS)) || [{ id: '__solo__', name: '單人漫遊', type: 'local', desc: '本地沙盒世界。在此處的所有數值變更會直接保存，無需等待 DM 批准。' }]);
+        const worlds = ref(JSON.parse(localStorage.getItem(LS_WORLDS)) || [{ id: DEFAULT_WORLD_ID, name: '單人漫遊', type: 'local', desc: '本地沙盒世界。在此處的所有數值變更會直接保存，無需等待 DM 批准。' }]);
         const selectedWorldObj = computed(() => worlds.value.find(w => w.id === selectedWorldKey.value) || worlds.value[0]);
 
         const selectedCharId = ref(null);
-        const selectedWorldKey = ref('__solo__');
+        const selectedWorldKey = ref(DEFAULT_WORLD_ID);
         const activeModule = ref(null);
         const isEditMode = ref(false);
         const isWorldEditMode = ref(false);
@@ -425,7 +425,31 @@
           return abilityMod(abilityTotal(key)) + (prof ? profBonus.value : 0);
         };
         
-        const isDMWorld = computed(() => selectedWorldKey.value !== '__solo__');
+        const isDMWorld = computed(() => selectedWorldKey.value !== DEFAULT_WORLD_ID);
+
+        /* ===== PR-Local-1：sessionMode 狀態機（設計文件 §2.2） =====
+         * 衍生 computed（不新增平行真相，由既有狀態推導）：
+         *   connected  ：已連線 DM 房間（機制面 DM 權威）——維持現況
+         *   local      ：本地單機，玩家完整權威
+         *   offline-dm ：曾連過的 DM 世界但目前離線（可離線先跑、之後補提案）
+         * 零破壞：只讀不寫；不觸发任何連線/落帳副作用。 */
+        const sessionMode = computed(() => {
+          if (room.status === 'connected') return 'connected';
+          const w = selectedWorldObj.value;
+          const t = w && w.type;
+          if (selectedWorldKey.value === DEFAULT_WORLD_ID || t === 'local' || t === 'solo') return 'local';
+          if (t === 'dm') return 'offline-dm';
+          return 'local';
+        });
+
+        /* 模式徽章（header/世界卡）：🏠本地 / 📡連線 / 🕳️離線待提案 */
+        const sessionModeBadge = computed(() => {
+          switch (sessionMode.value) {
+            case 'connected':  return { key:'connected',  icon:'📡', label:'連線 DM',   cls:'bg-purple-100 text-purple-700 border border-purple-200' };
+            case 'offline-dm': return { key:'offline-dm', icon:'🕳️', label:'離線待提案', cls:'bg-amber-100 text-amber-700 border border-amber-200' };
+            default:           return { key:'local',      icon:'🏠', label:'本地單人', cls:'bg-gray-200 text-gray-700' };
+          }
+        });
 
         const selectedChar = computed(() => {
           if (!selectedCharId.value) return null;
@@ -476,7 +500,7 @@
 
         // 當選擇的角色改變時，重設世界選擇器並關閉內頁
         watch(selectedCharId, (newId) => {
-          selectedWorldKey.value = '__solo__';
+          selectedWorldKey.value = DEFAULT_WORLD_ID;
           activeModule.value = null;
         });
 
@@ -527,6 +551,10 @@
           ensureAuthInit().catch(() => {});
           
           migrateToV2();
+          /* PR-Local-1 / 決策點 D1：統一本地世界 id（__solo__ → w_local_default）。
+           * 必須在 composeC 前執行，讓舊 worldProgress['__solo__'] 進度先併入新 id。
+           * 冪等、不覆蓋；重複執行無副作用。 */
+          try { if (typeof STORE.migrateSoloWorldId === 'function') STORE.migrateSoloWorldId(); } catch(e) { console.warn('migrateSoloWorldId skipped:', e); }
           let identities = JSON.parse(localStorage.getItem(LS_IDENTITIES) || "[]");
           let instances = JSON.parse(localStorage.getItem(LS_INSTANCES) || "{}");
           
@@ -567,7 +595,7 @@
           chars.value.forEach(ch => {
             if (ch.worldProgress) {
               Object.keys(ch.worldProgress).forEach(k => {
-                if (k !== '__solo__') worldSet.add(k);
+                if (k !== DEFAULT_WORLD_ID) worldSet.add(k);
                 // 計算每個世界桶內的筆記數量（新的 records 分類結構：log/quest/npc/clue）
                 const recs = ch.worldProgress[k] && ch.worldProgress[k].records;
                 if (recs) {
@@ -777,7 +805,7 @@
           chars.value = chars.value.filter(c => c.id !== id);
           if (selectedCharId.value === id) {
             selectedCharId.value = chars.value.length ? chars.value[0].id : null;
-            selectedWorldKey.value = '__solo__';
+            selectedWorldKey.value = DEFAULT_WORLD_ID;
             activeModule.value = null;
           }
           if (switcherTempCharId.value === id) { switcherTempCharId.value = null; switcherStep.value = 'char'; }
@@ -789,7 +817,7 @@
           const char = selectedChar.value;
           const wid = selectedWorldKey.value;
           if (!char) return;
-          if (wid === '__solo__') { alert('「單人漫遊」為預設沙盒存檔，無法移除。'); return; }
+          if (wid === DEFAULT_WORLD_ID) { alert('「單人漫遊」為預設沙盒存檔，無法移除。'); return; }
           const w = worlds.value.find(x => x.id === wid);
           const isDM = isDmWorldObj(w);
           const wp = char.worldProgress && char.worldProgress[wid];
@@ -806,7 +834,7 @@
           if (char.worldProgress && Object.prototype.hasOwnProperty.call(char.worldProgress, wid)) {
             delete char.worldProgress[wid];
           }
-          if (selectedWorldKey.value === wid) selectedWorldKey.value = '__solo__';
+          if (selectedWorldKey.value === wid) selectedWorldKey.value = DEFAULT_WORLD_ID;
           activeModule.value = null;
         };
 
@@ -1537,6 +1565,9 @@ sendRoomRequest,
 
           worlds,
           selectedWorldObj,
+          LOCAL_WORLD_ID: DEFAULT_WORLD_ID,
+          sessionMode,
+          sessionModeBadge,
           chars,
           stats,
           selectedCharId,

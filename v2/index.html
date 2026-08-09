@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="冒險者之書">
-  <script>window.APP_ID='adventurer';window.APP_VERSION='v2.2.11 · Build 0806.4';</script>
+  <script>window.APP_ID='adventurer';window.APP_VERSION='v2.3.0 · Build 0809.1';</script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-5HRH4CH1N7"></script>
   <script>
     window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
@@ -97,6 +97,10 @@
       </button>
       <h1 class="text-lg font-bold tracking-wider">{{ viewTitle }}</h1>
       <div class="flex items-center gap-2">
+        <!-- PR-Local-1：sessionMode 模式徽章（🏠本地 / 📡連線 / 🕳️離線待提案） -->
+        <span v-if="selectedChar" :class="['hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold whitespace-nowrap', sessionModeBadge.cls]" :title="'目前模式：' + sessionModeBadge.label">
+          <span>{{ sessionModeBadge.icon }}</span><span>{{ sessionModeBadge.label }}</span>
+        </span>
         <button @click="openGlobalSwitcher" class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 hover:bg-gray-100 transition shadow-sm max-w-[200px]">
           <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 shrink-0 overflow-hidden">
             <template v-if="selectedChar?.avatar">
@@ -111,7 +115,7 @@
           </div>
           <div class="flex flex-col items-start truncate">
             <div class="text-xs font-bold text-gray-800 truncate w-full">{{ selectedChar ? (selectedChar?.name || '未命名') : '選擇角色' }}</div>
-            <div class="text-[10px] text-gray-500 truncate w-full">{{ selectedChar ? (selectedWorldKey === '__solo__' ? '🧳 單人冒險' : '🌍 ' + (selectedChar.worldProgress?.[selectedWorldKey]?.name || selectedWorldKey)) : '點擊切換' }}</div>
+            <div class="text-[10px] text-gray-500 truncate w-full">{{ selectedChar ? (selectedWorldKey === LOCAL_WORLD_ID ? '🧳 單人冒險' : '🌍 ' + (selectedChar.worldProgress?.[selectedWorldKey]?.name || selectedWorldKey)) : '點擊切換' }}</div>
           </div>
           <div class="text-gray-400 ml-1 text-xs">▼</div>
         </button>
@@ -163,7 +167,7 @@
               </div>
             </div>
             <div class="overflow-y-auto p-2 space-y-1">
-              <button @click="confirmSwitcherWorld('__solo__')" class="w-full flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg transition text-left">
+              <button @click="confirmSwitcherWorld(LOCAL_WORLD_ID)" class="w-full flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg transition text-left">
                 <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-lg">🧳</div>
                 <div class="flex-1">
                   <div class="font-bold text-gray-800 text-sm">單人冒險</div>
@@ -172,7 +176,7 @@
               </button>
               
               <template v-if="switcherTempChar?.worldProgress">
-                <button v-for="(progress, key) in switcherTempChar.worldProgress" :key="key" v-show="key !== '__solo__'" @click="confirmSwitcherWorld(key)" class="w-full flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg transition text-left">
+                <button v-for="(progress, key) in switcherTempChar.worldProgress" :key="key" v-show="key !== LOCAL_WORLD_ID" @click="confirmSwitcherWorld(key)" class="w-full flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg transition text-left">
                   <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-lg">🌍</div>
                   <div class="flex-1 truncate">
                     <div class="font-bold text-gray-800 text-sm truncate">{{ progress?.name || key }}</div>
@@ -1367,14 +1371,14 @@
                 <template v-else>
                   <input v-model="worldEditTemp.name" class="border border-gray-300 px-2 py-1 rounded text-lg w-full max-w-xs font-normal" placeholder="世界名稱" />
                 </template>
-                <span v-if="selectedWorldObj.type === 'local' || selectedWorldKey === '__solo__'" class="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700 font-normal">本地單人</span>
+                <span v-if="selectedWorldObj.type === 'local' || selectedWorldKey === LOCAL_WORLD_ID" class="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700 font-normal">本地單人</span>
                 <span v-else class="px-2 py-0.5 rounded text-xs bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1 font-normal">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.078 2.027-.231 3.021M15.328 14.304c.52.87 1.01 1.776 1.467 2.715m-4.577-4.577l.035.012M12 21a9.003 9.003 0 008.354-5.646"></path></svg>
                   DM 連線
                 </span>
               </h2>
               <div class="flex items-center gap-2">
-                <div v-if="selectedWorldObj.type === 'local' || selectedWorldKey === '__solo__'">
+                <div v-if="selectedWorldObj.type === 'local' || selectedWorldKey === LOCAL_WORLD_ID">
                   <button v-if="!isWorldEditMode" @click="startWorldEdit" class="text-sm px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition flex items-center gap-1">
                     ✏️ 編輯
                   </button>
@@ -1383,7 +1387,7 @@
                     <button @click="saveWorldEdit" class="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition">儲存</button>
                   </div>
                 </div>
-                <button v-if="selectedWorldKey !== '__solo__' && selectedChar" @click="removeCurrentWorldRecord" class="text-sm px-3 py-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition flex items-center gap-1 whitespace-nowrap" title="移除目前角色在此世界的存檔（不影響其他角色）">
+                <button v-if="selectedWorldKey !== LOCAL_WORLD_ID && selectedChar" @click="removeCurrentWorldRecord" class="text-sm px-3 py-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition flex items-center gap-1 whitespace-nowrap" title="移除目前角色在此世界的存檔（不影響其他角色）">
                   🗑️ 移除此世界的紀錄
                 </button>
               </div>
@@ -1427,7 +1431,7 @@
               </div>
 
               <!-- 輸入區 (僅限本地或單人) -->
-              <div v-if="selectedWorldObj.type === 'local' || selectedWorldKey === '__solo__'" class="mb-4 flex gap-2">
+              <div v-if="selectedWorldObj.type === 'local' || selectedWorldKey === LOCAL_WORLD_ID" class="mb-4 flex gap-2">
                 <input v-model="newRecordText" @keyup.enter="addWorldRecord" type="text" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" :placeholder="'新增 ' + recordTabs.find(t=>t.id===activeRecordTab)?.label + '...'">
                 <button @click="addWorldRecord" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition shadow-sm whitespace-nowrap">新增</button>
               </div>
@@ -1444,7 +1448,7 @@
                     <div class="text-xs text-gray-400 mb-1">{{ rec.time }}</div>
                     <div class="text-gray-700 text-sm whitespace-pre-wrap">{{ rec.text }}</div>
                   </div>
-                  <button v-if="selectedWorldObj.type === 'local' || selectedWorldKey === '__solo__'" @click="removeWorldRecord(rec.id)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition p-1">
+                  <button v-if="selectedWorldObj.type === 'local' || selectedWorldKey === LOCAL_WORLD_ID" @click="removeWorldRecord(rec.id)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition p-1">
                     ✕
                   </button>
                 </div>
