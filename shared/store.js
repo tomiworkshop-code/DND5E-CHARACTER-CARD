@@ -28,6 +28,70 @@
   };
   var DEFAULT_WORLD_ID = "w_local_default";
 
+  /* ===== PR-Local-4：離線異動 changelog（設計文件 §4.1 / R1） =====
+   * 每 instance 內加法欄位 offlineLog（預設 []），隨 dnd_instances_v2 一起持久化，
+   * 不新增頂層 LS key。R1 防肥大：上限 OFFLINE_LOG_LIMIT 筆，超出丟最舊。 */
+  var OFFLINE_LOG_LIMIT = 200;
+
+  /* 逐「頂層欄位」算 diff（決策點 D3）：不做陣列內逐元素 diff，
+   * 陣列型欄位存前/後快照 + 簡要摘要（summary）。回傳 FieldChange[]。
+   *   FieldChange = { path, zone, from, to, at, source, baseVm, [summary] } */
+  function _diffFields(oldObj, newObj, zone, baseVm, source, at){
+    var changes = [];
+    oldObj = oldObj || {};
+    newObj = newObj || {};
+    var keySet = {};
+    Object.keys(oldObj).forEach(function(k){ keySet[k] = true; });
+    Object.keys(newObj).forEach(function(k){ keySet[k] = true; });
+    Object.keys(keySet).forEach(function(k){
+      var ov = Object.prototype.hasOwnProperty.call(oldObj, k) ? oldObj[k] : undefined;
+      var nv = Object.prototype.hasOwnProperty.call(newObj, k) ? newObj[k] : undefined;
+      var os = JSON.stringify(ov === undefined ? null : ov);
+      var ns = JSON.stringify(nv === undefined ? null : nv);
+      if(os === ns) return;
+      var change = {
+        path: k,
+        zone: zone,
+        from: ov === undefined ? null : JSON.parse(os),
+        to: nv === undefined ? null : JSON.parse(ns),
+        at: at,
+        source: source,
+        baseVm: baseVm
+      };
+      if(Array.isArray(ov) || Array.isArray(nv)){
+        change.summary = (Array.isArray(ov) ? ov.length : 0) + " → " + (Array.isArray(nv) ? nv.length : 0) + " 項";
+      }
+      changes.push(change);
+    });
+    return changes;
+  }
+
+  /* 把 FieldChange[] 推進 instance.offlineLog（缺省→[]，冪等防呆），並套用上限裁切。 */
+  function _pushOfflineLog(instance, entries){
+    if(!instance || !entries || !entries.length) return;
+    if(!Array.isArray(instance.offlineLog)) instance.offlineLog = [];
+    for(var i = 0; i < entries.length; i++){ instance.offlineLog.push(entries[i]); }
+    if(instance.offlineLog.length > OFFLINE_LOG_LIMIT){
+      instance.offlineLog = instance.offlineLog.slice(instance.offlineLog.length - OFFLINE_LOG_LIMIT);
+    }
+  }
+
+  /* 清理 helper（本 PR 只保留欄位與清理能力，不接 DM 提案流程）。 */
+  function clearOfflineLog(instance){
+    if(instance) instance.offlineLog = [];
+    return instance;
+  }
+  /* 提案被 DM 採納後標記已 flush（保留紀錄供追溯，之後可 clearOfflineLog 清除）。 */
+  function markOfflineLogFlushed(instance, flushedAtVm){
+    if(instance && Array.isArray(instance.offlineLog)){
+      instance.offlineLog.forEach(function(e){
+        e.flushed = true;
+        if(typeof flushedAtVm === "number") e.flushedAtVm = flushedAtVm;
+      });
+    }
+    return instance;
+  }
+
   /* ===== storage 介面卡（防呆 + 可注入） ===== */
   var _injected = null;
   function setStorage(s){ _injected = s || null; }
@@ -145,7 +209,13 @@
     return c;
   }
 
-  function decomposeC(c, identity, instance){
+  /* decomposeC(c, identity, instance, opts?)
+   * 既有行為（偵測差異→ bump version_m/version_n → 寫回 instance）完全不變。
+   * PR-Local-4 加法：opts.mode 提供當下 sessionMode；當 mode 存在且 !== 'connected'
+   *   （local / offline-dm）時，於偵測到差異的同時逐欄算 diff 推進 instance.offlineLog。
+   *   opts 省略或未帶 mode → 維持現況（不寫 log），既有呼叫端行為零變化。
+   *   opts.source 省略 → 'local-edit'。 */
+  function decomposeC(c, identity, instance, opts){
     var oldMech = JSON.stringify(instance.mechanical);
     var oldNarI = JSON.stringify(instance.narrative);
     var oldNarId = JSON.stringify(identity.identity);
@@ -162,6 +232,21 @@
     var nIChanged = oldNarI !== JSON.stringify(newNarI);
     var nIdChanged = oldNarId !== JSON.stringify(newNarId);
     var wpChanged = oldWP !== JSON.stringify(newWP);
+
+    /* PR-Local-4：只在 local/offline-dm（mode !== 'connected'）記錄 changelog；
+     * connected 時維持現況、不寫 log（避免污染 DM 權威流程）。
+     * baseVm 記錄「該欄變更當時的 canon version_m」= bump 前的 instance.version_m。 */
+    var logEnabled = !!(opts && opts.mode && opts.mode !== "connected");
+    if (logEnabled && (mChanged || nIChanged || nIdChanged)) {
+      var at = Date.now();
+      var baseVm = (typeof instance.version_m === "number") ? instance.version_m : 0;
+      var source = (opts && opts.source) || "local-edit";
+      var entries = [];
+      if (mChanged)   entries = entries.concat(_diffFields(instance.mechanical, newMech,  "mechanical", baseVm, source, at));
+      if (nIChanged)  entries = entries.concat(_diffFields(instance.narrative,  newNarI,  "narrative",  baseVm, source, at));
+      if (nIdChanged) entries = entries.concat(_diffFields(identity.identity,   newNarId, "narrative",  baseVm, source, at));
+      _pushOfflineLog(instance, entries);
+    }
 
     if (mChanged) instance.version_m++;
     if (nIChanged) instance.version_n++;
@@ -555,6 +640,9 @@
     writeInstanceFromChar: writeInstanceFromChar,
     composeC: composeC,
     decomposeC: decomposeC,
+    OFFLINE_LOG_LIMIT: OFFLINE_LOG_LIMIT,
+    clearOfflineLog: clearOfflineLog,
+    markOfflineLogFlushed: markOfflineLogFlushed,
     migrateToV2: migrateToV2,
     LEGACY_LOCAL_WORLD_ID: LEGACY_LOCAL_WORLD_ID,
     migrateSoloWorldId: migrateSoloWorldId,

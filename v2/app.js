@@ -710,6 +710,13 @@
            * 與 applyCommand/handleRemoteSave 用同一個 instance；其他角色仍落帳本地預設世界。 */
           const _syncWid = (c) => (room.status === 'connected' && room.meta && room.meta.worldId &&
             selectedChar.value && c.id === selectedChar.value.id) ? room.meta.worldId : DEFAULT_WORLD_ID;
+
+          /* PR-Local-4：per-instance 模式判定，供 decomposeC 決定是否寫 offlineLog。
+           * 該 instance 落帳世界 == 連線中的 DM 世界 → connected（不記 log，維持 DM 權威流程）；
+           * 本地預設世界 → local；其餘（曾連過的 DM 世界但目前非連線目標）→ offline-dm。 */
+          const _modeForWid = (wid) =>
+            (room.status === 'connected' && room.meta && room.meta.worldId === wid) ? 'connected'
+            : (wid === DEFAULT_WORLD_ID ? 'local' : 'offline-dm');
           newVal.forEach(c => {
              const wid = _syncWid(c);
              let ident = identities.find(i => i.characterId === c.id);
@@ -732,7 +739,7 @@
                instances[iid] = inst;
                changed = true;
              }
-             if (decomposeC(c, ident, inst)) {
+             if (decomposeC(c, ident, inst, { mode: _modeForWid(wid), source: 'local-edit' })) {
                changed = true;
              }
           });

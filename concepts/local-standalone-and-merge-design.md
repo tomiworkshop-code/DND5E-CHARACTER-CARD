@@ -219,14 +219,16 @@ DM 提案收件匣點入後，以三方對照表呈現（比現有 `conflictDiff
 | **PR-Local-1** ✅ | 修 G3：統一本地世界 id + worldProgress 遷移（冪等、不覆蓋） **+ `sessionMode` 狀態機 + 模式徽章**（本次合併交付） | — | 舊 `__solo__` 進度併入新 id、無串檔；徽章正確；本地不 init Firebase |
 | **PR-Local-2** ✅ | （已並入 PR-Local-1 的 sessionMode）本地/連線互斥切換 UI 細部強化 **+ 精準世界比對徽章**（本次落地：徽章依實際世界物件精準比對顯示） | PR-1 | 本地世界不 init Firebase；徽章正確 |
 | **PR-Local-3** ✅ | `shared/services/dice.js` 本地擲骰器 + 戰報落帳 + 可選一鍵套用 HP（本次落地：新增 `dice.js`、戰報記錄、僅 HP 套用走 decomposeC bump） | PR-2 | 圖骰/可重現；hp 套用走 decomposeC bump |
-| **PR-Local-4** | `offlineLog` changelog：擴充 `decomposeC` 逐欄 diff + 上限 + source 標記 | PR-2 | 本地編輯→ log 正確記 from/to/at/source |
+| **PR-Local-4** ✅ | `offlineLog` changelog：擴充 `decomposeC` 逐欄 diff + 上限 + source 標記（本次落地：instance 內加法欄位 `offlineLog`、頂層欄位粒度 `FieldChange{path,zone,from,to,at,source,baseVm,[summary]}`、僅 `mode !== 'connected'`（local/offline-dm）時記錄、`OFFLINE_LOG_LIMIT=200` 超出丟最舊） | PR-2 | 本地編輯→ log 正確記 from/to/at/source；connected 不寫；上限裁切 |
 | **PR-Local-5** | 提案封包 `buildProposal` + 本地待發佇列 + 重連 flush | PR-4 | 離線排佇、重連自動送出 |
 | **PR-Local-6** | 提案 JSON 匯出/匯入（無網 fallback） | PR-5 | 匯出檔 DM 可匯入 |
 | **PR-DM-1** | DM `onRequests` 訂閱 + 「提案收件匣」分頁 + 差異表 | PR-5 | 收到離線提案、列差異 |
 | **PR-DM-2** | `mergeInstancePartial` + 部分採納/駁回 UI + 回推 partial | PR-DM-1, PR-Local-4 | 逐欄採納、撞車欄交手動 |
 | **PR-DM-3** | DM 匯入離線提案 JSON → 同收件匣 | PR-DM-1, PR-Local-6 | 匯入後可採納 |
 
-> **Implementation status（2026-08-09）**：PR-Local-1／PR-Local-2／PR-Local-3 已交付；下一步 **PR-Local-4**（`offlineLog` changelog：擴充 `decomposeC` 逐欄 diff + 上限 + source 標記）。
+> **Implementation status（2026-08-09）**：PR-Local-1／PR-Local-2／PR-Local-3／PR-Local-4 已交付；下一步 **PR-Local-5**（提案封包 `buildProposal` + 本地待發佇列 + 重連 flush）。
+>
+> **Follow-up 決策註記（PR-Local-4）**：本 PR 的 changelog 依 §4.1／D3 只追 **mechanical／narrative／identity** 三類欄位的逐欄異動；`worldProgress`（location/time/quest/records）**照舊隨 instance 持久化，但不進 `offlineLog`**。worldProgress 是否納入「提案 changelog」（供 DM 差異比對）留待 **PR-Local-5 提案封包（`buildProposal`）設計時明確決定**（本 PR 不預判；PR-Local-5 尚未实作）。
 
 ## 7. 決策點（Tommy 2026-08-09 全數拍板 → 已定案）
 
