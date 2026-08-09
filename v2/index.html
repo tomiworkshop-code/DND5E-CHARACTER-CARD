@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="冒險者之書">
-  <script>window.APP_ID='adventurer';window.APP_VERSION='v2.3.0 · Build 0809.1';</script>
+  <script>window.APP_ID='adventurer';window.APP_VERSION='v2.4.0 · Build 0809.2';</script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-5HRH4CH1N7"></script>
   <script>
     window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
@@ -23,6 +23,7 @@
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="../shared/character-schema.js"></script>
   <script src="../shared/store.js"></script>
+  <script src="../shared/services/dice.js"></script>
   <script src="../shared/services/backup.js"></script>
   <!-- Firebase compat 10.12.5（Room 連線）。⚠️ 延遲初始化：此處僅載入 SDK，
        只有使用者按「加入房間」時才 DND5E_ROOM.init()+signInAnon()，載入時不連線。 -->
@@ -97,9 +98,10 @@
       </button>
       <h1 class="text-lg font-bold tracking-wider">{{ viewTitle }}</h1>
       <div class="flex items-center gap-2">
-        <!-- PR-Local-1：sessionMode 模式徽章（🏠本地 / 📡連線 / 🕳️離線待提案） -->
-        <span v-if="selectedChar" :class="['hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold whitespace-nowrap', sessionModeBadge.cls]" :title="'目前模式：' + sessionModeBadge.label">
-          <span>{{ sessionModeBadge.icon }}</span><span>{{ sessionModeBadge.label }}</span>
+        <!-- PR-Local-1/2：sessionMode 模式徽章（🏠本地 / 📡連線 / 🕳️離線待提案）
+             手機版(sm 以下)只顯示 icon（節省空間仍可辨識模式）；sm+ 顯示 icon+文字。 -->
+        <span v-if="selectedChar" :class="['inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold whitespace-nowrap', sessionModeBadge.cls]" :title="'目前模式：' + sessionModeBadge.label">
+          <span>{{ sessionModeBadge.icon }}</span><span class="hidden sm:inline">{{ sessionModeBadge.label }}</span>
         </span>
         <button @click="openGlobalSwitcher" class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 hover:bg-gray-100 transition shadow-sm max-w-[200px]">
           <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 shrink-0 overflow-hidden">
@@ -1376,6 +1378,10 @@
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.078 2.027-.231 3.021M15.328 14.304c.52.87 1.01 1.776 1.467 2.715m-4.577-4.577l.035.012M12 21a9.003 9.003 0 008.354-5.646"></path></svg>
                   DM 連線
                 </span>
+                <!-- PR-Local-2：世界卡模式徽章（依目前檢視世界 vs 連線目標判定） -->
+                <span v-if="selectedChar" :class="['px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1', sessionModeBadge.cls]" :title="'目前模式：' + sessionModeBadge.label">
+                  <span>{{ sessionModeBadge.icon }}</span><span>{{ sessionModeBadge.label }}</span>
+                </span>
               </h2>
               <div class="flex items-center gap-2">
                 <div v-if="selectedWorldObj.type === 'local' || selectedWorldKey === LOCAL_WORLD_ID">
@@ -1411,6 +1417,67 @@
                   <div class="text-xs text-gray-400 mb-1 flex items-center gap-1 shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>  當前主要任務</div>
                   <div v-if="!isWorldEditMode" class="text-gray-700 leading-relaxed flex-1 whitespace-pre-wrap">{{ activeWorldProgress.quest || '自由探索' }}</div>
                   <textarea v-else v-model="worldEditTemp.quest" class="border border-gray-300 p-2 w-full rounded text-sm bg-white flex-1 min-h-[60px]" placeholder="自由探索"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- PR-Local-3：本地擲骰器 + 一鍵套用 HP（僅需已選角色） -->
+            <div v-if="selectedChar" class="mt-8 border-t border-gray-100 pt-6">
+              <h3 class="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <span>🎲 本地擲骰器</span>
+                <span class="text-[11px] font-normal text-gray-400">結果自動記入「戰報與大事紀」</span>
+              </h3>
+
+              <!-- 優勢/劣勢模式（對 d20 最有意義） -->
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-xs text-gray-400">模式：</span>
+                <button @click="setDiceMode('normal')" :class="['px-3 py-1 rounded-full text-xs font-bold transition', diceState.mode==='normal' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']">一般</button>
+                <button @click="setDiceMode('adv')" :class="['px-3 py-1 rounded-full text-xs font-bold transition', diceState.mode==='adv' ? 'bg-green-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']">⬆️ 優勢</button>
+                <button @click="setDiceMode('dis')" :class="['px-3 py-1 rounded-full text-xs font-bold transition', diceState.mode==='dis' ? 'bg-red-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']">⬇️ 劣勢</button>
+              </div>
+
+              <!-- 快捷骰 -->
+              <div class="flex flex-wrap gap-2 mb-3">
+                <button v-for="d in ['1d20','1d4','1d6','1d8','1d10','1d12','1d100','2d6']" :key="d" @click="rollQuick(d)"
+                  class="px-3 py-1.5 rounded-lg text-sm font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100 transition">{{ d }}</button>
+              </div>
+
+              <!-- 自訂骰式 -->
+              <div class="flex gap-2 mb-3">
+                <input v-model="diceState.expr" @keyup.enter="rollCustom" type="text" placeholder="自訂骰式如 1d20+5 / 2d6-1"
+                  class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+                <button @click="rollCustom" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 transition shadow-sm whitespace-nowrap">🎲 擲骰</button>
+              </div>
+
+              <!-- 結果顯示 -->
+              <div v-if="diceState.lastResult" class="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-4 mb-3">
+                <div class="flex items-baseline justify-between">
+                  <div class="text-xs text-gray-500">{{ diceState.lastResult.expr }}<span v-if="diceState.lastResult.mode==='adv'"> · ⬆️優勢</span><span v-else-if="diceState.lastResult.mode==='dis'"> · ⬇️劣勢</span></div>
+                  <div class="text-3xl font-extrabold text-indigo-700">{{ diceState.lastResult.total }}</div>
+                </div>
+                <div class="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{{ diceState.lastResult.formula }}</div>
+              </div>
+
+              <!-- 一鍵套用 HP（D5：MVP 僅 HP；R4：連線模式停用） -->
+              <div class="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                <div class="text-xs font-bold text-gray-600 mb-2 flex items-center gap-1">❤️ 一鍵套用 HP
+                  <span class="font-normal text-gray-400">（目前 {{ (selectedChar.hp && selectedChar.hp.current) || 0 }}<span v-if="selectedChar.hp && selectedChar.hp.max"> / {{ selectedChar.hp.max }}</span>）</span>
+                </div>
+                <div v-if="!canApplyHp" class="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                  🔒 連線 DM 模式下停用一鍵套用（避免偽造版本領先）。HP 變更請由 DM 下指令。
+                </div>
+                <div v-else class="space-y-2">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs text-gray-400">從最後擲骰({{ diceState.lastResult ? diceState.lastResult.total : '-' }})：</span>
+                    <button @click="applyHpFromDice(-1)" :disabled="!diceState.lastResult" class="px-3 py-1 rounded-lg text-xs font-bold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition disabled:opacity-40">💥 扣為傷害</button>
+                    <button @click="applyHpFromDice(1)" :disabled="!diceState.lastResult" class="px-3 py-1 rounded-lg text-xs font-bold bg-green-50 text-green-700 border border-green-100 hover:bg-green-100 transition disabled:opacity-40">➕ 當治療</button>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs text-gray-400">手填：</span>
+                    <input v-model.number="diceState.hpAmount" type="number" min="0" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-indigo-500" placeholder="0">
+                    <button @click="applyHpManual(-1)" class="px-3 py-1 rounded-lg text-xs font-bold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition">💥 扣血</button>
+                    <button @click="applyHpManual(1)" class="px-3 py-1 rounded-lg text-xs font-bold bg-green-50 text-green-700 border border-green-100 hover:bg-green-100 transition">➕ 加血</button>
+                  </div>
                 </div>
               </div>
             </div>

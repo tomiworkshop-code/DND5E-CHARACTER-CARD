@@ -217,14 +217,16 @@ DM 提案收件匣點入後，以三方對照表呈現（比現有 `conflictDiff
 | PR | 內容 | 相依 | 驗收 |
 |----|------|------|------|
 | **PR-Local-1** ✅ | 修 G3：統一本地世界 id + worldProgress 遷移（冪等、不覆蓋） **+ `sessionMode` 狀態機 + 模式徽章**（本次合併交付） | — | 舊 `__solo__` 進度併入新 id、無串檔；徽章正確；本地不 init Firebase |
-| **PR-Local-2** | （已並入 PR-Local-1 的 sessionMode）本地/連線互斥切換 UI 細部強化 | PR-1 | 本地世界不 init Firebase；徽章正確 |
-| **PR-Local-3** | `shared/services/dice.js` 本地擲骰器 + 戰報落帳 + 可選一鍵套用 HP | PR-2 | 圖骰/可重現；hp 套用走 decomposeC bump |
+| **PR-Local-2** ✅ | （已並入 PR-Local-1 的 sessionMode）本地/連線互斥切換 UI 細部強化 **+ 精準世界比對徽章**（本次落地：徽章依實際世界物件精準比對顯示） | PR-1 | 本地世界不 init Firebase；徽章正確 |
+| **PR-Local-3** ✅ | `shared/services/dice.js` 本地擲骰器 + 戰報落帳 + 可選一鍵套用 HP（本次落地：新增 `dice.js`、戰報記錄、僅 HP 套用走 decomposeC bump） | PR-2 | 圖骰/可重現；hp 套用走 decomposeC bump |
 | **PR-Local-4** | `offlineLog` changelog：擴充 `decomposeC` 逐欄 diff + 上限 + source 標記 | PR-2 | 本地編輯→ log 正確記 from/to/at/source |
 | **PR-Local-5** | 提案封包 `buildProposal` + 本地待發佇列 + 重連 flush | PR-4 | 離線排佇、重連自動送出 |
 | **PR-Local-6** | 提案 JSON 匯出/匯入（無網 fallback） | PR-5 | 匯出檔 DM 可匯入 |
 | **PR-DM-1** | DM `onRequests` 訂閱 + 「提案收件匣」分頁 + 差異表 | PR-5 | 收到離線提案、列差異 |
 | **PR-DM-2** | `mergeInstancePartial` + 部分採納/駁回 UI + 回推 partial | PR-DM-1, PR-Local-4 | 逐欄採納、撞車欄交手動 |
 | **PR-DM-3** | DM 匯入離線提案 JSON → 同收件匣 | PR-DM-1, PR-Local-6 | 匯入後可採納 |
+
+> **Implementation status（2026-08-09）**：PR-Local-1／PR-Local-2／PR-Local-3 已交付；下一步 **PR-Local-4**（`offlineLog` changelog：擴充 `decomposeC` 逐欄 diff + 上限 + source 標記）。
 
 ## 7. 決策點（Tommy 2026-08-09 全數拍板 → 已定案）
 

@@ -124,6 +124,84 @@
             wp.records[activeRecordTab.value] = wp.records[activeRecordTab.value].filter(n => n.id !== id);
           }
         };
+
+        /* ===== PR-Local-3：本地擲骰器 + 戰報落帳 + 一鍵套用 HP（設計文件 §2.4、D5、R4） =====
+         * 擲骰純算委派 shared/services/dice.js（純函式）；結果寫入該世界 records.log 戰報。
+         * 一鍵套用 HP：直接改 char.hp.current → 觸發既有 watch(chars) → decomposeC 落帳並
+         * bump version_m（本地權威）；不新開落帳路徑。依 R4：僅 local/offline-dm 開放。 */
+        const diceState = Vue.reactive({
+          expr: '1d20',        // 自訂骰式
+          mode: 'normal',      // normal | adv | dis
+          hpAmount: 0,         // 手填 HP 套用金額
+          lastResult: null,    // 最後一次擲骰結果
+          history: []          // 最近擲骰（UI 即時顯示，上限 20）
+        });
+
+        // 擲骰結果落帳到目前世界的戰報 records.log（反應寫入 → watch 自動持久化）。
+        const pushWorldLog = (text, kind) => {
+          const wp = activeWorldProgress.value;
+          if (!wp) return;
+          if (!wp.records) wp.records = { log: [], quest: [], npc: [], clue: [] };
+          if (!Array.isArray(wp.records.log)) wp.records.log = [];
+          wp.records.log.unshift({
+            id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+            text: text,
+            time: new Date().toLocaleString(),
+            kind: kind || 'log'
+          });
+        };
+
+        // 核心：擲骰 → 結構化結果 + 寫戰報。回傳結果物件（或 null）。
+        const rollExpr = (expr, mode) => {
+          const D = window.DND5E_DICE;
+          if (!D) { alert('擲骰模組未載入'); return null; }
+          let res;
+          try { res = D.roll(expr, { mode: mode || diceState.mode }); }
+          catch (e) { alert('骰式錯誤：' + (e && e.message ? e.message : e)); return null; }
+          diceState.lastResult = res;
+          diceState.history.unshift(res);
+          if (diceState.history.length > 20) diceState.history.length = 20;
+          const name = (selectedChar.value && selectedChar.value.name) || '冒險者';
+          pushWorldLog('🎲 ' + name + ' 擲骰：' + res.formula, 'dice');
+          return res;
+        };
+        const rollQuick = (expr) => rollExpr(expr, diceState.mode);
+        const rollCustom = () => rollExpr(diceState.expr, diceState.mode);
+        const setDiceMode = (m) => { diceState.mode = (diceState.mode === m ? 'normal' : m); };
+
+        // 一鍵套用 HP 只在 local / offline-dm 開放（R4：避免連線世界偽造 version_m 領先）。
+        const canApplyHp = computed(() => sessionMode.value !== 'connected');
+
+        // 套用數值到 HP：delta 為增量（傷害負/治療正）；opts.set=true 則直接設為該值。
+        // 一律走 char.hp.current 反應→ watch(chars) → decomposeC bump version_m（不繞過）。
+        const applyHp = (delta, opts) => {
+          if (!canApplyHp.value) { alert('連線 DM 模式下停用一鍵套用（避免偽造版本領先）。HP 變更請由 DM 下指令。'); return; }
+          const c = selectedChar.value;
+          if (!c) { alert('請先選擇角色'); return; }
+          if (!c.hp || typeof c.hp !== 'object') c.hp = { current: 0, max: 0 };
+          const max = Number(c.hp.max) || 0;
+          const before = Number(c.hp.current) || 0;
+          let after = (opts && opts.set) ? (Number(delta) || 0) : before + (Number(delta) || 0);
+          if (after < 0) after = 0;
+          if (max > 0 && after > max) after = max;   // max=0 視為未設上限
+          if (after === before) { pushWorldLog('❤️ HP 無變化（' + before + '）', 'hp'); return; }
+          c.hp.current = after;   // reactive → decomposeC 落帳並 bump version_m
+          const verb = after >= before ? '治療' : '受傷';
+          pushWorldLog('❤️ HP ' + verb + '：' + before + ' → ' + after, 'hp');
+        };
+        // 從最後一次擲骰套用：sign<0 傷害（扣血）、sign>=0 治療（加血）。
+        const applyHpFromDice = (sign) => {
+          const res = diceState.lastResult;
+          if (!res) { alert('尚無擲骰結果，請先擲骰'); return; }
+          applyHp((sign < 0 ? -1 : 1) * res.total);
+        };
+        // 手填金額套用（傷害/治療按鈕）。
+        const applyHpManual = (sign) => {
+          const amt = Math.abs(Number(diceState.hpAmount) || 0);
+          if (!amt) { alert('請輸入套用金額'); return; }
+          applyHp((sign < 0 ? -1 : 1) * amt);
+          diceState.hpAmount = 0;
+        };
         const availableSpells = ref([]);
         const newSpellQuery = ref('');
         const spellFilterLevel = ref('');
@@ -427,17 +505,32 @@
         
         const isDMWorld = computed(() => selectedWorldKey.value !== DEFAULT_WORLD_ID);
 
-        /* ===== PR-Local-1：sessionMode 狀態機（設計文件 §2.2） =====
+        /* ===== PR-Local-1/2：sessionMode 狀態機（設計文件 §2.2） =====
          * 衍生 computed（不新增平行真相，由既有狀態推導）：
-         *   connected  ：已連線 DM 房間（機制面 DM 權威）——維持現況
-         *   local      ：本地單機，玩家完整權威
-         *   offline-dm ：曾連過的 DM 世界但目前離線（可離線先跑、之後補提案）
-         * 零破壞：只讀不寫；不觸发任何連線/落帳副作用。 */
+         *   connected  ：已連線 DM 房間 且「目前檢視的世界 == 連線目標世界」（機制面 DM 權威）
+         *   local      ：本地單機（w_local_default / type local|solo），玩家完整權威——即便房間仍連著
+         *   offline-dm ：檢視 DM 世界但未連線 or 與連線目標不同（可離線先跑、之後補提案）
+         * 零破壞：只讀不寫；不觸發任何連線/落帳副作用。
+         *
+         * PR-Local-2 修正（PR-Local-1 QA note）：舊版只看 room.status==='connected' 就一律回
+         * connected，導致「已連 DM 房間卻切去看本地世界／別的 DM 世界」徽章仍顯示連線。
+         * 改成依「目前檢視世界」與「連線目標世界(room.meta.worldId)」是否一致判定。 */
+        // 目前連線中的 DM 世界 key（room.meta.worldId）；未連線→null。唯讀，不觸發副作用。
+        const connectedWorldId = computed(() =>
+          (room.status === 'connected' && room.meta && room.meta.worldId) ? room.meta.worldId : null);
         const sessionMode = computed(() => {
-          if (room.status === 'connected') return 'connected';
           const w = selectedWorldObj.value;
           const t = w && w.type;
-          if (selectedWorldKey.value === DEFAULT_WORLD_ID || t === 'local' || t === 'solo') return 'local';
+          const key = selectedWorldKey.value;
+          const isLocalView = key === DEFAULT_WORLD_ID || t === 'local' || t === 'solo';
+          // 自足計算連線目標世界 key（不外借 connectedWorldId，方便獨立測試/抽取）。
+          const cwid = (room.status === 'connected' && room.meta && room.meta.worldId) ? room.meta.worldId : null;
+          // 檢視世界 == 連線中的 DM 世界（id 或 worldId 皆比對，兼容既有存檔）→ connected
+          const matchesConnected = cwid && (key === cwid || (w && w.worldId === cwid));
+          if (matchesConnected) return 'connected';
+          // 檢視本地世界 → local（即便房間仍連著別的 DM 世界）
+          if (isLocalView) return 'local';
+          // 檢視 DM 世界但未連線 or 與連線目標不同 → offline-dm（離線待提案）
           if (t === 'dm') return 'offline-dm';
           return 'local';
         });
@@ -1500,6 +1593,17 @@
         };
 
         return {
+          /* PR-Local-2/3 新增暴露 */
+          connectedWorldId,
+          diceState,
+          rollExpr,
+          rollQuick,
+          rollCustom,
+          setDiceMode,
+          canApplyHp,
+          applyHp,
+          applyHpFromDice,
+          applyHpManual,
           familiarImportCtx,
           familiarPresetGroups,
           familiarImport,

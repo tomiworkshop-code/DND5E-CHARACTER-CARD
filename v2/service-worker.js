@@ -1,5 +1,5 @@
 /* 冒險者之書 V2 · Service Worker（統一儀表板） */
-const CACHE = 'dnd-v2-v17';
+const CACHE = 'dnd-v2-v18';
 const ASSETS = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ const ASSETS = [
   './icons/favicon-32.png',
   '../shared/character-schema.js',
   '../shared/store.js',
+  '../shared/services/dice.js',
   '../shared/services/backup.js',
   '../shared/firebase-config.js',
   '../shared/room.js',
