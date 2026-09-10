@@ -111,10 +111,6 @@
           try { reconcileSettings(); } catch(e){}
           loadedRuleVersion.value = ver;
         }
-        Vue.onMounted(() => { loadRuleData(activeRuleVersion.value); });
-        /* 出團／切換世界→ 若規則版本變動，重新載入對應版本資料集。
-         * 注：以 getter 包住 source，避免在 activeRuleVersion 宣告前同步引用（TDZ）。 */
-        watch(() => activeRuleVersion.value, (v) => { if (v !== loadedRuleVersion.value) loadRuleData(v); });
         const isMenuOpen = ref(false);
         const currentView = ref('dashboard');
         const chars = ref([]);
@@ -734,8 +730,12 @@
           console.log(`[Action] Requesting DM approval for ${activeModule.value} in world ${selectedWorldKey.value}`);
         };
 
+        /* 規則版本資料載入觸發：置於此處確保 activeRuleVersion / selectedWorldKey 等皆已宣告（避免 TDZ）。
+         * 出團／切換世界→ 若規則版本變動，重新載入對應版本資料集。 */
+        watch(activeRuleVersion, (v) => { if (v !== loadedRuleVersion.value) loadRuleData(v); });
         // 啟動時讀取 V1 既有的本地存檔資料（規則資料集改由 loadRuleData 依世界版本載入）
         onMounted(() => {
+          loadRuleData(activeRuleVersion.value);
           /* TC-A2：載入時輕量初始化 auth —— 收尾 redirect 登入並反映既有登入狀態（不開 RTDB）。
            * fire-and-forget：ensureAuthInit 內部已吞例外並回傳 false，這裡再 .catch 防未捕獲 rejection。 */
           ensureAuthInit().catch(() => {});
