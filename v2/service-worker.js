@@ -1,5 +1,5 @@
 /* 冒險者之書 V2 · Service Worker（統一儀表板） */
-const CACHE = 'dnd-v2-v19';
+const CACHE = 'dnd-v2-v20';
 const ASSETS = [
   './',
   './index.html',
@@ -25,6 +25,7 @@ const ASSETS = [
   '../data/items.json',
   '../data/sources.json',
   '../data/classes.json',
+  '../data/feats.json',
   'https://unpkg.com/vue@3/dist/vue.global.prod.js',
   'https://cdn.tailwindcss.com'
 ];

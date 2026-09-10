@@ -210,6 +210,11 @@
         const itemSearch = ref('');
         const customItem = ref({ name: '', qty: 1, desc: '' });
         const featOpen = ref({});
+        /* 專長/強化（feat）選擇器狀態 */
+        const availableFeats = ref([]);
+        const featSearch = ref('');
+        const featAsi = Vue.reactive({ a: 'str', b: '' }); // ASI 兩項屬性選擇（b 空=單項+2）
+        const customFeat = ref({ name: '', desc: '' });
         const hasStatEffect = (name, desc, rawItem = null) => {
           let text = String(name || '') + ' ' + String(desc || '');
           if (rawItem) {
@@ -310,7 +315,7 @@
 
         /* ===== 內容來源設定：資料狀態 + 設定 reactive ===== */
         // dataState 集中存放各類來源資料（sources/races/spells/items），供來源篩選計算使用
-        const dataState = Vue.reactive({ sources:[], races:[], spells:[], items:[] });
+        const dataState = Vue.reactive({ sources:[], races:[], spells:[], items:[], feats:[] });
         // settings：全域共用的內容檢視設定（非 per-character）
         const settings = Vue.reactive(loadSettings());
 
@@ -333,6 +338,7 @@
           });
           (dataState.spells || []).forEach(s => { if(s.source) set.add(s.source); });
           (dataState.items  || []).forEach(i => { if(i.source) set.add(i.source); });
+          (dataState.feats  || []).forEach(f => { if(f.source) set.add(f.source); });
           set.delete(undefined); set.delete(null); set.delete("");
           return Array.from(set);
         }
@@ -471,6 +477,81 @@
         });
 
         
+        /* ===== 專長 / 強化（feat & ASI）===== */
+        const charFeats = computed(() => (selectedChar.value && Array.isArray(selectedChar.value.feats)) ? selectedChar.value.feats : []);
+        // 依 classes.json 的 "Ability Score Improvement" 特性計算已賺得的強化名額（自動含戰士6/14、盜賊10 等額外）
+        const asiEarned = computed(() => {
+          let n = 0;
+          (selectedChar.value?.classes || []).forEach(cl => {
+            const def = (coreRules.CLASSES || []).find(k => k.name_en === (cl?.name_en || cl?.name));
+            const lv = Number(cl?.level) || 0;
+            if (def && Array.isArray(def.features)) {
+              n += def.features.filter(f => f && f.name_en === 'Ability Score Improvement' && f.level && f.level <= lv).length;
+            }
+          });
+          return n;
+        });
+        const featsRemaining = computed(() => Math.max(0, asiEarned.value - charFeats.value.length));
+        const filteredAvailableFeats = computed(() => {
+          const q = featSearch.value.toLowerCase().trim();
+          return (availableFeats.value || []).filter(ft => {
+            if (!passesFilter(ft)) return false;
+            if (!q) return true;
+            const zh = (ft?.name_zh || '').toLowerCase();
+            const en = (ft?.name_en || '').toLowerCase();
+            return zh.includes(q) || en.includes(q);
+          });
+        });
+        const isFeatOwned = (ft) => charFeats.value.some(f => f && (f.name_en === ft?.name_en || f.name === (ft?.name_zh || ft?.name_en)));
+        const abilityZh = (k) => (abilityDefs.find(d => d.key === k)?.zh) || k;
+        function ensureFeatsArr(){
+          if (!selectedChar.value) return null;
+          if (!Array.isArray(selectedChar.value.feats)) selectedChar.value.feats = [];
+          if (!selectedChar.value.abilityBonus) selectedChar.value.abilityBonus = { str:0,dex:0,con:0,int:0,wis:0,cha:0 };
+          return selectedChar.value.feats;
+        }
+        function addFeat(ft){
+          const arr = ensureFeatsArr(); if(!arr) return;
+          if (featsRemaining.value <= 0) { alert('目前沒有可用的強化名額（需先在職業提升等級）'); return; }
+          if (isFeatOwned(ft)) { alert('已擁有此專長'); return; }
+          arr.push({ id: Date.now(), type:'feat', name: ft.name_zh || ft.name_en, name_en: ft.name_en || '', source: ft.source || '', prereq: ft.prereq || '', half: !!ft.half, desc: ft.desc_zh || ft.desc || '' });
+        }
+        function addCustomFeat(){
+          const arr = ensureFeatsArr(); if(!arr) return;
+          if (featsRemaining.value <= 0) { alert('目前沒有可用的強化名額'); return; }
+          const nm = (customFeat.value.name||'').trim(); if(!nm) return;
+          arr.push({ id: Date.now(), type:'feat', name: nm, name_en:'', source:'自訂', prereq:'', half:false, desc: customFeat.value.desc||'', custom:true });
+          customFeat.value.name=''; customFeat.value.desc='';
+        }
+        function applyASI(){
+          const arr = ensureFeatsArr(); if(!arr) return;
+          if (featsRemaining.value <= 0) { alert('目前沒有可用的強化名額'); return; }
+          const a = featAsi.a, b = featAsi.b;
+          if (!a) { alert('請選擇要提升的屬性'); return; }
+          if (b && b === a) { alert('兩項 +1 請選擇不同屬性'); return; }
+          const applied = {};
+          if (!b) { applied[a] = 2; }
+          else { applied[a] = 1; applied[b] = 1; }
+          const bonus = selectedChar.value.abilityBonus;
+          const base = selectedChar.value.abilities || {};
+          for (const k in applied) {
+            const cur = (Number(base[k])||10) + (Number(bonus[k])||0);
+            if (cur + applied[k] > 20) { alert('屬性總值上限為 20，此提升會超過 '+abilityZh(k)+' 上限'); return; }
+          }
+          for (const k in applied) { bonus[k] = (Number(bonus[k])||0) + applied[k]; }
+          const detail = !b ? ('+2 '+abilityZh(a)) : ('+1 '+abilityZh(a)+' / +1 '+abilityZh(b));
+          arr.push({ id: Date.now(), type:'asi', name:'屬性值提升', detail, applied });
+        }
+        function removeFeatEntry(idx){
+          const arr = ensureFeatsArr(); if(!arr || idx<0 || idx>=arr.length) return;
+          const e = arr[idx];
+          if (e && e.type === 'asi' && e.applied) {
+            const bonus = selectedChar.value.abilityBonus || {};
+            for (const k in e.applied) { bonus[k] = (Number(bonus[k])||0) - e.applied[k]; }
+          }
+          arr.splice(idx, 1);
+        }
+
         const totalLevel = computed(() => {
           if (!selectedChar.value || !selectedChar.value.classes) return 1;
           return selectedChar.value.classes.reduce((sum, cl) => sum + (Number(cl.level) || 0), 0) || 1;
@@ -639,6 +720,11 @@
             dataState.races = data.races || data || [];
             reconcileSettings();
           }).catch(e => { console.error("無法讀取種族資料", e); });
+          fetch('../data/feats.json').then(res => res.json()).then(data => {
+            availableFeats.value = data.feats || data || [];
+            dataState.feats = availableFeats.value;
+            reconcileSettings();
+          }).catch(e => { console.error("無法讀取專長資料", e); availableFeats.value = []; });
           /* TC-A2：載入時輕量初始化 auth —— 收尾 redirect 登入並反映既有登入狀態（不開 RTDB）。
            * fire-and-forget：ensureAuthInit 內部已吞例外並回傳 false，這裡再 .catch 防未捕獲 rejection。 */
           ensureAuthInit().catch(() => {});
@@ -1839,6 +1925,21 @@ sendRoomRequest,
           },
           featOpen,
           toggleFeat: (idx) => { featOpen.value[idx] = !featOpen.value[idx]; },
+          /* 專長 / 強化（feat & ASI）*/
+          availableFeats,
+          featSearch,
+          featAsi,
+          customFeat,
+          charFeats,
+          asiEarned,
+          featsRemaining,
+          filteredAvailableFeats,
+          isFeatOwned,
+          abilityZh,
+          addFeat,
+          addCustomFeat,
+          applyASI,
+          removeFeatEntry,
           descOpen,
           toggleDesc,
           needsExpand,
