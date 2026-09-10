@@ -112,8 +112,9 @@
           loadedRuleVersion.value = ver;
         }
         Vue.onMounted(() => { loadRuleData(activeRuleVersion.value); });
-        /* 出團／切換世界→ 若規則版本變動，重新載入對應版本資料集。 */
-        watch(activeRuleVersion, (v) => { if (v !== loadedRuleVersion.value) loadRuleData(v); });
+        /* 出團／切換世界→ 若規則版本變動，重新載入對應版本資料集。
+         * 注：以 getter 包住 source，避免在 activeRuleVersion 宣告前同步引用（TDZ）。 */
+        watch(() => activeRuleVersion.value, (v) => { if (v !== loadedRuleVersion.value) loadRuleData(v); });
         const isMenuOpen = ref(false);
         const currentView = ref('dashboard');
         const chars = ref([]);
