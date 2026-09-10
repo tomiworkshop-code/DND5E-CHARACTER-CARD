@@ -685,6 +685,71 @@
           return wp;
         });
 
+        /* ===== 出團作戰台：角色即時戰鬥資料與快操作（常駐於出團頁頂部） ===== */
+        // 總等級（多職加總）
+        const charTotalLevel = computed(() => {
+          const c = selectedChar.value; if (!c) return 0;
+          return ((c.classes) || []).reduce((a, cl) => a + (Number(cl && cl.level) || 0), 0) || (c.classes && c.classes.length ? 1 : 0);
+        });
+        // 職業摘要文字
+        const charClassSummary = computed(() => {
+          const c = selectedChar.value; if (!c) return '';
+          return ((c.classes) || []).map(cl => (cl && (cl.name || cl.name_en) ? ((cl.name || cl.name_en) + (cl.level ? ' ' + cl.level : '')) : '')).filter(Boolean).join(' / ');
+        });
+        // 先攻：手設優先，否則用敏捷調整值
+        const charInitiative = computed(() => {
+          const c = selectedChar.value; if (!c) return 0;
+          if (c.initiative !== undefined && c.initiative !== null && c.initiative !== '' && Number(c.initiative) !== 0) return Number(c.initiative);
+          return abilityMod(abilityTotal('dex'));
+        });
+        // 被動察覺 = 10 + 察覺技能值
+        const charPassivePerception = computed(() => selectedChar.value ? 10 + skillValue('察覺') : 10);
+        // HP 百分比（進度條顏色用）
+        const charHpPct = computed(() => {
+          const c = selectedChar.value; if (!c || !c.hp || !c.hp.max) return 0;
+          return Math.max(0, Math.min(100, Math.round((Number(c.hp.current) || 0) / (Number(c.hp.max) || 1) * 100)));
+        });
+        // 目前開啟中的狀態異常清單
+        const activeConditionsList = computed(() => {
+          const c = selectedChar.value; if (!c || !c.conditions) return [];
+          return Object.keys(c.conditions).filter(k => c.conditions[k]);
+        });
+        // 出團情境條（世界/規則版本/位置/時間/任務）
+        const sessionContext = computed(() => {
+          const wp = activeWorldProgress.value || {};
+          return {
+            worldName: (selectedWorldObj.value && selectedWorldObj.value.name) || '未選定世界',
+            ruleLabel: ruleVersionLabel(activeRuleVersion.value),
+            location: wp.location || '未設定',
+            time: wp.time || '未設定',
+            quest: wp.quest || '自由探索'
+          };
+        });
+        // HP 微調（對戰台快鈕用；連線 DM 模式下鎖定，避免偽造版本領先）
+        const nudgeHp = (delta) => {
+          const c = selectedChar.value; if (!c) return;
+          if (!canApplyHp.value) { alert('連線 DM 模式下停用本地 HP 調整（避免偽造版本領先）。HP 變更請由 DM 下指令。'); return; }
+          if (!c.hp) c.hp = { current: 0, max: 0, temp: 0 };
+          const max = Number(c.hp.max) || 0;
+          let next = (Number(c.hp.current) || 0) + delta;
+          if (next < 0) next = 0;
+          if (max && next > max) next = max;
+          c.hp.current = next;
+        };
+        // 激勵（inspiration）開關
+        const toggleInspiration = () => { const c = selectedChar.value; if (c) c.inspiration = !c.inspiration; };
+        // 專注（concentration）開關
+        const toggleConcentration = () => { const c = selectedChar.value; if (c) c.concentration = !c.concentration; };
+        // 力竭（exhaustion）循環 0→5（依 2014 規則 6 階，含 0）
+        const cycleExhaustion = () => { const c = selectedChar.value; if (c) c.exhaustion = (((Number(c.exhaustion) || 0) + 1) % 7); };
+        // 狀態異常開關
+        const isConditionOn = (name) => { const c = selectedChar.value; return !!(c && c.conditions && c.conditions[name]); };
+        const toggleCondition = (name) => {
+          const c = selectedChar.value; if (!c) return;
+          if (!c.conditions) c.conditions = {};
+          c.conditions[name] = !c.conditions[name];
+        };
+
         watch([isEditMode, activeModule, selectedChar, () => coreRules.SKILLS], ([edit, mod, char, rulesSkills]) => {
           if (mod === 'skills' && char) {
             if (!char.skills) char.skills = {};
@@ -1912,6 +1977,20 @@ sendRoomRequest,
           abilityDefs,
           profBonus,
           skillValue,
+          /* 出團作戰台 */
+          charTotalLevel,
+          charClassSummary,
+          charInitiative,
+          charPassivePerception,
+          charHpPct,
+          activeConditionsList,
+          sessionContext,
+          nudgeHp,
+          toggleInspiration,
+          toggleConcentration,
+          cycleExhaustion,
+          isConditionOn,
+          toggleCondition,
           skillAttr,
           skillAttrZh,
           SAVE_LIST,

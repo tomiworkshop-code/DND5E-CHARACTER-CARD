@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="冒險者之書">
-  <script>window.APP_ID='adventurer';window.APP_VERSION='v2.5.3 · Build 0910.5';</script>
+  <script>window.APP_ID='adventurer';window.APP_VERSION='v2.6.0 · Build 0910.6';</script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-5HRH4CH1N7"></script>
   <script>
     window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
@@ -234,7 +234,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.5.3 · Build 0910.5
+          v2.6.0 · Build 0910.6
         </div>
       </div>
     </transition>
@@ -1316,6 +1316,111 @@
       <!-- 模塊：出團牌桌 (Session / Room) -->
       <template v-if="currentView === 'session'">
         <div class="space-y-4">
+
+          <!-- 🎯 出團作戰台：角色即時狀態常駐（不用再點回角色頁） -->
+          <div v-if="!selectedChar" class="module-card p-6 text-center">
+            <div class="text-3xl mb-2">🧙</div>
+            <div class="text-gray-500 mb-4 text-sm">出團前請先選一位角色，作戰台才會顯示他的即時狀態。</div>
+            <button @click="switchView('dashboard')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">前往選角色</button>
+          </div>
+
+          <div v-else class="module-card p-3 sm:p-4 sticky top-2 z-20 shadow-md border border-blue-100">
+            <!-- 情境條：世界 / 規則版本 / 位置 / 時間 / 任務 -->
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 mb-3 pb-2 border-b border-gray-100">
+              <span class="font-bold text-gray-700">🌍 {{ sessionContext.worldName }}</span>
+              <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">📐 {{ sessionContext.ruleLabel }}</span>
+              <span>📍 {{ sessionContext.location }}</span>
+              <span>🕒 {{ sessionContext.time }}</span>
+              <span class="truncate max-w-[45%]">📜 {{ sessionContext.quest }}</span>
+            </div>
+
+            <!-- 身份 + HP -->
+            <div class="flex items-stretch gap-3">
+              <!-- 身份 -->
+              <div class="flex items-center gap-2 min-w-0 shrink-0">
+                <div class="w-11 h-11 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-2xl overflow-hidden shrink-0">
+                  <img v-if="selectedChar.avatar" :src="selectedChar.avatar" class="w-full h-full object-cover">
+                  <span v-else>🧙</span>
+                </div>
+                <div class="min-w-0">
+                  <div class="font-bold text-gray-800 truncate leading-tight">{{ selectedChar.name || '未命名' }}</div>
+                  <div class="text-[11px] text-gray-500 truncate leading-tight">{{ selectedChar.race || '未知種族' }} · Lv.{{ charTotalLevel }}</div>
+                  <div v-if="charClassSummary" class="text-[10px] text-gray-400 truncate leading-tight">{{ charClassSummary }}</div>
+                </div>
+              </div>
+
+              <!-- HP 區 -->
+              <div class="flex-1 min-w-0 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+                <div class="flex items-baseline justify-between">
+                  <span class="text-[11px] font-bold text-gray-500">❤️ HP</span>
+                  <span class="text-sm font-black text-gray-800">
+                    {{ (selectedChar.hp && selectedChar.hp.current) || 0 }}<span class="text-gray-400 font-bold"> / {{ (selectedChar.hp && selectedChar.hp.max) || 0 }}</span><span v-if="selectedChar.hp && selectedChar.hp.temp" class="text-blue-500 text-xs"> (+{{ selectedChar.hp.temp }})</span>
+                  </span>
+                </div>
+                <div class="w-full h-2 rounded-full bg-gray-200 overflow-hidden my-1.5">
+                  <div class="h-full rounded-full transition-all" :class="charHpPct > 50 ? 'bg-green-500' : (charHpPct > 25 ? 'bg-amber-500' : 'bg-red-500')" :style="{ width: charHpPct + '%' }"></div>
+                </div>
+                <div v-if="canApplyHp" class="flex items-center justify-center gap-1.5">
+                  <button @click="nudgeHp(-5)" class="px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 hover:bg-red-200 transition">-5</button>
+                  <button @click="nudgeHp(-1)" class="px-2 py-0.5 rounded text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 transition">-1</button>
+                  <button @click="nudgeHp(1)" class="px-2 py-0.5 rounded text-xs font-bold bg-green-50 text-green-700 hover:bg-green-100 transition">+1</button>
+                  <button @click="nudgeHp(5)" class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700 hover:bg-green-200 transition">+5</button>
+                </div>
+                <div v-else class="text-[10px] text-amber-600 text-center">🔒 連線模式：HP 由 DM 下指令</div>
+              </div>
+            </div>
+
+            <!-- 核心數值 chips -->
+            <div class="grid grid-cols-4 gap-1.5 mt-3">
+              <div class="bg-gray-50 border border-gray-100 rounded-lg py-1.5 text-center">
+                <div class="text-[10px] text-gray-400 leading-none">🛡️ AC</div>
+                <div class="text-base font-black text-gray-800 leading-tight">{{ computedAC }}</div>
+              </div>
+              <div class="bg-gray-50 border border-gray-100 rounded-lg py-1.5 text-center">
+                <div class="text-[10px] text-gray-400 leading-none">⚡ 先攻</div>
+                <div class="text-base font-black text-gray-800 leading-tight">{{ fmtMod(charInitiative) }}</div>
+              </div>
+              <div class="bg-gray-50 border border-gray-100 rounded-lg py-1.5 text-center">
+                <div class="text-[10px] text-gray-400 leading-none">🎯 熟練</div>
+                <div class="text-base font-black text-gray-800 leading-tight">{{ fmtMod(profBonus) }}</div>
+              </div>
+              <div class="bg-gray-50 border border-gray-100 rounded-lg py-1.5 text-center">
+                <div class="text-[10px] text-gray-400 leading-none">👁️ 被動</div>
+                <div class="text-base font-black text-gray-800 leading-tight">{{ charPassivePerception }}</div>
+              </div>
+            </div>
+
+            <!-- 六屬性調整值 -->
+            <div class="grid grid-cols-6 gap-1 mt-2">
+              <div v-for="ab in abilityDefs" :key="ab.key" class="bg-white border border-gray-100 rounded-lg py-1 text-center">
+                <div class="text-[10px] text-gray-400 leading-none">{{ ab.zh }}</div>
+                <div class="text-sm font-bold text-gray-800 leading-tight">{{ fmtMod(abilityMod(abilityTotal(ab.key))) }}</div>
+                <div class="text-[9px] text-gray-300 leading-none">{{ abilityTotal(ab.key) }}</div>
+              </div>
+            </div>
+
+            <!-- 狀態快切：激勵 / 專注 / 力竭 / 狀態異常 -->
+            <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2 border-t border-gray-100">
+              <button @click="toggleInspiration" :class="['px-2 py-1 rounded-full text-[11px] font-bold border transition', selectedChar.inspiration ? 'bg-yellow-100 text-yellow-700 border-yellow-300' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100']">✨ 激勵</button>
+              <button @click="toggleConcentration" :class="['px-2 py-1 rounded-full text-[11px] font-bold border transition', selectedChar.concentration ? 'bg-purple-100 text-purple-700 border-purple-300' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100']">🌀 專注</button>
+              <button @click="cycleExhaustion" :class="['px-2 py-1 rounded-full text-[11px] font-bold border transition', (selectedChar.exhaustion || 0) > 0 ? 'bg-orange-100 text-orange-700 border-orange-300' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100']">😩 力竭 {{ selectedChar.exhaustion || 0 }}</button>
+
+              <!-- 狀態異常選單（原生 details，免額外 state） -->
+              <details class="relative">
+                <summary class="list-none cursor-pointer px-2 py-1 rounded-full text-[11px] font-bold border bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100">➕ 狀態異常</summary>
+                <div class="absolute z-30 mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-2 w-56 max-h-64 overflow-y-auto">
+                  <div v-if="!CONDITIONS || !CONDITIONS.length" class="text-[11px] text-gray-400 p-2">尚未載入狀態清單</div>
+                  <button v-for="cond in CONDITIONS" :key="(cond.name_zh || cond.name || cond)" @click="toggleCondition(cond.name_zh || cond.name || cond)"
+                    :class="['w-full text-left px-2 py-1 rounded text-[12px] mb-0.5 transition', isConditionOn(cond.name_zh || cond.name || cond) ? 'bg-red-100 text-red-700 font-bold' : 'text-gray-600 hover:bg-gray-100']">
+                    {{ isConditionOn(cond.name_zh || cond.name || cond) ? '✔️ ' : '' }}{{ cond.name_zh || cond.name || cond }}
+                  </button>
+                </div>
+              </details>
+
+              <!-- 已開啟狀態 chips -->
+              <span v-for="cn in activeConditionsList" :key="'on_'+cn" @click="toggleCondition(cn)" class="px-2 py-1 rounded-full text-[11px] font-bold bg-red-100 text-red-700 border border-red-300 cursor-pointer hover:bg-red-200 transition" title="點一下移除">{{ cn }} ✕</span>
+            </div>
+          </div>
 
           <!-- 單機跑團：本地擲骰器 + 世界紀錄（自「世界」分頁搬移，PR-Local-5 UI 重整）-->
             <!-- PR-Local-3：本地擲骰器 + 一鍵套用 HP（僅需已選角色） -->
