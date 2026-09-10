@@ -1,0 +1,10 @@
+{
+ "_meta": {
+  "schema": "dnd5e-pwa/sources",
+  "version": "2024",
+  "status": "skeleton",
+  "inherit": "2014",
+  "note": "5.5e (2024 修訂版 PHB)｜本版差異尚未填充，載入器會自動回退 2014 canonical。填 2024 內容時移除 inherit 欄並補上實際資料。"
+ },
+ "sources": []
+}

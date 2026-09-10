@@ -1,0 +1,10 @@
+{
+ "_meta": {
+  "schema": "dnd5e-pwa/classes",
+  "version": "5.5R",
+  "status": "skeleton",
+  "inherit": "2014",
+  "note": "5.5R（定義待 Tommy 確認；暫比照 2024 修訂版）｜本版差異尚未填充，載入器會自動回退 2014 canonical。填 2024 內容時移除 inherit 欄並補上實際資料。"
+ },
+ "classes": []
+}

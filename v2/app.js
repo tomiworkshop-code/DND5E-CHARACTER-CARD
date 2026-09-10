@@ -39,45 +39,88 @@
       { key:"ua",        icon:"🧪", label:"試行內容（UA / 直播）" },
       { key:"other",     icon:"❓", label:"其他 / 未分類" }
     ];
+
+    /* ===== 規則版本（掘世界層；出團時依世界 ruleVersion 載入對應資料集）=====
+     * 決策（Tommy 2026-09-10）：版本屬於世界，不掛角色；出團時轉換，畫面跟右上全域設定。
+     * 2014 走 data/ 根目錄（向後相容）；其餘版本走 data/<版本>/，缺檔自動回退 2014。 */
+    const RULE_VERSIONS = [
+      { id: '2014', label: '5e (2014)' },
+      { id: '2024', label: '5.5e (2024)' },
+      { id: '5.5R', label: '5.5R（待定義）' }
+    ];
+    const DEFAULT_RULE_VERSION = '2014';
+    const ruleVersionLabel = (id) => (RULE_VERSIONS.find(v => v.id === id)?.label) || (id || DEFAULT_RULE_VERSION);
+    function ruleDataUrls(ver, file){
+      return (!ver || ver === DEFAULT_RULE_VERSION)
+        ? ['../data/' + file]
+        : ['../data/' + ver + '/' + file, '../data/' + file];
+    }
+    /* 依版本取資料檔；版本專屬檔若標 _meta.inherit:'2014' 代表「本版差異尚未提供」，自動回退 2014 canonical。 */
+    async function loadRuleJson(ver, file){
+      const urls = ruleDataUrls(ver, file);
+      for (let i = 0; i < urls.length; i++){
+        try {
+          const r = await fetch(urls[i]);
+          if (!r.ok) continue;
+          const d = await r.json();
+          if (d && d._meta && d._meta.inherit && d._meta.inherit !== ver && i < urls.length - 1) continue;
+          return d;
+        } catch(e){ /* try next url */ }
+      }
+      return null;
+    }
+
     const app = createApp({
       setup() {
         const coreRules = Vue.reactive({ CLASSES:[], SKILLS:[], CONDITIONS:[], COMMON_LANGUAGES:[], ARMOR_OPTIONS:[], WEAPON_OPTIONS:[], TOOL_OPTIONS:[], RACES:[], ALIGNMENTS:[], BACKGROUNDS:[] });
         
-        Vue.onMounted(async () => {
+        /* 版本感知資料載入：依傳入版本載 core-rules/classes/spells/items/sources/races/feats。
+         * 2014 走 data/ 根目錄；其餘版本走 data/<版本>/ 並在缺檔時回退 2014。
+         * 出團（切換到不同版本的世界）時會重新載入對應資料集。 */
+        const loadedRuleVersion = ref(null);
+        async function loadRuleData(ver){
+          ver = ver || DEFAULT_RULE_VERSION;
           try {
-            const res = await fetch('../data/core-rules.json');
-            if(res.ok) {
-              const data = await res.json();
-              Object.assign(coreRules, data);
+            const core = await loadRuleJson(ver, 'core-rules.json');
+            if (core) Object.assign(coreRules, core);
+            // core-rules.json 的 CLASSES 沒有 features，需補抓 classes.json 完整特性
+            const classData = await loadRuleJson(ver, 'classes.json');
+            if (classData && classData.classes) {
+              coreRules.CLASSES.forEach(baseDef => {
+                const fullDef = classData.classes.find(c => c?.name_en === baseDef?.name_en);
+                if (fullDef) {
+                  baseDef.features = fullDef.features || [];
+                  (baseDef.subclasses || []).forEach(baseSc => {
+                    const fullSc = (fullDef.subclasses || []).find(sc => sc?.name_en === baseSc?.name_en);
+                    if (fullSc) baseSc.features = fullSc.features || [];
+                  });
+                }
+              });
             }
-            
-            // 由於 core-rules.json 裡的 CLASSES 沒有 features，我們需要補抓 classes.json 裡面的完整特性
-            const resCls = await fetch('../data/classes.json');
-            if(resCls.ok) {
-              const classData = await resCls.json();
-              if (classData && classData.classes) {
-                // 將 features 與 subclasses features 合併進 coreRules.CLASSES
-                coreRules.CLASSES.forEach(baseDef => {
-                  const fullDef = classData.classes.find(c => c?.name_en === baseDef?.name_en);
-                  if (fullDef) {
-                    baseDef.features = fullDef.features || [];
-                    (baseDef.subclasses || []).forEach(baseSc => {
-                      const fullSc = (fullDef.subclasses || []).find(sc => sc?.name_en === baseSc?.name_en);
-                      if (fullSc) {
-                        baseSc.features = fullSc.features || [];
-                      }
-                    });
-                  }
-                });
-              }
-            }
-          } catch(e) { console.error('Failed to load rules', e); }
-        });
+          } catch(e){ console.error('Failed to load core rules', e); }
+          try { const d = await loadRuleJson(ver, 'spells.json'); availableSpells.value = (d && (d.spells || d)) || []; dataState.spells = availableSpells.value; }
+          catch(e){ console.error('無法讀取法術資料', e); }
+          try { const d = await loadRuleJson(ver, 'items.json'); availableItems.value = (d && (d.items || [])) || []; dataState.items = availableItems.value; }
+          catch(e){ console.error('無法讀取物品資料', e); availableItems.value = []; }
+          try { const d = await loadRuleJson(ver, 'sources.json'); dataState.sources = (d && (d.sources || d)) || []; }
+          catch(e){ console.error('無法讀取來源資料', e); }
+          try { const d = await loadRuleJson(ver, 'races.json'); dataState.races = (d && (d.races || d)) || []; }
+          catch(e){ console.error('無法讀取種族資料', e); }
+          try { const d = await loadRuleJson(ver, 'feats.json'); availableFeats.value = (d && (d.feats || d)) || []; dataState.feats = availableFeats.value; }
+          catch(e){ console.error('無法讀取專長資料', e); availableFeats.value = []; }
+          try { reconcileSettings(); } catch(e){}
+          loadedRuleVersion.value = ver;
+        }
+        Vue.onMounted(() => { loadRuleData(activeRuleVersion.value); });
+        /* 出團／切換世界→ 若規則版本變動，重新載入對應版本資料集。 */
+        watch(activeRuleVersion, (v) => { if (v !== loadedRuleVersion.value) loadRuleData(v); });
         const isMenuOpen = ref(false);
         const currentView = ref('dashboard');
         const chars = ref([]);
         const worlds = ref(JSON.parse(localStorage.getItem(LS_WORLDS)) || [{ id: DEFAULT_WORLD_ID, name: '單人漫遊', type: 'local', desc: '本地沙盒世界。在此處的所有數值變更會直接保存，無需等待 DM 批准。' }]);
         const selectedWorldObj = computed(() => worlds.value.find(w => w.id === selectedWorldKey.value) || worlds.value[0]);
+        /* 目前出團世界的規則版本（畫面跟右上全域選定世界）；缺值→ 2014。 */
+        const activeRuleVersion = computed(() => (selectedWorldObj.value && selectedWorldObj.value.ruleVersion) || DEFAULT_RULE_VERSION);
 
         const selectedCharId = ref(null);
         const selectedWorldKey = ref(DEFAULT_WORLD_ID);
@@ -690,41 +733,8 @@
           console.log(`[Action] Requesting DM approval for ${activeModule.value} in world ${selectedWorldKey.value}`);
         };
 
-        // 啟動時讀取 V1 既有的本地存檔資料
+        // 啟動時讀取 V1 既有的本地存檔資料（規則資料集改由 loadRuleData 依世界版本載入）
         onMounted(() => {
-          fetch('../data/spells.json').then(res => res.json()).then(data => {
-            availableSpells.value = data.spells || data || [];
-            dataState.spells = availableSpells.value;
-            reconcileSettings();
-          }).catch(() => {
-            availableSpells.value = [
-              { id: 'fireball', name_zh: '火球術', level: 3 },
-              { id: 'magic_missile', name_zh: '魔法飛彈', level: 1 }
-            ];
-            dataState.spells = availableSpells.value;
-          });
-          fetch('../data/items.json').then(res => res.json()).then(data => {
-            availableItems.value = data.items || [];
-            dataState.items = availableItems.value;
-            reconcileSettings();
-          }).catch(e => {
-             console.error("無法讀取物品資料", e);
-             availableItems.value = [];
-          });
-          // 載入來源清單 (sources.json) 與種族 (races.json)，供內容來源設定使用
-          fetch('../data/sources.json').then(res => res.json()).then(data => {
-            dataState.sources = data.sources || data || [];
-            reconcileSettings();
-          }).catch(e => { console.error("無法讀取來源資料", e); });
-          fetch('../data/races.json').then(res => res.json()).then(data => {
-            dataState.races = data.races || data || [];
-            reconcileSettings();
-          }).catch(e => { console.error("無法讀取種族資料", e); });
-          fetch('../data/feats.json').then(res => res.json()).then(data => {
-            availableFeats.value = data.feats || data || [];
-            dataState.feats = availableFeats.value;
-            reconcileSettings();
-          }).catch(e => { console.error("無法讀取專長資料", e); availableFeats.value = []; });
           /* TC-A2：載入時輕量初始化 auth —— 收尾 redirect 登入並反映既有登入狀態（不開 RTDB）。
            * fire-and-forget：ensureAuthInit 內部已吞例外並回傳 false，這裡再 .catch 防未捕獲 rejection。 */
           ensureAuthInit().catch(() => {});
@@ -1485,7 +1495,9 @@
             const _rules = Object.assign({ allowPactFamiliar: false }, (_existW && _existW.rules) || {});
             /* 名字優先序：DM 開房帶來的 meta.worldName → 既有本地世界名 → 退回 worldId（舊房相容）。 */
             const _wname = meta.worldName || (_existW && _existW.name) || meta.worldId;
-            STORE.upsertWorld({ worldId: meta.worldId, name: _wname, type: 'dm', roomId: rid, dmId: meta.dmId || null, rules: _rules });
+            /* 規則版本（掛世界層）：DM 開房 meta.ruleVersion → 既有本地世界設定 → 預設 2014。 */
+            const _rver = meta.ruleVersion || (_existW && _existW.ruleVersion) || DEFAULT_RULE_VERSION;
+            STORE.upsertWorld({ worldId: meta.worldId, name: _wname, type: 'dm', roomId: rid, dmId: meta.dmId || null, rules: _rules, ruleVersion: _rver });
             worlds.value = STORE.loadWorlds() || worlds.value;
             if (selectedChar.value && selectedChar.value.id) {
               STORE.bindActiveWorld(selectedChar.value.id, meta.worldId);
@@ -1762,6 +1774,9 @@ sendRoomRequest,
 
           worlds,
           selectedWorldObj,
+          activeRuleVersion,
+          ruleVersionLabel,
+          RULE_VERSIONS,
           LOCAL_WORLD_ID: DEFAULT_WORLD_ID,
           sessionMode,
           sessionModeBadge,

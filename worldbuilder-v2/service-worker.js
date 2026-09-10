@@ -1,5 +1,5 @@
 /* 敘事者之書 DM V2 · Service Worker（獨立快取，勿與舊版/玩家端衝突） */
-const CACHE = 'dnd-dm-v2-v5';
+const CACHE = 'dnd-dm-v2-v6';
 const ASSETS = [
   './',
   './index.html',

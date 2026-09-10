@@ -239,6 +239,13 @@
       var showAddWorld = ref(false);
       var newWorldName = ref("");
       var newWorldNote = ref("");
+      /* 規則版本（掛世界層；Tommy 2026-09-10 定案）：新世界預設 2014，開房時寫入 room meta 傳給玩家。 */
+      var RULE_VERSIONS = [
+        { id: "2014", label: "5e (2014)" },
+        { id: "2024", label: "5.5e (2024)" },
+        { id: "5.5R", label: "5.5R（待定義）" }
+      ];
+      var newWorldRule = ref("2014");
 
       function refreshWorlds() {
         if (!STORE) { worlds.value = []; return; }
@@ -271,7 +278,7 @@
         try {
           /* §6 role 標記：DM v2 自建世界標 role:'dm_owner'（保留既有 type 欄位不破壞）。
              沿用 STORE.upsertWorld / setActiveWorld，透過已注入的 dmv2: adapter，勿繞過隔離。 */
-          STORE.upsertWorld({ id: id, name: name, note: (newWorldNote.value || "").trim(), type: "dm", role: "dm_owner" });
+          STORE.upsertWorld({ id: id, name: name, note: (newWorldNote.value || "").trim(), type: "dm", role: "dm_owner", ruleVersion: (newWorldRule.value || "2014") });
           if (STORE.setActiveWorld) STORE.setActiveWorld(id);
         } catch (e) {
           sharedError.value = "新增世界失敗：" + (e && e.message ? e.message : e);
@@ -279,6 +286,7 @@
         }
         newWorldName.value = "";
         newWorldNote.value = "";
+        newWorldRule.value = "2014";
         showAddWorld.value = false;
         currentTab.value = "landing";
         refreshWorlds();
@@ -288,6 +296,7 @@
         showAddWorld.value = false;
         newWorldName.value = "";
         newWorldNote.value = "";
+        newWorldRule.value = "2014";
       }
 
       /* §9.2 換世界：單步（DM 無角色）。沿用 setActiveWorld，走 dmv2: adapter。 */
@@ -1416,7 +1425,9 @@
           /* 將世界/任務/紀元「名稱」一併寫入 meta，玩家端進房後才能顯示友善名字而非 worldId */
           worldName: (activeWorld.value && activeWorld.value.name) || "",
           questName: entityNameById(sessionQuestId.value || ""),
-          eraName: eraNameById(currentEraId.value || "")
+          eraName: eraNameById(currentEraId.value || ""),
+          /* 規則版本（掛世界層）：玩家端出團時依此載入對應資料集。 */
+          ruleVersion: (activeWorld.value && activeWorld.value.ruleVersion) || "2014"
         };
         /* dmId 決策：若已 Google 登入 → 以該 uid 當 dmId（跨裝置一致、可接回自己的房）；
          * 未登入則維持既有匿名流程（signInAnon）。不破壞 rooms/* 契約與開房行為。 */
@@ -1591,6 +1602,8 @@
         openAddWorld: openAddWorld,
         newWorldName: newWorldName,
         newWorldNote: newWorldNote,
+        newWorldRule: newWorldRule,
+        RULE_VERSIONS: RULE_VERSIONS,
         addWorld: addWorld,
         cancelAddWorld: cancelAddWorld,
         switchWorld: switchWorld,

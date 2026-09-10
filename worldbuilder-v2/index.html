@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="敘事者之書 DM">
-  <script>window.APP_ID='narrator';window.APP_VERSION='v2.6.4 · Build 0806.5';</script>
+  <script>window.APP_ID='narrator';window.APP_VERSION='v2.6.5 · Build 0910.2';</script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-5HRH4CH1N7"></script>
   <script>
     window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
@@ -913,6 +913,12 @@
           <input v-model="newWorldNote" type="text" placeholder="一句話描述這個世界…"
                  class="w-full px-3 py-2 rounded-lg border mb-3 text-base"
                  style="border-color:var(--border);">
+          <label class="block text-xs mb-1" style="color:var(--text-muted);">規則版本（掛世界，玩家出團時依此載入）</label>
+          <select v-model="newWorldRule"
+                  class="w-full px-3 py-2 rounded-lg border mb-3 text-base"
+                  style="border-color:var(--border);">
+            <option v-for="rv in RULE_VERSIONS" :key="rv.id" :value="rv.id">{{ rv.label }}</option>
+          </select>
           <div class="flex gap-2">
             <button class="icon-btn icon-btn-primary icon-btn-block" @click="addWorld">
               <span class="ib-icon">✅</span><span>建立</span>

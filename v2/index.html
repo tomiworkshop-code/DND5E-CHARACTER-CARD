@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="冒險者之書">
-  <script>window.APP_ID='adventurer';window.APP_VERSION='v2.4.2 · Build 0910.1';</script>
+  <script>window.APP_ID='adventurer';window.APP_VERSION='v2.5.0 · Build 0910.2';</script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-5HRH4CH1N7"></script>
   <script>
     window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
@@ -234,7 +234,7 @@
           </div>
         </nav>
         <div class="p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          v2.4.2 · Build 0910.1
+          v2.5.0 · Build 0910.2
         </div>
       </div>
     </transition>
@@ -1591,6 +1591,8 @@
                 <span v-if="selectedChar" :class="['px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1', sessionModeBadge.cls]" :title="'目前模式：' + sessionModeBadge.label">
                   <span>{{ sessionModeBadge.icon }}</span><span>{{ sessionModeBadge.label }}</span>
                 </span>
+                <!-- 規則版本徽章（掛世界層，出團時依此載入對應資料集） -->
+                <span class="px-2 py-0.5 rounded text-[11px] bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold" :title="'規則版本（屬於世界）：' + ruleVersionLabel(activeRuleVersion)">📐 {{ ruleVersionLabel(activeRuleVersion) }}</span>
               </h2>
               <div class="flex items-center gap-2">
                 <div v-if="selectedWorldObj.type === 'local' || selectedWorldKey === LOCAL_WORLD_ID">
