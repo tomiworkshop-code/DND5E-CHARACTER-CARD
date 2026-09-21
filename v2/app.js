@@ -750,6 +750,183 @@
           c.conditions[name] = !c.conditions[name];
         };
 
+        /* ===== ⚡ 職業資源與技能引擎整合 ===== */
+        const syncClassResources = (char) => {
+          if (!char) return;
+          if (!Array.isArray(char.resources)) {
+            char.resources = [];
+          }
+
+          const getEngine = () => {
+            if (typeof deriveClassResources === 'function') return deriveClassResources;
+            if (typeof window !== 'undefined' && window.deriveClassResources) return window.deriveClassResources;
+            if (typeof window !== 'undefined' && window.DND5E_CLASS_RESOURCE_ENGINE?.deriveClassResources) {
+              return window.DND5E_CLASS_RESOURCE_ENGINE.deriveClassResources;
+            }
+            return null;
+          };
+
+          const engine = getEngine();
+          if (!engine) return;
+
+          let derived = [];
+          try {
+            derived = engine(char) || [];
+          } catch (e) {
+            console.warn('deriveClassResources failed:', e);
+            return;
+          }
+
+          if (!derived || !derived.length) return;
+
+          derived.forEach(dRes => {
+            const existing = char.resources.find(r => r.id === dRes.id || (r.classKey === dRes.classKey && r.label === dRes.label));
+            if (!existing) {
+              // 補充未存在的職業預設資源
+              char.resources.push({ ...dRes });
+            } else {
+              // 既有資源：同步規則屬性（max, reset, kind, diceValue, note 等），不蓋掉玩家已使用的 current
+              if (!existing.id) existing.id = dRes.id;
+              existing.classKey = dRes.classKey;
+              existing.className = dRes.className;
+              if (dRes.subclassKey) existing.subclassKey = dRes.subclassKey;
+              if (dRes.subclassName) existing.subclassName = dRes.subclassName;
+              existing.max = dRes.max;
+              existing.reset = dRes.reset;
+              existing.kind = dRes.kind;
+              existing.diceValue = dRes.diceValue;
+              existing.note = dRes.note;
+              if (existing.current === undefined || existing.current === null) {
+                existing.current = dRes.current;
+              }
+            }
+          });
+        };
+
+        watch(selectedChar, (newChar) => {
+          if (newChar) {
+            syncClassResources(newChar);
+          }
+        }, { immediate: true, deep: true });
+
+        const nudgeResource = (res, delta) => {
+          if (!res) return;
+          const cur = Number(res.current) || 0;
+          const max = (res.max !== undefined && res.max !== null && res.max !== '') ? Number(res.max) : 999;
+          let next = cur + delta;
+          if (next < 0) next = 0;
+          if (max > 0 && next > max) next = max;
+          res.current = next;
+        };
+
+        const rollResourceDice = (res) => {
+          if (!res) return;
+          if (res.kind === 'dice' && res.diceValue) {
+            const result = rollExpr(res.diceValue);
+            if (result) {
+              const name = (selectedChar.value && selectedChar.value.name) || '角色';
+              alert(`🎲 ${name} 點擊「${res.label}」擲骰 (${res.diceValue})：\n總計: ${result.total}\n詳情: ${result.formula}`);
+            }
+          } else {
+            alert(`「${res.label}」非骰子型資源或未設定骰式`);
+          }
+        };
+
+        const restResetResources = (type) => {
+          const c = selectedChar.value;
+          if (!c || !Array.isArray(c.resources)) return;
+          let count = 0;
+          c.resources.forEach(res => {
+            if (type === 'short' && res.reset === 'short') {
+              res.current = res.max;
+              count++;
+            } else if (type === 'long' && (res.reset === 'short' || res.reset === 'long')) {
+              res.current = res.max;
+              count++;
+            }
+          });
+          const label = type === 'short' ? '短休' : '長休';
+          pushWorldLog(`☕ ${c.name || '冒險者'} 完成${label}，已重置 ${count} 項職業資源`, 'log');
+        };
+
+        const isAddingResource = ref(false);
+        const customResourceForm = ref({
+          label: '',
+          max: 1,
+          reset: 'short',
+          kind: 'counter',
+          diceValue: '',
+          note: ''
+        });
+
+        const addCustomResource = () => {
+          const c = selectedChar.value;
+          if (!c) return;
+          if (!Array.isArray(c.resources)) c.resources = [];
+          const label = (customResourceForm.value.label || '').trim();
+          if (!label) {
+            alert('請輸入資源名稱');
+            return;
+          }
+          const maxVal = Number(customResourceForm.value.max) || 1;
+          c.resources.push({
+            id: 'custom_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            label: label,
+            current: maxVal,
+            max: maxVal,
+            reset: customResourceForm.value.reset || 'short',
+            kind: customResourceForm.value.kind || 'counter',
+            diceValue: customResourceForm.value.diceValue || '',
+            note: customResourceForm.value.note || '',
+            custom: true
+          });
+          customResourceForm.value = { label: '', max: 1, reset: 'short', kind: 'counter', diceValue: '', note: '' };
+          isAddingResource.value = false;
+        };
+
+        const removeResource = (idx) => {
+          const c = selectedChar.value;
+          if (c && Array.isArray(c.resources)) {
+            c.resources.splice(idx, 1);
+          }
+        };
+
+        const getResourceBadge = (res) => {
+          if (!res) return '';
+          if (res.custom) return '[自訂]';
+          let clsName = res.className;
+          let subName = res.subclassName;
+
+          if (clsName && !subName && selectedChar.value && Array.isArray(selectedChar.value.classes)) {
+            const clsObj = selectedChar.value.classes.find(c => {
+              const def = (coreRules.CLASSES || []).find(k => k.name_en === (c?.name_en || c?.name));
+              const zhName = def ? def.name_zh : (c?.name_zh || c?.name_en || c?.name);
+              return zhName === clsName || (c.name_en && c.name_en.toLowerCase() === (res.classKey || '').toLowerCase());
+            });
+            if (clsObj) {
+              const def = (coreRules.CLASSES || []).find(k => k.name_en === (clsObj?.name_en || clsObj?.name));
+              let sc = null;
+              if (def && def.subclasses && clsObj.subclass) {
+                sc = def.subclasses.find(x => x?.name_en === clsObj.subclass || x?.name_zh === clsObj.subclass);
+              }
+              const scName = sc ? sc.name_zh : (clsObj.subclass_zh || clsObj.subclass || clsObj.subclass_en || '');
+              if (scName) {
+                subName = scName;
+              }
+            }
+          }
+
+          if (clsName && subName) return `[${clsName} - ${subName}]`;
+          if (clsName) return `[${clsName}]`;
+          return '[職業]';
+        };
+
+        const getResetLabel = (reset) => {
+          if (reset === 'short') return '短休';
+          if (reset === 'long') return '長休';
+          return '無';
+        };
+
         watch([isEditMode, activeModule, selectedChar, () => coreRules.SKILLS], ([edit, mod, char, rulesSkills]) => {
           if (mod === 'skills' && char) {
             if (!char.skills) char.skills = {};
@@ -1775,6 +1952,17 @@
           applyHp,
           applyHpFromDice,
           applyHpManual,
+          /* ⚡ 職業資源與技能整合 */
+          syncClassResources,
+          nudgeResource,
+          rollResourceDice,
+          restResetResources,
+          isAddingResource,
+          customResourceForm,
+          addCustomResource,
+          removeResource,
+          getResourceBadge,
+          getResetLabel,
           familiarImportCtx,
           familiarPresetGroups,
           familiarImport,
